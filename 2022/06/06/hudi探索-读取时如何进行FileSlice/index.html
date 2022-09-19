@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="hudi," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="hudi探索–读取时如何进行FileSlice在看hudi的小文件合并的时候，突然对于hudi的读取过程有些模糊，然后重温了一遍，把这块的细节记录一下。 概念FileGrouppartition + fileId &#x3D; FileGroup FileSlice一个commit timestamp 就是一个FileSlice metadata元数据这部分，是存储在.hoodie下，然后 在fsView的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hudi探索--读取时如何进行FileSlice">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/06/hudi%E6%8E%A2%E7%B4%A2-%E8%AF%BB%E5%8F%96%E6%97%B6%E5%A6%82%E4%BD%95%E8%BF%9B%E8%A1%8CFileSlice/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="hudi探索–读取时如何进行FileSlice在看hudi的小文件合并的时候，突然对于hudi的读取过程有些模糊，然后重温了一遍，把这块的细节记录一下。 概念FileGrouppartition + fileId &#x3D; FileGroup FileSlice一个commit timestamp 就是一个FileSlice metadata元数据这部分，是存储在.hoodie下，然后 在fsView的">
+<meta property="og:image" content="https://github.com/images/HoodieTableMetaClient_uml.png">
+<meta property="article:published_time" content="2022-06-06T04:02:29.000Z">
+<meta property="article:modified_time" content="2022-06-14T13:17:30.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="hudi">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/HoodieTableMetaClient_uml.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/06/hudi探索-读取时如何进行FileSlice/"/>
+
+
+
+
+
+  <title>hudi探索--读取时如何进行FileSlice | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/06/hudi%E6%8E%A2%E7%B4%A2-%E8%AF%BB%E5%8F%96%E6%97%B6%E5%A6%82%E4%BD%95%E8%BF%9B%E8%A1%8CFileSlice/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">hudi探索--读取时如何进行FileSlice</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-06T12:02:29+08:00">
+                2022-06-06
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="hudi探索–读取时如何进行FileSlice"><a href="#hudi探索–读取时如何进行FileSlice" class="headerlink" title="hudi探索–读取时如何进行FileSlice"></a>hudi探索–读取时如何进行FileSlice</h1><p>在看hudi的小文件合并的时候，突然对于hudi的读取过程有些模糊，然后重温了一遍，把这块的细节记录一下。</p>
+<h2 id="概念"><a href="#概念" class="headerlink" title="概念"></a>概念</h2><h3 id="FileGroup"><a href="#FileGroup" class="headerlink" title="FileGroup"></a>FileGroup</h3><p>partition + fileId = FileGroup</p>
+<h3 id="FileSlice"><a href="#FileSlice" class="headerlink" title="FileSlice"></a>FileSlice</h3><p>一个commit timestamp 就是一个FileSlice</p>
+<h3 id="metadata"><a href="#metadata" class="headerlink" title="metadata"></a>metadata</h3><p>元数据这部分，是存储在.hoodie下，然后 在fsView的构建，会构建出基于FileGroup的视图。</p>
+<h3 id="HoodieTableFileSystemView"><a href="#HoodieTableFileSystemView" class="headerlink" title="HoodieTableFileSystemView"></a>HoodieTableFileSystemView</h3><p>数据构建的视图，这里主要是基于文件系统去获取文件列表，然后基于文件列表，抽取文件名称中的fileId和timestamp，就可以构建FileGroup。</p>
+<h2 id="读取过程"><a href="#读取过程" class="headerlink" title="读取过程"></a>读取过程</h2><p>这里以flink读取hudi数据源为例。</p>
+<p>在读取数据的时候，会按照split进行数据的粒度进行读取。而一个split就是一个fileslice。所以这里的问题就转化为 hudi 是如何划分 split 的。</p>
+<h3 id="初始化metaClient"><a href="#初始化metaClient" class="headerlink" title="初始化metaClient"></a>初始化metaClient</h3><p>在 HoodieTableSource 中的 初始化的时候，就会构建出一个 metaClient，主要实现类是 HoodieTableMetaClient。</p>
+<p><img src="/images/HoodieTableMetaClient_uml.png" alt=""></p>
+<p>从他提供的api可以看出，有一个很重要的方法就是 getActiveTimeline()。</p>
+<p>他初始化了  HoodieActiveTimeline ，这个类就是时间线的主要实现，他继承了HoodieDefaultTimeline。所有跟timeline相关的操作都是来自于这个类和他的父类。类里边都定义了事务的状态、timestamp的生成等等。</p>
+<blockquote>
+<p>HoodieActiveTimeline的注释：</p>
+<p>Represents the Active Timeline for the Hoodie table. Instants for the last 12 hours (configurable) is in the ActiveTimeline and the rest are Archived. ActiveTimeline is a special timeline that allows for creation of instants on the timeline.</p>
+<p>ActiveTimeline中包含最近12小时(可配置)的即时消息，其余的则存档。ActiveTimeline是一个特殊的时间轴，允许在时间轴上创建瞬间。</p>
+<p>The timeline is not automatically reloaded on any mutation operation, clients have to manually call reload() so that they can chain multiple mutations to the timeline and then call reload() once.</p>
+<p>ActiveTimeline 必须调用reload，才能用到当前最新的数据。</p>
+<p>This class can be serialized and de-serialized and on de-serialization the FileSystem is re-initialized.</p>
+<p>这个类可以序列化和反序列化，在反序列化时重新初始化文件系统。</p>
+</blockquote>
+<p>HoodieDefaultTimeline 基于接口 HoodieTimeline 的默认实现。但是基于场景需要不同的timeline的用途，也就有了不同类型的实现。</p>
+<p>metaClient初始化的时候会把文件系统的句柄也初始化进去。而这个fileSystemView的创建会初始化 AbstractTableFileSystemView， 会形成一个 globalViewMap ， key是表的基础路径，value就是 AbstractTableFileSystemView。</p>
+<p>这个view的创建是在 FileSystemViewManager 进行的，默认创建是 MEMORY 类型的view。这里创建使用的是 HoodieTableFileSystemView 。</p>
+<blockquote>
+<p>这个视图还有一个类型就是 IncrementalTimelineSyncFileSystemView，视图数据在内存里之后，就不会再次去全量获取，而是可以通过增量的方式。可以按照分区来更新。</p>
+</blockquote>
+<p>timeline是后续instant的流转的核心逻辑所在。所以在metaClient里会有一个他的实例。</p>
+<p>metaClient在初始化的时候，就会把内存化的view初始化完成，并载入。</p>
+<p>因为会涉及到具体文件系统里的数据，所以也会有对应的fs入口类的初始化。</p>
+<p>在 AbstractTableFileSystemView 的 init方法中，</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">init</span><span class="params">(HoodieTableMetaClient metaClient, HoodieTimeline visibleActiveTimeline)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>.metaClient = metaClient;</span><br><span class="line">    refreshTimeline(visibleActiveTimeline);</span><br><span class="line">    resetFileGroupsReplaced(visibleCommitsAndCompactionTimeline);</span><br><span class="line">    <span class="keyword">this</span>.bootstrapIndex =  BootstrapIndex.getBootstrapIndex(metaClient);</span><br><span class="line">    <span class="comment">// Load Pending Compaction Operations</span></span><br><span class="line">    resetPendingCompactionOperations(CompactionUtils.getAllPendingCompactionOperations(metaClient).values().stream()</span><br><span class="line">        .map(e -&gt; Pair.of(e.getKey(), CompactionOperation.convertFromAvroRecordInstance(e.getValue()))));</span><br><span class="line">    resetBootstrapBaseFileMapping(Stream.empty());</span><br><span class="line">    resetFileGroupsInPendingClustering(ClusteringUtils.getAllFileGroupsInPendingClusteringPlans(metaClient));</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里会看到很多reset，都是内存里一次载入，文件系统里的存储是都从线上落盘进来的。</p>
+<p>HoodieActiveTimeline 的初始化，主要是根据.hoodie目录下的文件来的：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">this</span>.setInstants(metaClient.scanHoodieInstantsFromFileSystem(includedExtensions, applyLayoutFilters));</span><br></pre></td></tr></table></figure>
+
+<p>这个 scanHoodieInstantsFromFileSystem 就是在遍历.hoodie 目录。把里边的每个文件都根据标识进行划分，他的命名：{timestamp}.{action}.{state}</p>
+<p>根据这三个信息就可以生成一个 HoodieInstant 。</p>
+<p>生成这样的一个HoodieInstant stream之后，还需要按照layout的实现来进行聚合去重，目前在v1中的实现如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> Stream&lt;HoodieInstant&gt; <span class="title">filterHoodieInstants</span><span class="params">(Stream&lt;HoodieInstant&gt; instantStream)</span> </span>&#123;</span><br><span class="line">      <span class="keyword">return</span> instantStream.collect(Collectors.groupingBy(instant -&gt; Pair.of(instant.getTimestamp(),</span><br><span class="line">          HoodieInstant.getComparableAction(instant.getAction())))).values().stream()</span><br><span class="line">          .map(hoodieInstants -&gt; hoodieInstants.stream().reduce((x, y) -&gt; &#123;</span><br><span class="line">            <span class="comment">// Pick the one with the highest state</span></span><br><span class="line">            <span class="keyword">if</span> (x.getState().compareTo(y.getState()) &gt;= <span class="number">0</span>) &#123;</span><br><span class="line">              <span class="keyword">return</span> x;</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">return</span> y;</span><br><span class="line">          &#125;).get());</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>同一个timestamp会进行聚合，然后进行比较去重，这里reduce的策略是按照state的大小来比较，因为state本身就是以枚举类型存在，本身底层就是一个整数，所以是可以进行大小比较的，在代码编写的时候，对应的顺序就决定了大小。目前代码里是这个顺序：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">enum</span> State &#123;</span><br><span class="line">   <span class="comment">// Requested State (valid state for Compaction)</span></span><br><span class="line">   REQUESTED,</span><br><span class="line">   <span class="comment">// Inflight instant</span></span><br><span class="line">   INFLIGHT,</span><br><span class="line">   <span class="comment">// Committed instant</span></span><br><span class="line">   COMPLETED,</span><br><span class="line">   <span class="comment">// Invalid instant</span></span><br><span class="line">   INVALID</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
+
+<p>后续的数据获取都会围绕这个hoodie instant的 stream 进行数据的获取。</p>
+<h3 id="FileGroup的形成"><a href="#FileGroup的形成" class="headerlink" title="FileGroup的形成"></a>FileGroup的形成</h3><p>在读取数据的时候（flink这里，主要是通过IncrementalInputSplits获取split），拿到了metaClient，里边包含了 timeline 和 fs，下边一步就是确认数据边界，也就是我们要从数据源获取哪些instant的数据。</p>
+<ul>
+<li><p>首先reloadActiveTimeline</p>
+</li>
+<li><p>获取commitTimeline</p>
+</li>
+<li><p>获取 instants Range：根据上边commitTimeline获取最后一个instant ，然后确认一下开始的instant（如果从state有读取到，那就按照state里的，如果没有读取到，那就按照表设置里的，如果表设置里也没有，那就是从0开始）。</p>
+</li>
+<li><p>根据 instant range 去获取metadata，组织成 HoodieCommitMetadata 的stream。</p>
+<ul>
+<li><p>获取需要的instant</p>
+</li>
+<li><p>根据instant获取metadata，这块的代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> HoodieCommitMetadata <span class="title">getCommitMetadata</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">      HoodieInstant instant,</span></span></span><br><span class="line"><span class="function"><span class="params">      HoodieTimeline timeline)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">    <span class="keyword">byte</span>[] data = timeline.getInstantDetails(instant).get();</span><br><span class="line">    <span class="keyword">return</span> HoodieCommitMetadata.fromBytes(data, HoodieCommitMetadata<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<pre><code>这里的 getInstantDetails  就是调用的ActiveTimeline初始化的时候的那个detail function。代码如下：</code></pre></li>
+</ul>
+</li>
+</ul>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Option&lt;<span class="keyword">byte</span>[]&gt; getInstantDetails(HoodieInstant instant) &#123;</span><br><span class="line">    Path detailPath = <span class="keyword">new</span> Path(metaClient.getMetaPath(), instant.getFileName());</span><br><span class="line">    <span class="keyword">return</span> readDataFromPath(detailPath);</span><br><span class="line">  &#125;</span><br><span class="line"><span class="keyword">private</span> Option&lt;<span class="keyword">byte</span>[]&gt; readDataFromPath(Path detailPath) &#123;</span><br><span class="line">    <span class="keyword">try</span> (FSDataInputStream is = metaClient.getFs().open(detailPath)) &#123;</span><br><span class="line">      <span class="keyword">return</span> Option.of(FileIOUtils.readAsByteArray(is));</span><br><span class="line">    &#125; <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> HoodieIOException(<span class="string">"Could not read commit details from "</span> + detailPath, e);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>主要实现就是根据instant，也就知道了对应的文件，也就可以拿到里边存储的metadata。</p>
+<p>接着上边的获取metadata流程之后，就要获取filestatus。这一步里也要读取getArchivedMetadata ， 在.hoodie目录下的文件，主要是action对应的文件，会根据一定的策略进行归档，比如时间，默认是保留12小时以内的instant，超过12小时以前的都会被归档到 .archived 目录下。getArchivedMetadata会根据instant range进行过滤。</p>
+<p>如果归档目录下也有需要的instant metadata，就需要跟已有的instant metadata ，进行merge。merge完之后的 commit meta list就是总的 数据获取的范围。</p>
+<blockquote>
+<p>根据以上信息获取到的数据，就可以圈定我们需要从哪些文件获取哪些数据</p>
+</blockquote>
+<p>然后，可以根据这些元数据，拿到分区数据。这里有个小小的优化，就是分区下推，把范围按照分区尽量缩小。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (<span class="keyword">this</span>.requiredPartitions != <span class="keyword">null</span>) &#123;</span><br><span class="line">        writePartitions = writePartitions.stream()</span><br><span class="line">            .filter(<span class="keyword">this</span>.requiredPartitions::contains).collect(Collectors.toSet());</span><br><span class="line">      &#125;</span><br></pre></td></tr></table></figure>
+
+<p>表越大，这个优化越管用，而且可以在上游根据数据的分区去并行获取数据，也就可以在获取数据的时候去按照这个下推下去，这样也就效率更高。</p>
+<blockquote>
+<p>hudi本身的数据是分区不相关的，也就划了个并行的道道。</p>
+</blockquote>
+<p>然后就是构建 fileStatuses ，这个就是遍历 metadataList 得来的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> Map&lt;String, FileStatus&gt; <span class="title">getFullPathToFileStatus</span><span class="params">(String basePath)</span> </span>&#123;</span><br><span class="line">    Map&lt;String, FileStatus&gt; fullPathToFileStatus = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line">    <span class="keyword">for</span> (List&lt;HoodieWriteStat&gt; stats : getPartitionToWriteStats().values()) &#123;</span><br><span class="line">      <span class="comment">// Iterate through all the written files.</span></span><br><span class="line">      <span class="keyword">for</span> (HoodieWriteStat stat : stats) &#123;</span><br><span class="line">        String relativeFilePath = stat.getPath();</span><br><span class="line">        Path fullPath = relativeFilePath != <span class="keyword">null</span> ? FSUtils.getPartitionPath(basePath, relativeFilePath) : <span class="keyword">null</span>;</span><br><span class="line">        <span class="keyword">if</span> (fullPath != <span class="keyword">null</span>) &#123;</span><br><span class="line">          FileStatus fileStatus = <span class="keyword">new</span> FileStatus(stat.getFileSizeInBytes(), <span class="keyword">false</span>, <span class="number">0</span>, <span class="number">0</span>,</span><br><span class="line">              <span class="number">0</span>, fullPath);</span><br><span class="line">          fullPathToFileStatus.put(fullPath.getName(), fileStatus);</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> fullPathToFileStatus;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里也比较简单直接一些，FileStatus就是包含了文件大小和路径的一个对象，这个对象是hadoop 包里的。</p>
+<p>获取完fileStatus ， 然后就是初始化一个 HoodieTableFileSystemView 的对象。这个对象初始化主要如下：</p>
+<ul>
+<li><p>createPartitionToFileGroups</p>
+</li>
+<li><p>addFilesToView 这个方法比较重要，这个是组织文件，形成FileGroup 的视图的主要入口。</p>
+</li>
+</ul>
+<p>下边我们着重分析一下FileGroup的形成：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> List&lt;HoodieFileGroup&gt; <span class="title">addFilesToView</span><span class="params">(FileStatus[] statuses)</span> </span>&#123;</span><br><span class="line">    HoodieTimer timer = <span class="keyword">new</span> HoodieTimer().startTimer();</span><br><span class="line">    List&lt;HoodieFileGroup&gt; fileGroups = buildFileGroups(statuses, visibleCommitsAndCompactionTimeline, <span class="keyword">true</span>);</span><br><span class="line">    <span class="keyword">long</span> fgBuildTimeTakenMs = timer.endTimer();</span><br><span class="line">    timer.startTimer();</span><br><span class="line">    <span class="comment">// Group by partition for efficient updates for both InMemory and DiskBased stuctures.</span></span><br><span class="line">    fileGroups.stream().collect(Collectors.groupingBy(HoodieFileGroup::getPartitionPath)).forEach((partition, value) -&gt; &#123;</span><br><span class="line">      <span class="keyword">if</span> (!isPartitionAvailableInStore(partition)) &#123;</span><br><span class="line">        <span class="keyword">if</span> (bootstrapIndex.useIndex()) &#123;</span><br><span class="line">          <span class="keyword">try</span> (BootstrapIndex.IndexReader reader = bootstrapIndex.createReader()) &#123;</span><br><span class="line">            LOG.info(<span class="string">"Bootstrap Index available for partition "</span> + partition);</span><br><span class="line">            List&lt;BootstrapFileMapping&gt; sourceFileMappings =</span><br><span class="line">                reader.getSourceFileMappingForPartition(partition);</span><br><span class="line">            addBootstrapBaseFileMapping(sourceFileMappings.stream()</span><br><span class="line">                .map(s -&gt; <span class="keyword">new</span> BootstrapBaseFileMapping(<span class="keyword">new</span> HoodieFileGroupId(s.getPartitionPath(),</span><br><span class="line">                    s.getFileId()), s.getBootstrapFileStatus())));</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        storePartitionView(partition, value);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;);</span><br><span class="line">    <span class="keyword">long</span> storePartitionsTs = timer.endTimer();</span><br><span class="line">    LOG.info(<span class="string">"addFilesToView: NumFiles="</span> + statuses.length + <span class="string">", NumFileGroups="</span> + fileGroups.size()</span><br><span class="line">        + <span class="string">", FileGroupsCreationTime="</span> + fgBuildTimeTakenMs</span><br><span class="line">        + <span class="string">", StoreTimeTaken="</span> + storePartitionsTs);</span><br><span class="line">    <span class="keyword">return</span> fileGroups;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个方法的主要思路：先根据fileStatus去构建一个List<HoodieFileGroup>，然后按照partitionpath聚合，然后添加到一个 基于 partition到List<fileGroup>的map视图中。</p>
+<p>这里的一个关键方法就是 buildFileGroups ，我们看一下他的实现：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> List&lt;HoodieFileGroup&gt; <span class="title">buildFileGroups</span><span class="params">(Stream&lt;HoodieBaseFile&gt; baseFileStream,</span></span></span><br><span class="line"><span class="function"><span class="params">      Stream&lt;HoodieLogFile&gt; logFileStream, HoodieTimeline timeline, <span class="keyword">boolean</span> addPendingCompactionFileSlice)</span> </span>&#123;</span><br><span class="line">    Map&lt;Pair&lt;String, String&gt;, List&lt;HoodieBaseFile&gt;&gt; baseFiles =</span><br><span class="line">        baseFileStream.collect(Collectors.groupingBy((baseFile) -&gt; &#123;</span><br><span class="line">          String partitionPathStr = getPartitionPathFromFilePath(baseFile.getPath());</span><br><span class="line">          <span class="keyword">return</span> Pair.of(partitionPathStr, baseFile.getFileId());</span><br><span class="line">        &#125;));</span><br><span class="line"></span><br><span class="line">    Map&lt;Pair&lt;String, String&gt;, List&lt;HoodieLogFile&gt;&gt; logFiles = logFileStream.collect(Collectors.groupingBy((logFile) -&gt; &#123;</span><br><span class="line">      String partitionPathStr =</span><br><span class="line">          FSUtils.getRelativePartitionPath(<span class="keyword">new</span> Path(metaClient.getBasePath()), logFile.getPath().getParent());</span><br><span class="line">      <span class="keyword">return</span> Pair.of(partitionPathStr, logFile.getFileId());</span><br><span class="line">    &#125;));</span><br><span class="line"></span><br><span class="line">    Set&lt;Pair&lt;String, String&gt;&gt; fileIdSet = <span class="keyword">new</span> HashSet&lt;&gt;(baseFiles.keySet());</span><br><span class="line">    fileIdSet.addAll(logFiles.keySet());</span><br><span class="line"></span><br><span class="line">    List&lt;HoodieFileGroup&gt; fileGroups = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">    fileIdSet.forEach(pair -&gt; &#123;</span><br><span class="line">      String fileId = pair.getValue();</span><br><span class="line">      HoodieFileGroup group = <span class="keyword">new</span> HoodieFileGroup(pair.getKey(), fileId, timeline);</span><br><span class="line">      <span class="keyword">if</span> (baseFiles.containsKey(pair)) &#123;</span><br><span class="line">        baseFiles.get(pair).forEach(group::addBaseFile);</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">if</span> (logFiles.containsKey(pair)) &#123;</span><br><span class="line">        logFiles.get(pair).forEach(group::addLogFile);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (addPendingCompactionFileSlice) &#123;</span><br><span class="line">        Option&lt;Pair&lt;String, CompactionOperation&gt;&gt; pendingCompaction =</span><br><span class="line">            getPendingCompactionOperationWithInstant(group.getFileGroupId());</span><br><span class="line">        <span class="keyword">if</span> (pendingCompaction.isPresent()) &#123;</span><br><span class="line">          <span class="comment">// If there is no delta-commit after compaction request, this step would ensure a new file-slice appears</span></span><br><span class="line">          <span class="comment">// so that any new ingestion uses the correct base-instant</span></span><br><span class="line">          group.addNewFileSliceAtInstant(pendingCompaction.get().getKey());</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      fileGroups.add(group);</span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> fileGroups;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>主要步骤如下：</p>
+<p>1、先按照partitionpath + fileid 为 key的map，value是List<HoodieBaseFile></p>
+<p>2、先按照partitionpath + fileid 为 key的map，value是List<HoodieLogFile></p>
+<p>3、整合上边两部分的key，逐个元素生成 HoodieFileGroup，fileGroup的组成主要就是partitionpath  和 fileId，然后看上边两个map的元素，逐个添加到当前新生成的FileGroup里。</p>
+<p>4、FileGroup的生成，在往里边添加文件的时候，会形成FileSlice。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">addBaseFile</span><span class="params">(HoodieBaseFile dataFile)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (!fileSlices.containsKey(dataFile.getCommitTime())) &#123;</span><br><span class="line">      fileSlices.put(dataFile.getCommitTime(), <span class="keyword">new</span> FileSlice(fileGroupId, dataFile.getCommitTime()));</span><br><span class="line">    &#125;</span><br><span class="line">    fileSlices.get(dataFile.getCommitTime()).setBaseFile(dataFile);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Add a new log file into the group.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">addLogFile</span><span class="params">(HoodieLogFile logFile)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (!fileSlices.containsKey(logFile.getBaseCommitTime())) &#123;</span><br><span class="line">      fileSlices.put(logFile.getBaseCommitTime(), <span class="keyword">new</span> FileSlice(fileGroupId, logFile.getBaseCommitTime()));</span><br><span class="line">    &#125;</span><br><span class="line">    fileSlices.get(logFile.getBaseCommitTime()).addLogFile(logFile);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>FileSlice 的生成是 fileGroupId 和 timestamp。然后添加对应的文件。</p>
+<p>以上就完成了FileGroup的初始化。</p>
+<h3 id="获取数据"><a href="#获取数据" class="headerlink" title="获取数据"></a>获取数据</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">List&lt;MergeOnReadInputSplit&gt; inputSplits = writePartitions.stream()</span><br><span class="line">        .map(relPartitionPath -&gt; fsView.getLatestMergedFileSlicesBeforeOrOn(relPartitionPath, endInstant)</span><br><span class="line">            .map(fileSlice -&gt; &#123;</span><br><span class="line">              Option&lt;List&lt;String&gt;&gt; logPaths = Option.ofNullable(fileSlice.getLogFiles()</span><br><span class="line">                  .sorted(HoodieLogFile.getLogFileComparator())</span><br><span class="line">                  .map(logFile -&gt; logFile.getPath().toString())</span><br><span class="line">                  .collect(Collectors.toList()));</span><br><span class="line">              String basePath = fileSlice.getBaseFile().map(BaseFile::getPath).orElse(<span class="keyword">null</span>);</span><br><span class="line">              <span class="keyword">return</span> <span class="keyword">new</span> MergeOnReadInputSplit(cnt.getAndAdd(<span class="number">1</span>),</span><br><span class="line">                  basePath, logPaths, endInstant,</span><br><span class="line">                  metaClient.getBasePath(), maxCompactionMemoryInBytes, mergeType, instantRange);</span><br><span class="line">            &#125;).collect(Collectors.toList()))</span><br><span class="line">        .flatMap(Collection::stream)</span><br><span class="line">        .collect(Collectors.toList());</span><br></pre></td></tr></table></figure>
+
+<p>这是flink中读取hudi数据划分split的核心部分。</p>
+<p>主要思路就是按照分区去遍历，然后在每个分区下，获取fileSlice，构建一个MergeOnReadInputSplit。</p>
+<p>getLatestMergedFileSlicesBeforeOrOn 方法 会规整每个FileGroup下的FileSlice，代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">final</span> Stream&lt;FileSlice&gt; <span class="title">getLatestMergedFileSlicesBeforeOrOn</span><span class="params">(String partitionStr, String maxInstantTime)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      readLock.lock();</span><br><span class="line">      String partition = formatPartitionKey(partitionStr);</span><br><span class="line">      ensurePartitionLoadedCorrectly(partition);</span><br><span class="line">      <span class="keyword">return</span> fetchAllStoredFileGroups(partition)</span><br><span class="line">          .filter(fg -&gt; !isFileGroupReplacedBeforeOrOn(fg.getFileGroupId(), maxInstantTime))</span><br><span class="line">          .map(fileGroup -&gt; &#123;</span><br><span class="line">            Option&lt;FileSlice&gt; fileSlice = fileGroup.getLatestFileSliceBeforeOrOn(maxInstantTime);</span><br><span class="line">            <span class="comment">// if the file-group is under construction, pick the latest before compaction instant time.</span></span><br><span class="line">            <span class="keyword">if</span> (fileSlice.isPresent()) &#123;</span><br><span class="line">              fileSlice = Option.of(fetchMergedFileSlice(fileGroup, fileSlice.get()));</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">return</span> fileSlice;</span><br><span class="line">          &#125;).filter(Option::isPresent).map(Option::get).map(<span class="keyword">this</span>::addBootstrapBaseFileIfPresent);</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">      readLock.unlock();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>getLatestFileSliceBeforeOrOn 方法会返回他下边的所有的flieSlice的第一个。</p>
+<p>因为元素本身就是排序的，是按照时间倒序的，所以默认就取了最新timestamp的数据。</p>
+<p>一个 MergeOnReadInputSplit 数据就是一个FileSlice的数据。</p>
+<p>在往外输出的时候，是通过 mergeOnReadInputFormat 进行读取的。在 mergeOnReadInputFormat 的 open 方法里会初始化一个iterator，所有数据的获取模式都是依赖于这种方式。只是不同的视图或者不同的合并方式，需要不同的iterator。</p>
+<p>比如 我这里的测试过程，文件是没有parquet文件的，也就是基本都是log文件，这种情况就会走 LogFileOnlyIterator，如果是既有base 也有log文件的话，就会走 MergeIterator。当然还有其他的迭代类型。</p>
+<blockquote>
+<p>只有log文件的情形：LogFileOnlyIterator返回数据的时候是不过滤的，log文件中有多少，就直接返回所有数据。</p>
+<p>base文件和log文件都存在的情况：MergeIterator 就会根据传入的instantRange对数据进行过滤。但是，这个前提也是他已经把数据按照合并条件进行了整合成一条数据了，然后按照数据里的commit_time 进行比较过滤。</p>
+<p>只有base文件的情况：BaseFileOnlyFilteringIterator 会根据 instantRange进行过滤。</p>
+<p>还有一种情况就是表的配置 hoodie.datasource.merge.type 是 skip_merge 情况，表示实时数据不合并，但是获取两个文件的数据。read the base file records plus the log file records;用的iterator是 SkipMergeIterator。先读取base文件，再读取log文件。</p>
+</blockquote>
+<p>这里复习一下 MergeIterator 的数据合并。先去读base文件，如果没有在instantRange里的记录，就继续循环。初始的时候，在base文件里肯定有数据，在log文件里不一定有，这个时候就直接返回base文件里的数据。如果在log文件里有，就直接返回log文件里的数据，然后把这个key放入keyToSkip。然后如果base文件循环完了，这时候，可以去遍历log文件，然后设置readlogs 为true，这样下次遍历的时候也会直接去日志了。在读取log的时候，recordKey必须不能在keyToSkip里，因为之前已经发送出去了。然后符合条件的数据会根据元数据转化一下，就直接发送给下游了。</p>
+<p>这块的设计可以多看看几回合，会理解的更加深刻。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/hudi/" rel="tag"># hudi</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/06/02/flink%E5%8E%9F%E7%90%86-flink-cdc%E9%87%8D%E8%A6%81%E7%89%88%E6%9C%AC%E7%9A%84%E9%87%8D%E8%A6%81%E7%89%B9%E6%80%A7/" rel="next" title="flink原理--flink-cdc重要版本的重要特性">
+                <i class="fa fa-chevron-left"></i> flink原理--flink-cdc重要版本的重要特性
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/06/06/flink%E5%8E%9F%E7%90%86-%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86/" rel="prev" title="flink原理--内存管理">
+                flink原理--内存管理 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#hudi探索–读取时如何进行FileSlice"><span class="nav-number">1.</span> <span class="nav-text">hudi探索–读取时如何进行FileSlice</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#概念"><span class="nav-number">1.1.</span> <span class="nav-text">概念</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#FileGroup"><span class="nav-number">1.1.1.</span> <span class="nav-text">FileGroup</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#FileSlice"><span class="nav-number">1.1.2.</span> <span class="nav-text">FileSlice</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#metadata"><span class="nav-number">1.1.3.</span> <span class="nav-text">metadata</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#HoodieTableFileSystemView"><span class="nav-number">1.1.4.</span> <span class="nav-text">HoodieTableFileSystemView</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#读取过程"><span class="nav-number">1.2.</span> <span class="nav-text">读取过程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#初始化metaClient"><span class="nav-number">1.2.1.</span> <span class="nav-text">初始化metaClient</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#FileGroup的形成"><span class="nav-number">1.2.2.</span> <span class="nav-text">FileGroup的形成</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#获取数据"><span class="nav-number">1.2.3.</span> <span class="nav-text">获取数据</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

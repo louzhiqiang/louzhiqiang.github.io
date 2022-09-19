@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="分享," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="《关于SQL解析以及SQL在spark中的应用》分享最近打算在团队内分享一下关于sql的一些知识，提升大家对于sql知识的知识补充，帮组大家扩展优化的角度。 主要角度就是sql的原理、思考以及应用。 思考NO.1SQL为啥会成为大数据交互组件的首选方式？优化规则如何构建和使用？RBO和CBO如何发挥能量？在SPARK调优中我们如何应用这些理论？在整个过程中涉及的数据结构和算法有哪些？是否还有优化的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="《关于SQL解析以及SQL在spark中的应用》分享">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/30/%E3%80%8A%E5%85%B3%E4%BA%8ESQL%E8%A7%A3%E6%9E%90%E4%BB%A5%E5%8F%8ASQL%E5%9C%A8spark%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8%E3%80%8B%E5%88%86%E4%BA%AB/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="《关于SQL解析以及SQL在spark中的应用》分享最近打算在团队内分享一下关于sql的一些知识，提升大家对于sql知识的知识补充，帮组大家扩展优化的角度。 主要角度就是sql的原理、思考以及应用。 思考NO.1SQL为啥会成为大数据交互组件的首选方式？优化规则如何构建和使用？RBO和CBO如何发挥能量？在SPARK调优中我们如何应用这些理论？在整个过程中涉及的数据结构和算法有哪些？是否还有优化的">
+<meta property="og:image" content="https://github.com/images/sql_spark_1.png">
+<meta property="og:image" content="https://github.com/images/sql_spark_2.png">
+<meta property="article:published_time" content="2021-10-30T03:26:45.000Z">
+<meta property="article:modified_time" content="2022-05-13T03:44:28.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="分享">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/sql_spark_1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/30/《关于SQL解析以及SQL在spark中的应用》分享/"/>
+
+
+
+
+
+  <title>《关于SQL解析以及SQL在spark中的应用》分享 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/30/%E3%80%8A%E5%85%B3%E4%BA%8ESQL%E8%A7%A3%E6%9E%90%E4%BB%A5%E5%8F%8ASQL%E5%9C%A8spark%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8%E3%80%8B%E5%88%86%E4%BA%AB/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">《关于SQL解析以及SQL在spark中的应用》分享</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-30T11:26:45+08:00">
+                2021-10-30
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E6%82%9F/" itemprop="url" rel="index">
+                    <span itemprop="name">悟</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="《关于SQL解析以及SQL在spark中的应用》分享"><a href="#《关于SQL解析以及SQL在spark中的应用》分享" class="headerlink" title="《关于SQL解析以及SQL在spark中的应用》分享"></a>《关于SQL解析以及SQL在spark中的应用》分享</h2><p>最近打算在团队内分享一下关于sql的一些知识，提升大家对于sql知识的知识补充，帮组大家扩展优化的角度。</p>
+<p>主要角度就是sql的原理、思考以及应用。</p>
+<h3 id="思考NO-1"><a href="#思考NO-1" class="headerlink" title="思考NO.1"></a>思考NO.1</h3><h4 id="SQL为啥会成为大数据交互组件的首选方式？"><a href="#SQL为啥会成为大数据交互组件的首选方式？" class="headerlink" title="SQL为啥会成为大数据交互组件的首选方式？"></a>SQL为啥会成为大数据交互组件的首选方式？</h4><h4 id="优化规则如何构建和使用？"><a href="#优化规则如何构建和使用？" class="headerlink" title="优化规则如何构建和使用？"></a>优化规则如何构建和使用？</h4><h4 id="RBO和CBO如何发挥能量？"><a href="#RBO和CBO如何发挥能量？" class="headerlink" title="RBO和CBO如何发挥能量？"></a>RBO和CBO如何发挥能量？</h4><h4 id="在SPARK调优中我们如何应用这些理论？"><a href="#在SPARK调优中我们如何应用这些理论？" class="headerlink" title="在SPARK调优中我们如何应用这些理论？"></a>在SPARK调优中我们如何应用这些理论？</h4><h4 id="在整个过程中涉及的数据结构和算法有哪些？是否还有优化的空间？"><a href="#在整个过程中涉及的数据结构和算法有哪些？是否还有优化的空间？" class="headerlink" title="在整个过程中涉及的数据结构和算法有哪些？是否还有优化的空间？"></a>在整个过程中涉及的数据结构和算法有哪些？是否还有优化的空间？</h4><h3 id="SQL在大数据领域的发展历史"><a href="#SQL在大数据领域的发展历史" class="headerlink" title="SQL在大数据领域的发展历史"></a>SQL在大数据领域的发展历史</h3><h4 id="SQL的生态"><a href="#SQL的生态" class="headerlink" title="SQL的生态"></a>SQL的生态</h4><p>几乎所有大数据的组件系统都是支持基于sql的查询，而不支持sql查询的组件也都会被其他查询引擎给封装出一个SQL的查询入口。</p>
+<h4 id="SQL的框架"><a href="#SQL的框架" class="headerlink" title="SQL的框架"></a>SQL的框架</h4><p>calcite 和 catalyst 以及 druid（alibaba） 和 jsqlparser 等。</p>
+<blockquote>
+<p>除了前两者，后边的解析框架都是部分应用框架，也就是非完整生态，而在业务场景里，都是可以使用的，但是要注意语法支持的范围可能会有成本影响，请着重注意。</p>
+</blockquote>
+<p>antlr4 只是编译那一部分，不算是框架。</p>
+<blockquote>
+<p>可以逐个捋一下，其实每个大数据系统都有自己需求的那一部分，主要因素就是生态的问题。比如presto会偏向于融合spark以及hive的语法，所以也用了antlr4来解析sql，而后续的部分都是自己开发的。而且他是开发出自己的一套体系，且很值得我们学习。而kylin是属于两个都有，在4.0版本之前，都是基于calcite进行解析和扩展，而4.0版本开始，是基于catalyst进行的解析，为的就是和spark进行兼容，因为基于calcite的语法解析，当底层引擎选择使用spark进行数据查询的时候，语法兼容问题，她们要把所有sql不兼容的地方都要重新翻译成spark可以执行的点，工作巨大，维护成本很高，从长期角度考虑，不值得投入，所以他们直接切换到了基于spark的catalyst框架。</p>
+<p>kylin升级存储引擎的原因：</p>
+<p>1、计算和存储的分离。</p>
+<p>2、适应云原生的技术趋势。</p>
+<p>3、更好地利用上大趋势上的一些改进升级，也就是spark升级了，kylin也跟着升级了。</p>
+</blockquote>
+<p>关系数据库用到的框架，很大一部分都是自研的，比如mysql是基于C语言开发的，他使用的就是C体系的SQL解析工具，比如flex、Lex、BISON、yacc等。</p>
+<blockquote>
+<p>impala使用的是cup + jflex实现，可见java也扩展过C语言这些先驱。之所以C语言更多，我猜原因应该是关系数据库的发展历史有很大关系，因为那些商业数据库的发展是早期发展这些东西的主要动力。</p>
+</blockquote>
+<h4 id="SQL的发展"><a href="#SQL的发展" class="headerlink" title="SQL的发展"></a>SQL的发展</h4><blockquote>
+<p>问题：sql语言是怎么来的？为什么SQL可以发展起来？</p>
+<p>45 年前（1974年），两名年轻的 IBM 研究员将一门关系型语言带到了数据库领域，旨在使用声明性的方式来操作数据。</p>
+<p>论文地址：<a href="https://researcher.watson.ibm.com/researcher/files/us-dchamber/sequel-1974.pdf" target="_blank" rel="noopener">https://researcher.watson.ibm.com/researcher/files/us-dchamber/sequel-1974.pdf</a></p>
+<p>基于关系数据库的发展，关系模型已经覆盖了我们非常大一部分的数据关系场景，那也就意味着这种查询语言可以被广泛采用，事实证明也是这样的，随着当时oracle和IBM两个数据库专业户对于sql查询的拥护，sql很快就风靡于数据查询领域的头把交椅。这里关键的一点需要明确，sql之所以快速风靡，主要是源于他的强大：</p>
+<ul>
+<li>声明性；</li>
+<li>通过组合的方式写出复杂的查询；</li>
+<li>利用由 Edger F Codd 开发的关系型模型。</li>
+<li>SDK：丰富的 SDK 和语言支持可以加快开发速度。</li>
+<li>延展性极强。</li>
+<li>优化器：查询重写、选择正确的访问路径、创建最优的查询执行路径让 SQL 成为最成功的第四代语言。</li>
+</ul>
+<p>鉴于当时计算机发展的氛围，大神都是涉及接口，而查询语言接口就是sql。</p>
+<p>SQL 中的数据存储格式、数据模型和查询处理的分离带来了一些非常重要的好处。也即使sql只管表达，解析完之后数据的存储、查询以及模型 ，跟他没有半毛钱关系。这时候工程师就可以把主要精力放在数据库本身的查询性能上。而事实证明这样的运作模式是对的，因为大家后续的精力也确实是都在数据查询性能上，这样一个数据组件的发展才是可持续的。</p>
+<p>我猜当时有一些人没有看到这个方面，主要原因应该是没有考虑到数据规模的问题。</p>
+<p>非sql方式的查询，会把查询、计算和存储放在一起考虑，而这样就没法形成生态，因为单个业务系统无法覆盖那所谓的大部分场景，也就是会被孤立，无法形成生态。</p>
+</blockquote>
+<p>sql诞生时间很长，但是他的语法或者技术迭代，并不多。</p>
+<p>SQL 有两个重要的标准，分别是 SQL92 和 SQL99，它们分别代表了 92 年和 99 年颁布的 SQL 标准，我们今天使用的 SQL 语言依然遵循这些标准。</p>
+<p>SQL ： <strong><font color="red">通用性强，变化相对少，上手相对容易的语言</font></strong>。</p>
+<p>参考：</p>
+<p><a href="https://www.infoq.cn/article/i0h7e-cugmrer0vuhhtn" target="_blank" rel="noopener">为什么说 SQL 是最成功的第四代语言？</a></p>
+<p><a href="https://www.infoq.cn/article/UmMCQDayRYa4l1r2iv4p?utm_source=related_read_bottom&utm_medium=article" target="_blank" rel="noopener">SQL 竞争对手简史</a></p>
+<p><a href="https://www.infoq.cn/news/2015/10/SQL-nosql?utm_source=related_read_bottom&utm_medium=article" target="_blank" rel="noopener">你对 SQL 的认识可能是错的</a></p>
+<p><a href="http://opensourceconnections.com/blog/2013/12/11/codds-relational-vision-has-nosql-come-full-circle/" target="_blank" rel="noopener"> Codd 的关系型观点——NoSQL 兜了个圈又回到了原点？</a></p>
+<p><a href="https://time.geekbang.org/column/article/100405?utm_source=related_read&utm_medium=article&utm_term=related_read" target="_blank" rel="noopener">了解SQL：一门半衰期很长的语言</a></p>
+<p><a href="https://cn.kyligence.io/news/apache-kylin-4-0-0-release/" target="_blank" rel="noopener">Apache Kylin 4.0.0 正式发布</a></p>
+<h3 id="SQL的解析"><a href="#SQL的解析" class="headerlink" title="SQL的解析"></a>SQL的解析</h3><p>sql本身的解析也是通用的编译原理来解释的，先经过词法分析、语法分析、语义分析。</p>
+<p>业界内会有很多编译框架，比如ANLTR4 、javacc这些对于java比较熟悉的词法解析框架，对于C 或者C++还可以有yacc等一些大名鼎鼎的词法解析器。</p>
+<p>AST本身不止用于SQL，在其他编译解析都会被经常用到，AST会有很多变种，或者说是使用上的设计，由于使用上的不同，相关算法也会变动。</p>
+<p>编译相关术语概念：</p>
+<p><a href="https://zh.wikipedia.org/wiki/%E7%A1%AE%E5%AE%9A%E6%9C%89%E9%99%90%E7%8A%B6%E6%80%81%E8%87%AA%E5%8A%A8%E6%9C%BA" target="_blank" rel="noopener">有限状态自动机</a></p>
+<p><a href="https://zzz5.xyz/2019/08/28/others/BNFandEBNF/" target="_blank" rel="noopener">巴科斯范式</a></p>
+<p>支持级联递归、缓存等优化手段，编译速度都会有比较大的提升。</p>
+<p>解析最大的作用就是构建AST，而AST里最大的作用其实是结点和对应的类型。</p>
+<p>参考：</p>
+<p><a href="https://blog.csdn.net/gongwx/article/details/99645305" target="_blank" rel="noopener">Comparison of parser generators</a></p>
+<p><a href="https://time.geekbang.org/column/article/118132" target="_blank" rel="noopener">理解代码：编译器的前端技术</a></p>
+<p><a href="https://www.cnblogs.com/lifepoem/archive/2011/10/25/2223765.html" target="_blank" rel="noopener"> LINQ介绍</a></p>
+<p><a href="https://changbo.tech/blog/7dec2e4.html" target="_blank" rel="noopener">Calcite处理和扩展流程解析</a></p>
+<p><a href="https://liangshuang.name/2017/08/20/antlr/" target="_blank" rel="noopener"><strong>ANTLR 4 进阶 | 千里</strong></a></p>
+<h3 id="AST如何转化为逻辑计划"><a href="#AST如何转化为逻辑计划" class="headerlink" title="AST如何转化为逻辑计划"></a>AST如何转化为逻辑计划</h3><p>AST转化为逻辑计划的过程，主要是节点信息的转化，由原先的TreeNode转化为对应的QueryPlan。这个QueryPlan是Logical Plan。</p>
+<p>sql在解析为AST之后，就是一个unresolved logical plan，这个时候每个节点都没啥信息，也就是对后边任何事情都没什么决定作用。</p>
+<p>基于这棵树，会应用一些规则，在节点上绑定各种属性信息，比如元数据相关，还有索引编号等为后边准备的信息，这个时候，这棵树就已经丰富很多。</p>
+<p>analyzer 会把 AST 上所有 Unresolved 的东西都转变为 resolved 状态，sparksql 有很多 resolve 规则，都很好理解，例如 ResolverRelations 就是解析表（列）的基本类型等信息，ResolveFuncions 就是解析出来函数的基本信息，比如例子中的 sum 函数，ResolveReferences 可能不太好理解，我们在 sql 语句中使用的字段比如 Select name 中的 name 对应一个变量， 这个变量在解析表的时候就作为一个变量（Attribute 类型）存在了，那么 Select 对应的 Project 节点中对应的相同的变量就变成了一个引用，他们有相同的 ID，所以经过 ResolveReferences 处理后，就变成了 AttributeReference 类型  ，保证在最后真正加载数据的时候他们被赋予相同的值，就跟我们写代码的时候定义一个变量一样，这些 Rule 就反复作用在节点上，指定树节点趋于稳定，当然优化的次数多了会浪费性能，所以有的 rule 作用 Once， 有的 rule 作用 FixedPoint， 这都是要取舍的。</p>
+<p>然后还有一部分，就是优化上一步的逻辑树，作用一些规则，让整个树更加高效。这个时候就生成了optimized logical plan。</p>
+<p>这里的优化规则简单列出来几个如下：</p>
+<p><img src="/images/sql_spark_1.png" alt="sql_spark_1"></p>
+<p><img src="/images/sql_spark_2.png" alt="sql_spark_2"></p>
+<p>sparksql 中的逻辑优化种类繁多，spark sql 中的 Catalyst 框架大部分逻辑是在一个 Tree 类型的数据结构上做各种折腾，基于 scala 来实现还是很优雅的，scala 的偏函数 和 强大的 Case 正则匹配，让整个代码看起来还是清晰的。</p>
+<blockquote>
+<p>PushPredicateThroughJoin 下推filter到join之前。</p>
+</blockquote>
+<p>Logical plan 主要分为三类：LeafNode Logical Plan、Unary Logical plan、Binary Logical Plan。</p>
+<p>leafNode类型的Logical Plan 节点对应数据表和命令相关的逻辑。比如database相关命令、table相关的、view相关的、ddl相关的、function相关的、resource相关的等等。</p>
+<p>unaryNode类型的Logical Plan，主要是对数据的逻辑转换操作，比如过滤等。主要是四个类别：</p>
+<ul>
+<li>定义重分区操作的3个Unarynode，RedistributeData、sortPartitions、RepartitionByExpression。</li>
+<li>脚本相关的转换操作ScriptTransformation。</li>
+<li>Object相关的操作，比如序列化、FlatMapGroupInR等。</li>
+<li>基本操作算子，主要是Project、Filter、Sort等。</li>
+</ul>
+<p>BinaryNode类型的logical plan主要就五种，主要数据的组合关联相关的，比如join、笛卡尔积等。</p>
+<blockquote>
+<p>对比oltp数据库，spark的join逻辑为了实现复杂的算法匹配和策略，要抽象出更加复杂和通用的模型，这里要着重跟mr去比较，因为都是从那里升级过来的。</p>
+</blockquote>
+<p>还有一类logical plan就是直接继承LogincalPlan类实现的，主要是union（多个LogicalPlan）、ObjectProducer（用于生产只包含object的列的行数据）、EventTimeWatermark（sparkStreaming会用到）。</p>
+<p>总体来讲，Logicalplan中主要记录了该逻辑节点处理逻辑的相关属性，包括输入输出、约束条件、算子逻辑、统计信息等。</p>
+<hr>
+<p>语句：select name from student where age &gt; 18 order by id desc</p>
+<p>生成Logical plan的过程如下：</p>
+<ol>
+<li>生成数据表对应的LogicalPlan，也就是先访问FromClauseContext，一直到匹配到TableNameContext，然后根据 TableNameContext中的信息生成UnresolvedRelation，然后不递归了，构造名称为from的LogicalPlan。</li>
+<li>生成过滤逻辑的LogicalPlan：解析expression，生成Filter LogicalPlan，然后结合第一点的from Logicalplan，生成名称为WithFilter的LogicalPlan，其中Filter节点为根节点。</li>
+<li>生成加入列裁剪的LogicalPlan，这一步生成的LogicalPlan会结合Filter为根节点的LogicalPlan，生成名称为WithProject的LogicalPlan，并且这个Project为根节点。</li>
+</ol>
+<p>整个LogicalPlan的生成过程，是一个由底向上的过程，是由内向外的过程，由底向上的意思是说要根据from -&gt; filter -&gt; project 的过程去构建，因为使用的时候，实际是从project出发，然后往里去找源，这样整个树加载是一气呵成的。这个构建过程是因为知道了from，才能在filter去丰富信息，才能去展开去动态应用规则，否则这个过程就要反复去遍历衡量，而最大的问题是很可能遇到死胡同，也就是节点找不到的情况，而现在这种情况就是一环套一环，不会丢失信息，也不会反复遍历的问题。</p>
+<p>比如project一个信息的生成，会先解析columnReference，然后再去visitPredicate，最后去visitNamesExpression，而这个过程是一层一层的包装。</p>
+<blockquote>
+<p>每一次节点visit，都要追踪子节点相关的约束，这样可以避免二义性。也就是规则大家统一遵守，而这个过程涉及全局的问题，要不断对比这些问题。</p>
+<p>重点熟悉SqlBase.g4文法文件以及AstBuilder访问过程中的主线。AstBuilder是基于visit模式遍历语法数构建LogicalPlan的主要工具。</p>
+</blockquote>
+<hr>
+<p>上边过程生成了包含UnresolvedRelation和unresolvedAttribute的逻辑算子树，然后进入第二步，基于规则的优化。主要类就是Analyzer，主要作用就是把上边两种节点或者表达式解析成有类型的对象。</p>
+<blockquote>
+<p>Catalog 可以简单理解为命名空间。主要用于各种函数资源信息和元数据信息的统一管理。InMemoryCatalog 和 HiveExternalCatalog。</p>
+<p>sessionCatalog是主要的代理对象。</p>
+</blockquote>
+<blockquote>
+<p>Rule体系，是整个计划操作中依赖的主体，通过scala语言的模式匹配机制进行树结构的转换操作改写。Rule就是偏函数的使用，这在spark里是重度使用，这也体现了spark的扩展思考。</p>
+<p>在catalyst中，这个功能由RuleExecutor提供。RuleExecutor按照Btach执行规则匹配，Btach代表一套规则，配备一个策略，策略就是迭代次数。一次匹配，btach可以多个。</p>
+</blockquote>
+<p>下边列举一个主体过程，然后说一下其中的部分规则，供自己扩展思考。</p>
+<p>EliminateUnions：根据union节点，如果只有一个children，就退化为那个LogicalPlan。</p>
+<p>CleanupAlias：删除无用的别名信息</p>
+<p>整个转换过程中，可能一批规则不能完成转化，就会进行多次迭代转换。之前的logical plan是有层次转换的，那么这个解析也是有层次的，比如filter没有解析完全的话，上层的project也无法转换。</p>
+<p>所以每次应用规则，很可能会不断去验证children的转换是否已经完全，主要看状态resolved是否为true。</p>
+<p>这个迭代默认是50，可以通过参数 spark.sql.optimizer.maxIterations进行配置。</p>
+<hr>
+<p>Optimizer，优化器。继承自RuleExecutor类，使用方法同Analyzer，只是规则不同。</p>
+<p>SparkOptimizer继承自Optimizer，是具体的实现类，主要是16个batch，53条规则。这里列举几个，了解一下。</p>
+<p>ComputeCurrentTime 计算与当前时间相关的表达式。防止全局时间不一致，提前一次计算好。</p>
+<p>OptimizeSubqueries  进一步递归调用Optimizer，主要是子表达式。</p>
+<p>算子下推、算子组合、常量折叠和长度削减（常量计算以及表达式可以直接无歧义定义的，都会提前计算并干掉）。</p>
+<p>checkCartesianProducts  检查是否存在笛卡尔积，除非有cross标识或者配置了参数spark.sql.crossJoin.enabled为true。</p>
+<p>optimizeCodegen 针对case when语句进行代码生成。</p>
+<p>再比如针对distinct转化为groupBy，或者子查询转化为join等。</p>
+<h3 id="逻辑计划如何转化为物理计划"><a href="#逻辑计划如何转化为物理计划" class="headerlink" title="逻辑计划如何转化为物理计划"></a>逻辑计划如何转化为物理计划</h3><p>逻辑计划转化为物理计划，也是节点转换的过程，但是这里的规则和策略是不一样的，步骤倒是差不多。</p>
+<ol>
+<li>由SparkPlanner将策略作用于logicalplan上，生成一个SparkPlan的迭代器，也就是生成多个物理计划。</li>
+<li>选取最佳的SparkPlan。</li>
+<li>执行计划prepare，这个过程就是确保节点符合前后上下文执行的要求，也就是根据一些规则进行检查。</li>
+</ol>
+<p>SparkPlan的主要功能：</p>
+<ul>
+<li>记录元数据（Metadata）和指标统计（Metric）。</li>
+<li>分区操作和排序处理。</li>
+<li>执行，通过调用execute和executeBroadcast方法为主。</li>
+</ul>
+<p>执行也根据LogicalPlan进行划分，主要有三种：LeafExecNode类型（主要是数据源节点），UnaryExecNode类型（单个子节点的节点）、BinaryExecNode类型（两个子节点的节点）。</p>
+<p>UnaryExecNode 主要是一些转换操作。</p>
+<p>BinaryExecNode主要是join的实现（5个）以及一个CoGroupExec实现。</p>
+<p>还有一个其他的类型，也就是union这种或者一些不太常见的Exec。</p>
+<p>分区和排序对于spark的执行计划是影响比较大的，他针对每种分区和每种排序都做了一对一的策略识别。</p>
+<p>sparkPlan继承自sparkStrategies，而sparkStrategies继承自QueryPlanner类。这里sparkStrategies就是一个集合了策略的类，里边没有任何执行方法，就是集合了所有的策略。</p>
+<blockquote>
+<p> 这是一种分层实现。</p>
+</blockquote>
+<p>物理计划的生成，实际上有点像填充模板，知识模板划分的很好，在构建模板的时候，遇到无法填充的会优先站位，在遇到填充回溯的时候再去确认需要添加的节点。整个计划会在最后有一步精简，把没用的节点拿掉。</p>
+<p>sparkStrategies主要有哪些？</p>
+<ul>
+<li>FileSource</li>
+<li>DataSource</li>
+<li>DDL</li>
+<li>SpecialLimits</li>
+<li>agg</li>
+<li>join</li>
+<li>inmemory</li>
+<li>basicOperators</li>
+</ul>
+<blockquote>
+<p>对于物理计划进行归纳，基于最少的模式，精简但是够用，策略也比较集中。</p>
+</blockquote>
+<p>他也是属于规则，也是偏函数的实现方式，在转化的时候，会进行匹配，匹配上就进行对应的操作。</p>
+<h3 id="join逻辑转换"><a href="#join逻辑转换" class="headerlink" title="join逻辑转换"></a>join逻辑转换</h3><p>join的逻辑计划过程有AstBuilder类定义的visitFromClause方法开始。</p>
+<p>join是一个从左到右的两个的node，BinaryNode，原因是这种处理方式比较就简单的，规则简单，但是支持的场景却是无限的。</p>
+<p>在转化为物理计划的时候，会根据数据特征先来确认join的策略，策略是有有优先级的，根据是否可以broadcast来判断是否可以广播，如果可以广播，会优先使用广播实现的shuffle。</p>
+<p>join逻辑里  两个节点  一个是流表一个是buildtable ， spark把所有的模型都规约到这些简单的模型以及细节的策略上，策略也明确出细小的步骤，这样整体就变成了统一的模板，不同的执行方式。</p>
+<h3 id="agg逻辑转换"><a href="#agg逻辑转换" class="headerlink" title="agg逻辑转换"></a>agg逻辑转换</h3><p>agg不像oltp数据库没有那么多策略，大数据分布式执行，由于shuffle的存在，会进行很多策略优化，所以agg的执行也就变成了策略的聚集地之一。</p>
+<p>聚合策略主要的一个区分是判断聚合函数是否支持局部聚合，也就是partial的。这个主要根据聚合函数的特点来看的。</p>
+<p>聚合模式有四种：Partial模式、PartialMerge模式、Final模式、Complete模式。</p>
+<p>Partial 和 final一起使用，先部分聚合，最后一起聚合。</p>
+<p>Complete 是用在不支持Partial的聚合情形中。</p>
+<p>partitalMerge 属于 也是对聚合缓冲区的数据进行合并，但是还不能输出， 这个时候需要进再次进行partital 和 final的过程。</p>
+<p>由于涉及聚合缓冲区，而且这个区域是共享的，那么这个过程就涉及怎么管理聚合缓冲区。</p>
+<p>agg函数定义一般分为四步：</p>
+<ul>
+<li>初始化</li>
+<li>聚合缓冲区更新表达式</li>
+<li>聚合缓冲区合并表达式</li>
+<li>最终结果生成表达式</li>
+</ul>
+<p>聚合执行主要两种 ：</p>
+<ul>
+<li>SortAgg  这个sort主要是分区内排序，相同group key的数据相邻保存。</li>
+<li>HashAgg</li>
+</ul>
+<p>前者预聚合之后，因为排序，直接按照偏移量去取就可以。针对一些不支持partital的聚合函数。或者聚合函数不支持buffer方式的、以及内存不足的情况，都会使用sort。</p>
+<p>而后者就复杂一些，主要是无法确定性地申请到足够的空间来容纳所有数据。</p>
+<p>hash聚合，会把switchToSort作为一个节点，也就是预先已经把可能存在的切换放在计划内。要注意这样的一些为了稳定性而做的计划backup。</p>
+<p>窗口函数：</p>
+<ul>
+<li>分区</li>
+<li>排序</li>
+<li>窗框：一个在分区内对行进行进一步限制的筛选器。比如这个窗口的开始行到当前行的计算、当前行或者当前行到结尾。窗框类型主要是row_number() 或者 rank() 等等。</li>
+</ul>
+<p>窗口函数定义好以上三个元素之后，每一行元素也就被归属在某个窗口内。要理解好这个概念，这样窗框的含义或者说是作用以及排序也就更明确用武之地了。</p>
+<p>窗口函数的聚合计算和普通函数的聚合，在聚合上是有区别的。窗口函数上的聚合，数据是更明确的，但是数据大小并不明确，也就是不确定会不会有某个key值比较多，所以这个时候数据存储都要考虑磁盘和内存两种方式。</p>
+<p>两种方式存储数据是不一样的，内存里更偏向于ArrayBuffer，而硬盘上的，一般都是把排序好的数据刷到磁盘上，结构ExternalRowBuffer中。</p>
+<p>这种聚合计算中非常适合具体场景的具体优化，效果一般都是立竿见影的。</p>
+<hr>
+<p>spark 多维分析主要是 cube、rollup、grouping sets 3种。</p>
+<p>cube 讲group by之后的维度进行了组合，然后存储。</p>
+<p>rollup 是讲group by 之后的维度进行层级优化，只按照层级进行聚合存储。</p>
+<p>grouping sets 则相当于kylin的聚合组，也就是设置了指定的组合。</p>
+<h3 id="物化视图的路由"><a href="#物化视图的路由" class="headerlink" title="物化视图的路由"></a>物化视图的路由</h3><h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3>
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/%E5%88%86%E4%BA%AB/" rel="tag"># 分享</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/10/27/LSM%E5%8E%9F%E7%90%86/" rel="next" title="LSM原理">
+                <i class="fa fa-chevron-left"></i> LSM原理
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/11/22/parquet%E7%9A%84%E7%BB%93%E6%9E%84%E5%8C%96%E6%95%B0%E6%8D%AE%E6%98%AF%E5%A6%82%E4%BD%95%E5%AD%98%E5%82%A8%E7%9A%84/" rel="prev" title="parquet的结构化数据是如何存储的">
+                parquet的结构化数据是如何存储的 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#《关于SQL解析以及SQL在spark中的应用》分享"><span class="nav-number">1.</span> <span class="nav-text">《关于SQL解析以及SQL在spark中的应用》分享</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#思考NO-1"><span class="nav-number">1.1.</span> <span class="nav-text">思考NO.1</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#SQL为啥会成为大数据交互组件的首选方式？"><span class="nav-number">1.1.1.</span> <span class="nav-text">SQL为啥会成为大数据交互组件的首选方式？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#优化规则如何构建和使用？"><span class="nav-number">1.1.2.</span> <span class="nav-text">优化规则如何构建和使用？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#RBO和CBO如何发挥能量？"><span class="nav-number">1.1.3.</span> <span class="nav-text">RBO和CBO如何发挥能量？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#在SPARK调优中我们如何应用这些理论？"><span class="nav-number">1.1.4.</span> <span class="nav-text">在SPARK调优中我们如何应用这些理论？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#在整个过程中涉及的数据结构和算法有哪些？是否还有优化的空间？"><span class="nav-number">1.1.5.</span> <span class="nav-text">在整个过程中涉及的数据结构和算法有哪些？是否还有优化的空间？</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SQL在大数据领域的发展历史"><span class="nav-number">1.2.</span> <span class="nav-text">SQL在大数据领域的发展历史</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#SQL的生态"><span class="nav-number">1.2.1.</span> <span class="nav-text">SQL的生态</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#SQL的框架"><span class="nav-number">1.2.2.</span> <span class="nav-text">SQL的框架</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#SQL的发展"><span class="nav-number">1.2.3.</span> <span class="nav-text">SQL的发展</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SQL的解析"><span class="nav-number">1.3.</span> <span class="nav-text">SQL的解析</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#AST如何转化为逻辑计划"><span class="nav-number">1.4.</span> <span class="nav-text">AST如何转化为逻辑计划</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#逻辑计划如何转化为物理计划"><span class="nav-number">1.5.</span> <span class="nav-text">逻辑计划如何转化为物理计划</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#join逻辑转换"><span class="nav-number">1.6.</span> <span class="nav-text">join逻辑转换</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#agg逻辑转换"><span class="nav-number">1.7.</span> <span class="nav-text">agg逻辑转换</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#物化视图的路由"><span class="nav-number">1.8.</span> <span class="nav-text">物化视图的路由</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#总结"><span class="nav-number">1.9.</span> <span class="nav-text">总结</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

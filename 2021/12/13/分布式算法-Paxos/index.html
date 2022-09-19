@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Paxos," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="分布式协议–Paxos算法Paxos 算法是目前分布式算法基础，几乎所有的分布式算法都是基于Paxos衍生出来的。所以针对这个算法的来龙去脉是有必要深入了解的，这样对于后续其他算法的了解，就能找到所以然的部分。 Paxos 算法的主要目标就是如何在多节点之间就某个值（提案）达成共识。 在 Basic Paxos 中，有提议者（Proposer）、接受者（Acceptor）、学习者（Learner）">
+<meta property="og:type" content="article">
+<meta property="og:title" content="分布式算法--Paxos">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/13/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-Paxos/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="分布式协议–Paxos算法Paxos 算法是目前分布式算法基础，几乎所有的分布式算法都是基于Paxos衍生出来的。所以针对这个算法的来龙去脉是有必要深入了解的，这样对于后续其他算法的了解，就能找到所以然的部分。 Paxos 算法的主要目标就是如何在多节点之间就某个值（提案）达成共识。 在 Basic Paxos 中，有提议者（Proposer）、接受者（Acceptor）、学习者（Learner）">
+<meta property="og:image" content="https://res.craft.do/user/full/4f93c9bd-47fe-4d9a-fd34-af649a207605/doc/3EDDDEFD-05AE-4751-BF3C-E1C72048DEC5/958E0619-1D0F-4D55-924D-7E3B99DF82DE_2/paxos_1.png">
+<meta property="og:image" content="https://res.craft.do/user/full/4f93c9bd-47fe-4d9a-fd34-af649a207605/doc/3EDDDEFD-05AE-4751-BF3C-E1C72048DEC5/C2A44809-BB25-491C-861C-71678B82506B_2/paxos_2.png">
+<meta property="og:image" content="https://res.craft.do/user/full/4f93c9bd-47fe-4d9a-fd34-af649a207605/doc/3EDDDEFD-05AE-4751-BF3C-E1C72048DEC5/CF0F87B2-28A1-4798-9D10-996A7C4DD9BA_2/paxos_3.png">
+<meta property="og:image" content="https://res.craft.do/user/full/4f93c9bd-47fe-4d9a-fd34-af649a207605/doc/3EDDDEFD-05AE-4751-BF3C-E1C72048DEC5/28847521-5881-4EA5-A92B-F1EF9FF7B792_2/paxos_4.png">
+<meta property="og:image" content="https://res.craft.do/user/full/4f93c9bd-47fe-4d9a-fd34-af649a207605/doc/3EDDDEFD-05AE-4751-BF3C-E1C72048DEC5/CDE96AD6-9ED5-486A-A1F4-DC5414CC9F75_2/paxos_5.png">
+<meta property="og:image" content="https://res.craft.do/user/full/4f93c9bd-47fe-4d9a-fd34-af649a207605/doc/3EDDDEFD-05AE-4751-BF3C-E1C72048DEC5/DE5201AD-0E71-48D0-98CC-8A3B6E4FD91E_2/paxos_6.png">
+<meta property="og:image" content="https://res.craft.do/user/full/4f93c9bd-47fe-4d9a-fd34-af649a207605/doc/3EDDDEFD-05AE-4751-BF3C-E1C72048DEC5/8E92B76E-02B6-4249-91D1-620F8AFBF935_2/paxos_7.png">
+<meta property="article:published_time" content="2021-12-13T05:27:39.000Z">
+<meta property="article:modified_time" content="2022-01-07T11:53:54.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="Paxos">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://res.craft.do/user/full/4f93c9bd-47fe-4d9a-fd34-af649a207605/doc/3EDDDEFD-05AE-4751-BF3C-E1C72048DEC5/958E0619-1D0F-4D55-924D-7E3B99DF82DE_2/paxos_1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/13/分布式算法-Paxos/"/>
+
+
+
+
+
+  <title>分布式算法--Paxos | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/13/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-Paxos/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">分布式算法--Paxos</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-12-13T13:27:39+08:00">
+                2021-12-13
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%88%86%E5%B8%83%E5%BC%8F/" itemprop="url" rel="index">
+                    <span itemprop="name">分布式</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="分布式协议–Paxos算法"><a href="#分布式协议–Paxos算法" class="headerlink" title="分布式协议–Paxos算法"></a>分布式协议–Paxos算法</h1><p>Paxos 算法是目前分布式算法基础，几乎所有的分布式算法都是基于Paxos衍生出来的。所以针对这个算法的来龙去脉是有必要深入了解的，这样对于后续其他算法的了解，就能找到所以然的部分。</p>
+<p>Paxos 算法的主要目标就是如何在多节点之间就某个值（提案）达成共识。</p>
+<p>在 Basic Paxos 中，有提议者（Proposer）、接受者（Acceptor）、学习者（Learner）三种角色，如下：</p>
+<p><img src="https://res.craft.do/user/full/4f93c9bd-47fe-4d9a-fd34-af649a207605/doc/3EDDDEFD-05AE-4751-BF3C-E1C72048DEC5/958E0619-1D0F-4D55-924D-7E3B99DF82DE_2/paxos_1.png" alt="paxos_1.png"></p>
+<p>这三个角色解读如下：<br>1、提议者就是发起提案的一方，但在绝大多数场景中，集群中收到客户端请求的节点，才是提议者。</p>
+<p>2、接受者：对每个提议的值进行投票，并存储接受的值。</p>
+<p>3、学习者：告知投票的结果，接受达成共识的值，存储保存，不参与投票的过程。一般来说，学习者是数据备份节点，比如“Master-Slave”模型中的 Slave，被动地接受数据，容灾备份。</p>
+<p>在实际架构中，应该是这个样子的：</p>
+<p><img src="https://res.craft.do/user/full/4f93c9bd-47fe-4d9a-fd34-af649a207605/doc/3EDDDEFD-05AE-4751-BF3C-E1C72048DEC5/C2A44809-BB25-491C-861C-71678B82506B_2/paxos_2.png" alt="paxos_2.png"></p>
+<ul>
+<li>提议者代表的是接入和协调功能，收到客户端请求后，发起二阶段提交，进行共识协商；</li>
+<li>接受者代表投票协商和存储数据，对提议的值进行投票，并接受达成共识的值，存储保存；</li>
+<li>学习者代表存储数据，不参与共识协商，只接受达成共识的值，存储保存。</li>
+</ul>
+<h1 id="达成共识的过程"><a href="#达成共识的过程" class="headerlink" title="达成共识的过程"></a>达成共识的过程</h1><p>在 Basic Paxos 中，先要想一个提案包含哪些值，主要是包含两部分：提案编号 n 以及 提案值 v。两者一起组成一个提案。</p>
+<h3 id="准备（Prepare）阶段"><a href="#准备（Prepare）阶段" class="headerlink" title="准备（Prepare）阶段"></a>准备（Prepare）阶段</h3><p><img src="https://res.craft.do/user/full/4f93c9bd-47fe-4d9a-fd34-af649a207605/doc/3EDDDEFD-05AE-4751-BF3C-E1C72048DEC5/CF0F87B2-28A1-4798-9D10-996A7C4DD9BA_2/paxos_3.png" alt="paxos_3.png"></p>
+<p>两个提案请求，分别由两个客户端提交。</p>
+<blockquote>
+<p>你要注意，在准备请求中是不需要指定提议的值的，只需要携带提案编号就可以了，这是很多同学容易产生误解的地方。</p>
+</blockquote>
+<p><img src="https://res.craft.do/user/full/4f93c9bd-47fe-4d9a-fd34-af649a207605/doc/3EDDDEFD-05AE-4751-BF3C-E1C72048DEC5/28847521-5881-4EA5-A92B-F1EF9FF7B792_2/paxos_4.png" alt="paxos_4.png"></p>
+<p>由于之前没有通过任何提案，所以节点 A、B 将返回一个 “尚无提案”的响应。也就是说节点 A 和 B 在告诉提议者，我之前没有通过任何提案呢，并承诺以后不再响应提案编号小于等于 1 的准备请求，不会通过编号小于 1 的提案。</p>
+<p>节点 C 也是如此，它将返回一个 “尚无提案”的响应，并承诺以后不再响应提案编号小于等于 5 的准备请求，不会通过编号小于 5 的提案。</p>
+<p>以上的响应方式很重要，代表一种承诺，否则后续的协议都不会成立。</p>
+<p>当A和B节点收到n为5的提案之后，反应如下：</p>
+<p><img src="https://res.craft.do/user/full/4f93c9bd-47fe-4d9a-fd34-af649a207605/doc/3EDDDEFD-05AE-4751-BF3C-E1C72048DEC5/CDE96AD6-9ED5-486A-A1F4-DC5414CC9F75_2/paxos_5.png" alt="paxos_5.png"></p>
+<p>也就是他在无提案的情况下，会根据最大编号来决断，谁大听谁的。</p>
+<h2 id="接受（Accept）阶段"><a href="#接受（Accept）阶段" class="headerlink" title="接受（Accept）阶段"></a>接受（Accept）阶段</h2><p>客户端在收到prepare阶段的响应请求之后，会开始第二阶段：</p>
+<p><img src="https://res.craft.do/user/full/4f93c9bd-47fe-4d9a-fd34-af649a207605/doc/3EDDDEFD-05AE-4751-BF3C-E1C72048DEC5/DE5201AD-0E71-48D0-98CC-8A3B6E4FD91E_2/paxos_6.png" alt="paxos_6.png"></p>
+<p>这个交互过程是这样的：</p>
+<ul>
+<li>当客户端 1 收到大多数的接受者（节点 A、B）的准备响应后，根据<strong>::响应中提案编号最大的提案的值::</strong>，设置接受请求中的值。因为该值在来自节点 A、B 的准备响应中都为空（也就是图 5 中的“尚无提案”），所以就把自己的提议值 3 作为提案的值，发送接受请求[1, 3]。</li>
+<li>当客户端 2 收到大多数的接受者的准备响应后（节点 A、B 和节点 C），根据<strong>::响应中提案编号最大的提案的值::</strong>，来设置接受请求中的值。因为该值在来自节点 A、B、C 的准备响应中都为空（也就是图 5 和图 6 中的“尚无提案”），所以就把自己的提议值 7 作为提案的值，发送接受请求[5, 7]。</li>
+</ul>
+<p>这样的话就可以跟其他情况顺联起来，prepare阶段，接受者会返回他有已经持有的投票值。接手投票的时候，也会拿请求值跟手里的票选来比较。先按照n比较，n越大越好使。</p>
+<p><img src="https://res.craft.do/user/full/4f93c9bd-47fe-4d9a-fd34-af649a207605/doc/3EDDDEFD-05AE-4751-BF3C-E1C72048DEC5/8E92B76E-02B6-4249-91D1-620F8AFBF935_2/paxos_7.png" alt="paxos_7.png"></p>
+<p>如果集群中有学习者，当接受者通过了一个提案时，就通知给所有的学习者。当学习者发现大多数的接受者都通过了某个提案，那么它也通过该提案，接受该提案的值。</p>
+<p>这里的一个重要环节是：<strong>大多数接受者的响应</strong>。学习者和提议者都是以这个来判断响应是否成功的。</p>
+<p>而且这里还有一个点：如果在第二阶段响应结束之前，已经就某个值大多数达成了共识，那么在结束之前这个值就不会变了，也就是当已经达成共识值是3的时候，后续再有更大编号的提案过来的时候，会受到来自接受者的告白，告知已经有一个共识提案是3，但是为了后续更好的衔接提案值递增，更大的提案编码会直接被使用，但是提案值还是会使用之前已经基本达成共识的提案值。</p>
+<blockquote>
+<p>大多数节点就某个值，达成共识后，值就不再变了，哪怕有新的提案，这个值，也能保证不再变了。</p>
+</blockquote>
+<hr>
+<h1 id="Multi-paxos算法"><a href="#Multi-paxos算法" class="headerlink" title="Multi-paxos算法"></a>Multi-paxos算法</h1><blockquote>
+<p>兰伯特提到的 Multi-Paxos 是一种思想，不是算法。而 Multi-Paxos 算法是一个统称，它是指基于 Multi-Paxos 思想，通过多个 Basic Paxos 实例实现一系列值的共识的算法（比如 Chubby 的 Multi-Paxos 实现、Raft 算法等）。</p>
+</blockquote>
+<p>multi代表的就是多，如果就是通过多次执行Basic-paxos 是否可以达到multi-paxos的需求呢？答案是不能，如下缺点：</p>
+<ul>
+<li>如果多个提议者同时提交提案，可能出现因为提案编号冲突，在准备阶段没有提议者接收到大多数准备响应，协商失败，需要重新协商。</li>
+<li>2 轮 RPC 通讯（准备阶段和接受阶段）往返消息多、耗性能、延迟大。你要知道，分布式系统的运行是建立在 RPC 通讯的基础之上的，因此，延迟一直是分布式系统的痛点，是需要我们在开发分布式系统时认真考虑和优化的。</li>
+</ul>
+<p>可见paxos的消耗主要就是由于频繁交互带来的<strong>::网络消耗以及很难保证的网络状况::</strong>。那么解决办法也是围绕这两个方面来考虑的。减少交互环节以及降低网络交互风险。</p>
+<h3 id="领导者"><a href="#领导者" class="headerlink" title="领导者"></a>领导者</h3><p>选举出一个领导者，只有出现异常的时候才去找领导者，否则就已经有一个领导者在了，那么有了领导者也就是有了主心骨，后续的读写也就有了中轴。</p>
+<p>领导者的选举可以通过共识算法来达成。</p>
+<h3 id="优化basic-paxos执行"><a href="#优化basic-paxos执行" class="headerlink" title="优化basic-paxos执行"></a>优化basic-paxos执行</h3><p>当集群节点出现了领导者，那么所有的读写就可以直接以领导者为准，也就是他就是最准确的那一个，也就是不需要prepare阶段了。</p>
+<h3 id="chubby的multi-paxos实现"><a href="#chubby的multi-paxos实现" class="headerlink" title="chubby的multi-paxos实现"></a>chubby的multi-paxos实现</h3><p>唯一领导者作为读写入口，以此实现的强一致性。chubby的场景需要。当出现异常的时候，chubby集群会通过Basic-paxos进行以此选举，选举出leader。</p>
+<p>在 Chubby 的 Multi-Paxos 实现中，也约定了“大多数原则”，也就是说，只要大多数节点正常运行时，集群就能正常工作，所以 Chubby 能容错（n - 1）/2 个节点的故障。</p>
+<blockquote>
+<p>准备阶段的意义，是发现接受者节点上，已经通过的提案的值。</p>
+</blockquote>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Paxos/" rel="tag"># Paxos</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/12/06/carbondata%E6%8E%A2%E7%B4%A2-%E7%B4%A2%E5%BC%95%E7%9A%84%E7%94%9F%E6%88%90/" rel="next" title="carbondata探索-索引的生成">
+                <i class="fa fa-chevron-left"></i> carbondata探索-索引的生成
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/12/14/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-raft/" rel="prev" title="分布式算法--raft">
+                分布式算法--raft <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#分布式协议–Paxos算法"><span class="nav-number">1.</span> <span class="nav-text">分布式协议–Paxos算法</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#达成共识的过程"><span class="nav-number">2.</span> <span class="nav-text">达成共识的过程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#准备（Prepare）阶段"><span class="nav-number">2.0.1.</span> <span class="nav-text">准备（Prepare）阶段</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#接受（Accept）阶段"><span class="nav-number">2.1.</span> <span class="nav-text">接受（Accept）阶段</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Multi-paxos算法"><span class="nav-number">3.</span> <span class="nav-text">Multi-paxos算法</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#领导者"><span class="nav-number">3.0.1.</span> <span class="nav-text">领导者</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#优化basic-paxos执行"><span class="nav-number">3.0.2.</span> <span class="nav-text">优化basic-paxos执行</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#chubby的multi-paxos实现"><span class="nav-number">3.0.3.</span> <span class="nav-text">chubby的multi-paxos实现</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

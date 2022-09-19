@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="flink," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="state的使用、原理以及rescale的操作state的翻译本源是状态，而如果广泛地去理解的话，状态其实就是数据。 为啥会有state在流计算的常用场景中，我们的计算规则经常会覆盖历史数据，这个历史数据可以是原始的数据也可以是经过计算的数据，这样场景我们就需要依赖state。这个场景在流式数据生产诞生的时候就已经有了，起初的解决方式就是依赖一个第三方的存储或者在当前计算服务的内存里，但是数据的存">
+<meta property="og:type" content="article">
+<meta property="og:title" content="flink原理--state的使用、原理、rescale的操作">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/03/31/flink%E5%8E%9F%E7%90%86-state%E7%9A%84%E4%BD%BF%E7%94%A8%E3%80%81%E5%8E%9F%E7%90%86%E3%80%81rescale%E7%9A%84%E6%93%8D%E4%BD%9C/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="state的使用、原理以及rescale的操作state的翻译本源是状态，而如果广泛地去理解的话，状态其实就是数据。 为啥会有state在流计算的常用场景中，我们的计算规则经常会覆盖历史数据，这个历史数据可以是原始的数据也可以是经过计算的数据，这样场景我们就需要依赖state。这个场景在流式数据生产诞生的时候就已经有了，起初的解决方式就是依赖一个第三方的存储或者在当前计算服务的内存里，但是数据的存">
+<meta property="og:image" content="https://github.com/images/flink-state-1.png">
+<meta property="og:image" content="https://github.com/images/flink-state-2.png">
+<meta property="og:image" content="https://github.com/images/flink-state-3.png">
+<meta property="og:image" content="https://github.com/images/flink-state-4.png">
+<meta property="og:image" content="https://github.com/images/flink-state-5.png">
+<meta property="og:image" content="https://github.com/images/flink-state-6.png">
+<meta property="og:image" content="https://github.com/images/flink-state-7.png">
+<meta property="article:published_time" content="2022-03-31T07:40:23.000Z">
+<meta property="article:modified_time" content="2022-06-15T12:21:02.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="flink">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/flink-state-1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/03/31/flink原理-state的使用、原理、rescale的操作/"/>
+
+
+
+
+
+  <title>flink原理--state的使用、原理、rescale的操作 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/03/31/flink%E5%8E%9F%E7%90%86-state%E7%9A%84%E4%BD%BF%E7%94%A8%E3%80%81%E5%8E%9F%E7%90%86%E3%80%81rescale%E7%9A%84%E6%93%8D%E4%BD%9C/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">flink原理--state的使用、原理、rescale的操作</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-03-31T15:40:23+08:00">
+                2022-03-31
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="state的使用、原理以及rescale的操作"><a href="#state的使用、原理以及rescale的操作" class="headerlink" title="state的使用、原理以及rescale的操作"></a>state的使用、原理以及rescale的操作</h2><p>state的翻译本源是状态，而如果广泛地去理解的话，状态其实就是数据。</p>
+<h3 id="为啥会有state"><a href="#为啥会有state" class="headerlink" title="为啥会有state"></a>为啥会有state</h3><p>在流计算的常用场景中，我们的计算规则经常会覆盖历史数据，这个历史数据可以是原始的数据也可以是经过计算的数据，这样场景我们就需要依赖state。这个场景在流式数据生产诞生的时候就已经有了，起初的解决方式就是依赖一个第三方的存储或者在当前计算服务的内存里，但是数据的存储格式以及数据的HA需要开发人员自己去解决。但是随着计算场景的复杂化以及对于计算扩展性的强需求，state的管理越来越复杂，state本身的稳定性对于计算任务的稳定性的影响，也越来越被放大。对于当前越来越大数据量的计算需求，这是极大的风险点。</p>
+<p>flink本身对于state的管理，是先天性的，在设计之初就有考虑过这些场景，所以很多易用性对于flink开发人员来说是友好的。</p>
+<p>与批计算相比，State是流计算特有的，批计算没有failover机制，要么成功，要么重新计算。流计算在 大多数场景 下是增量计算，数据逐条处理（大多数场景)，每次计算是在上一次计算结果之上进行处理的，这样的机制势必要将上一次的计算结果进行存储（生产模式要持久化），另外由于 机器，网络，脏数据等原因导致的程序错误，在重启job时候需要从成功的检查点(checkpoint，后面篇章会专门介绍)进行state的恢复。增量计算，Failover这些机制都需要state的支撑。  </p>
+<h3 id="state的分类"><a href="#state的分类" class="headerlink" title="state的分类"></a>state的分类</h3><h4 id="按照托管状态分类"><a href="#按照托管状态分类" class="headerlink" title="按照托管状态分类"></a>按照托管状态分类</h4><ul>
+<li><p><strong>原始状态（Raw State）</strong></p>
+</li>
+<li><p><strong>托管状态（ManagedState）</strong></p>
+</li>
+</ul>
+<p>两者的区别：</p>
+<ul>
+<li><p>Managed State 由Flink Runtime 管理，自动存储，自动恢复，在内存管理上有优化；Raw State 需要用户自己管理，需要自己序列化，Flink 不知道 State 中存入的数据是什么结构，只有用户自己知道，需要最终序列化为可存储的数据结构。</p>
+</li>
+<li><p>从状态数据结构来说，Managed State 支持已知的数据结构，如Value、List、Map等。而 Raw State <strong>只支持 字节</strong> 数组，所有状态都要转换为二进制字节数组才可以。</p>
+</li>
+<li><p>从推荐使用场景来说，Managed State 大多数情况下均可使用，而Raw State 是当 Managed State 不够用时，比如需要自定义Operator 时，才会使用 Raw State。<strong>在实际生产过程中，只推荐使用 Managed State 。</strong></p>
+</li>
+</ul>
+<h4 id="是否有-key来划分"><a href="#是否有-key来划分" class="headerlink" title="是否有 key来划分"></a>是否有 key来划分</h4><ul>
+<li><p><strong>KeyedState</strong></p>
+</li>
+<li><p><strong>OperatorState</strong></p>
+</li>
+</ul>
+<p>两者的区别：</p>
+<ul>
+<li><p><strong>keyedState</strong> 只能用在keyedStream上的算子中，状态跟特定的key绑定，keyStream流上的每一个key 对应一个state 对象。若一个operator 实例处理多个key，访问相应的多个State，<strong>可对应多个state</strong>；OperatorState 可以用于所有算子，但整个算子只对应一个state。</p>
+</li>
+<li><p>keyedState 保存在StateBackend中，通过RuntimeContext访问，实现Rich Function接口；OperatorState 需要实现CheckpointedFunction或者 ListCheckpointed 接口。</p>
+</li>
+<li><p>keyedState 支持多种数据结构：ValueState、ListState、ReducingState、AggregatingState、MapState；OperatorState 目前只支持 ListState数据结构。</p>
+</li>
+<li><p>OperatorState 并发改变时有多种重新分配的方式可选：均匀分配；而 keyedState 需要根据 keyGroup 进行重新规划。</p>
+</li>
+</ul>
+<h4 id="BroadcastState"><a href="#BroadcastState" class="headerlink" title="BroadcastState"></a>BroadcastState</h4><p>Flink中，广播状态中叫作 BroadcastState。 在广播状态模式中使用。<strong>所谓广播状态模式， 就是来自一个流的数据需要被广播到所有下游任务</strong>，<strong>在算子本地存储，在处理另一个流的时候依赖于广播的数据</strong>.下面以一个示例来说明广播状态模式。</p>
+<p><img src="/images/flink-state-1.png" alt="flink-state-1"></p>
+<p>上图这个示例包含两个流，一个为<strong>kafka模型流</strong>，该模型是通过机器学习或者深度学习训练得到的模型，将该模型通过广播，发送给下游所有规则算子，规则算子将规则缓存到Flink的本地内存中，另一个为 <strong>Kafka数据流</strong>，用来接收测试集，该测试集依赖于模型流中的模型，通过模型完成测试集的推理任务。</p>
+<blockquote>
+<p>广播状态（State）必须是MapState类型，广播状态模式需要使用广播函数进行处理，广播函数提供了处理广播数据流和普通数据流的接口。</p>
+</blockquote>
+<h3 id="state接口"><a href="#state接口" class="headerlink" title="state接口"></a>state接口</h3><p>在Flink中使用状态，包含两种状态接口：</p>
+<ul>
+<li><p><strong>状态操作接口：</strong> 使用状态对象本身存储，写入、更新数据。</p>
+<ul>
+<li><p>面向开发者的状态操作接口：面向开发的State接口只提供了对State中数据的增删改基本操作接口，用户无法访问状态的其他运行时所需要的信息。接口体系如下图：</p>
+<p><img src="/images/flink-state-2.png" alt="flink-state-2"></p>
+</li>
+<li><p>面相flink框架本身的操作接口：内部State 接口 是给 Flink 框架使用，提供更多的State方法，可以根据需要灵活扩展。除了对State中数据的访问之外，还提供内部运行时信息，如State中数据的序列化器，命名空间（namespace）、命名空间的序列化器、命名空间合并的接口。<strong>内部State接口命名方式为InternalxxxState。</strong></p>
+</li>
+<li><p><strong>状态访问接口：</strong> 从StateBackend获取状态对象本身。</p>
+<p>状态会被保存在StateBackend中，在开发者使用的时候，比如开发UDF的时候，flink为了让开发者只需要面对一个对象而不去关注具体使用的存储介质，抽象出来了两个接口，<strong>OperatorStateStore</strong> 和 <strong>KeyedStateStore</strong>。用户在编写UDF时，就无须考虑到底是使用哪种 StateBackend类型接口。</p>
+<p><img src="/images/flink-state-3.png" alt="flink-state-3"></p>
+<p>OperatorState数据以Map形式保存在内存中，并没有使用RocksDBStateBackend和HeapKeyedStateBackend。</p>
+<p><img src="/images/flink-state-4.png" alt="flink-state-4">                            </p>
+<p>keyedStateStore数据使用RocksDBStateBackend或者HeapKeyedStateBackend来存储，KeyedStateStore中创建、获取状态都交给了具体的StateBackend来处理，KeyedStateStore本身更像是一个代理。</p>
+</li>
+</ul>
+</li>
+</ul>
+<h4 id="几种keyedState的差异"><a href="#几种keyedState的差异" class="headerlink" title="几种keyedState的差异"></a>几种keyedState的差异</h4><p><img src="/images/flink-state-5.png" alt="flink-state-5"></p>
+<ul>
+<li><p>ValueState 存储单个值，比如 Wordcount，用 Word 当 Key，State 就是它的 Count。这里面的单个值可能是数值或者字符串，作为单个值，访问接口可能有两种，get 和 set。在 State 上体现的是 update(T) / T value()。</p>
+</li>
+<li><p>MapState 的状态数据类型是 Map，在 State 上有 put、remove 等。需要注意的是在 MapState 中的 key 和 Keyed state 中的 key 不是同一个。</p>
+</li>
+<li><p>ListState 状态数据类型是 List，访问接口如 add、update 等。</p>
+</li>
+<li><p>ReducingState 和 AggregatingState 与 ListState 都是同一个父类，但状态数据类型上是单个值，原因在于其中的 add 方法不是把当前的元素追加到列表中，而是把当前元素直接更新进了 Reducing 的结果中。</p>
+</li>
+<li><p>AggregatingState 的区别是在访问接口，ReducingState 中 add（T）和 T get() 进去和出来的元素都是同一个类型，但在 AggregatingState 输入的 IN，输出的是 OUT。</p>
+</li>
+</ul>
+<h4 id="stateBackend"><a href="#stateBackend" class="headerlink" title="stateBackend"></a>stateBackend</h4><p>在Flink中， 状态存储被叫做 <strong>StateBackend</strong>，他的实现也是跟上边说的对应上的，但是对于实际使用过程中，数据的存储流程以及存储位置是需要明确的，因为这对于稳定性至关重要。</p>
+<p><img src="/images/flink-state-6.png" alt="flink-stat-6"></p>
+<ul>
+<li><p>内存性state</p>
+<ul>
+<li><p>MemoryStateBackend ：MemoryStateBackend，运行时所需的State数据全部保存在 <strong>TaskManager JVM堆上内存中，</strong> KV类型的State、窗口算子的State 使用HashTable 来保存数据、触发器等。<strong>执行检查点的时候，会把 State 的快照数据保存到JobManager进程的内存中。</strong></p>
+<p>MemoryStateBackend 可以使用<strong>异步</strong>的方式进行快照，（也可以同步），<strong>推荐异步</strong>，避免阻塞算子处理数据。</p>
+<p>基于内存的 Stateßackend 在生产环境下不建议使用，可以在本地开发调试测试 。</p>
+<ul>
+<li><p>State 存储在 JobManager 的内存中.受限于 JobManager的内存大小。</p>
+</li>
+<li><p>每个 State默认5MB,可通过 MemoryStateBackend 构造函数调整</p>
+</li>
+<li><p>每个 Stale 不能超过 Akka Frame 大小，默认是10M。</p>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>文件型 StateBackend</strong></p>
+<ul>
+<li><p>FSStateBackend ： 运行时所需的State数据全部保存在 <strong>TaskManager 的内存中，</strong> <strong>执行检查点的时候，会把 State 的快照数据保存到配置的文件系统中。</strong></p>
+<p>FSStateBackend <strong>适用于处理大状态、长窗口、或者大键值状态的有状态处理任务</strong>。</p>
+<ul>
+<li><p>State 数据首先被存在 TaskManager 的内存中。</p>
+</li>
+<li><p>State大小不能超过TM内存。</p>
+</li>
+<li><p>TM异步将State数据写入外部存储。</p>
+</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p><strong>MemoryStateBackend 和FSStateBackend 都依赖于HeapKeyedStateBackend，HeapKeyedStateBackend 使用 State存储数据。</strong></p>
+</blockquote>
+</li>
+<li><p><strong>RocksDBStateBackend</strong></p>
+<p>RocksDBStateBackend <strong>使用嵌入式的本地数据库 RocksDB</strong> 将流计算数据状态<strong>存储在本地磁盘中</strong>，不会受限于TaskManager 的内存大小，在执行检查点的时候，再将整个 RocksDB 中保存的State数据全量或者增量持久化到配置的文件系统中，</p>
+<p>在 JobManager 内存中会存储少量的检查点元数据。RocksDB克服了State受内存限制的问题，同时又能够持久化到远端文件系统中，比较适合在生产中使用。</p>
+<blockquote>
+<p>RocksDBStateBackend 的效率依赖于 RocksDB 本身的调优。</p>
+</blockquote>
+<ul>
+<li><p>最适合用于处理大状态、长窗口，或大键值状态的有状态处理任务。</p>
+</li>
+<li><p>RocksDBStateBackend 非常适合用于高可用方案。</p>
+</li>
+<li><p>RocksDBStateBackend 是<strong>目前唯一支持增量检查点的后端。</strong> 增量检查点非常适用于超 大状态的场景。</p>
+</li>
+<li><p>RocksDBStateBackend 也需要配置外部文件系统，集中保存State 。</p>
+</li>
+<li><p>RocksDB JNI的桥接API是基于byte[]的，所以每个key和每个value的最大占用空间不能超过2^31次方字节。也就是2G。但是在RocksDB中状态会使用合并操作(比如listState)。所以会出现多个key累加合并后大小超过限制空间，那么这个合并后的key在下次取用的时候就会报错，这是当前RocksDB JNI的限制。</p>
+</li>
+</ul>
+</li>
+</ul>
+<h4 id="状态持久化"><a href="#状态持久化" class="headerlink" title="状态持久化"></a>状态持久化</h4><p><img src="/images/flink-state-7.png" alt="flink-state-7"></p>
+<p><strong>基于内存的状态后端</strong>使用 CopyOnWriteStateTable 来保证线程安全，RocksDBStateBackend则使用RocksDB的快照机制，使用快照来保证线程安全。</p>
+<p>增量持久化就是每次持久化增量的State，<strong>只有RocksDBStateBackend 支持增量持久化。</strong></p>
+<blockquote>
+<p><strong>Flink 增量式的检查点以 RocksDB为基础</strong>， RocksDB是一个基于LSM-Tree的KV存储。新的数据保存在内存中， 称为<strong>memtable</strong>。如果Key相同，后到的数据将覆盖之前的数据，一旦memtable写满了，RocksDB就会将数据压缩并写入磁盘。memtable的数据持久化到磁盘后，就变成了不可变的 <strong>sstable</strong>。  </p>
+<p><strong>因为 sstable 是不可变的，</strong>Flink对比前一个检查点创建和删除的RocksDB sstable 文件就可以计算出状态有哪些发生改变。</p>
+<p>为了确保 sstable 是不可变的，<strong>Flink 会在RocksDB 触发刷新操作</strong>，<strong>强制将 memtable 刷新到磁盘上 。</strong>在Flink 执行检查点时，会将新的sstable 持久化到HDFS中，同时保留引用。这个过程中 Flink 并不会持久化本地所有的sstable，因为本地的一部分历史sstable 在之前的检查点中已经持久化到存储中了，只需增加对 sstable文件的引用次数就可以。</p>
+<p><strong>RocksDB会在后台合并 sstable 并删除其中重复的数据</strong>。然后在RocksDB删除原来的 sstable，替换成新合成的 sstable.。<strong>新的 sstable 包含了被删除的 sstable中的信息，</strong>通过合并历史的sstable会合并成一个新的 sstable，并删除这些历史sstable. 可以减少检查点的历史文件，避免大量小文件的产生。</p>
+</blockquote>
+<h3 id="rescale操作对于state的影响"><a href="#rescale操作对于state的影响" class="headerlink" title="rescale操作对于state的影响"></a>rescale操作对于state的影响</h3><p>keyedState主要的实现思路是keyGroup的使用，这个概念有点像是一致性hash，主要围绕的思路是为了尽量减少rescale之后的数据迁移。</p>
+<p>涉及的细节点主要是 rescale之后，以及在任务关闭之前如何进行 state 的存储，这样为后边的恢复做准备。</p>
+<p>根据keyGroup的分布变化，会从远端文件系统里把需要的文件拉取过来，然后在本地恢复需要的数据。</p>
+<p>这里关于数据恢复的成本是重点关注的，有大文件需要恢复的时候，目前还是待考验的。</p>
+<p>目前社区中的主要优化方向都是如何高效写入rockdb这个方向在努力。在下边的知乎链接中有比较明确的一些方向。</p>
+<h4 id="rocksdb的调优"><a href="#rocksdb的调优" class="headerlink" title="rocksdb的调优"></a>rocksdb的调优</h4><p>这部分要先了解flink的内存管理。</p>
+<p>然后看一下计算流程调度，flink任务分配的方式。</p>
+<p>rocksdb的初始化。</p>
+<p>rocksdb本身的存取原理。</p>
+<p>flink给予的调优参数。</p>
+<blockquote>
+<p>后边专门补个笔记来记录rocksdb的调优。</p>
+</blockquote>
+<p>参考：</p>
+<p><a href="https://zhuanlan.zhihu.com/p/399764479" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/399764479</a></p>
+<p><a href="https://zhuanlan.zhihu.com/p/399766849" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/399766849</a></p>
+<p><a href="https://www.infoq.cn/article/vgkza-s9fmbgabp71pgh" target="_blank" rel="noopener">Apache Flink 零基础入门（六）：状态管理及容错机制_大数据_孙梦瑶_InfoQ精选文章</a></p>
+<p><a href="https://www.codercto.com/a/115306.html" target="_blank" rel="noopener">Flink原理｜Apache Flink漫谈系列 - State | 码农网</a></p>
+<p><a href="https://zhuanlan.zhihu.com/p/460964409" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/460964409</a></p>
+<p><a href="https://flink.apache.org/features/2017/07/04/flink-rescalable-state.html" target="_blank" rel="noopener">Apache Flink: A Deep Dive into Rescalable State in Apache Flink</a></p>
+<p><a href="https://blog.csdn.net/weixin_41998764/article/details/120530988" target="_blank" rel="noopener">flink的状态后端介绍_二十一画@的博客-CSDN博客_flink 状态后端</a></p>
+<p><a href="https://www.jianshu.com/p/47a40259a450" target="_blank" rel="noopener">Flink RocksDB托管内存机制的幕后——Cache &amp; Write Buffer Manager - 简书</a></p>
+<p><a href="https://blog.jrwang.me/2019/flink-source-code-state/" target="_blank" rel="noopener">Flink 源码阅读笔记（10）- State 管理 - JR&#39;s Blog</a></p>
+<p><a href="https://zhuanlan.zhihu.com/p/427893289" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/427893289</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/flink/" rel="tag"># flink</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/03/30/parquet%E6%96%87%E4%BB%B6%E7%9A%84%E8%AF%BB%E5%8F%96%E8%BF%87%E7%A8%8B/" rel="next" title="parquet文件的读取过程">
+                <i class="fa fa-chevron-left"></i> parquet文件的读取过程
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/04/01/flink%E5%8E%9F%E7%90%86-join/" rel="prev" title="flink原理--join">
+                flink原理--join <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#state的使用、原理以及rescale的操作"><span class="nav-number">1.</span> <span class="nav-text">state的使用、原理以及rescale的操作</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#为啥会有state"><span class="nav-number">1.1.</span> <span class="nav-text">为啥会有state</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#state的分类"><span class="nav-number">1.2.</span> <span class="nav-text">state的分类</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#按照托管状态分类"><span class="nav-number">1.2.1.</span> <span class="nav-text">按照托管状态分类</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#是否有-key来划分"><span class="nav-number">1.2.2.</span> <span class="nav-text">是否有 key来划分</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#BroadcastState"><span class="nav-number">1.2.3.</span> <span class="nav-text">BroadcastState</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#state接口"><span class="nav-number">1.3.</span> <span class="nav-text">state接口</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#几种keyedState的差异"><span class="nav-number">1.3.1.</span> <span class="nav-text">几种keyedState的差异</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#stateBackend"><span class="nav-number">1.3.2.</span> <span class="nav-text">stateBackend</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#状态持久化"><span class="nav-number">1.3.3.</span> <span class="nav-text">状态持久化</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#rescale操作对于state的影响"><span class="nav-number">1.4.</span> <span class="nav-text">rescale操作对于state的影响</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#rocksdb的调优"><span class="nav-number">1.4.1.</span> <span class="nav-text">rocksdb的调优</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

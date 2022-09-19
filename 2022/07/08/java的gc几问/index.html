@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="gc," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="java的gc几问JVM 堆为什么要分代？对象很多，有的存活期长，有的存活短，需要收集的话，就要讲究收集策略。因为大部分对象都是存活期短的，那么尽快找到这样的对象并且直接处理掉，释放空间，而那些老顽固并不需要每次都去管理，所以区分开，分开处理，整个对象回收才会更加高效。 分代的垃圾回收策略，是基于两个假设：  不同对象的生命周期是不一样的。可以大体分成两类，一类称为短寿对象，这类对象存活时间很短，">
+<meta property="og:type" content="article">
+<meta property="og:title" content="java的gc几问">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/08/java%E7%9A%84gc%E5%87%A0%E9%97%AE/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="java的gc几问JVM 堆为什么要分代？对象很多，有的存活期长，有的存活短，需要收集的话，就要讲究收集策略。因为大部分对象都是存活期短的，那么尽快找到这样的对象并且直接处理掉，释放空间，而那些老顽固并不需要每次都去管理，所以区分开，分开处理，整个对象回收才会更加高效。 分代的垃圾回收策略，是基于两个假设：  不同对象的生命周期是不一样的。可以大体分成两类，一类称为短寿对象，这类对象存活时间很短，">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/01/20220104092833_78779.gif">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/01/20220104092901_74283.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/01/20220104092935_26383.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/01/20220104092959_69483.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/01/20220104093034_77617.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/01/20220104093102_34834.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/01/20220104093136_28426.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/01/20220104093214_38827.png">
+<meta property="article:published_time" content="2022-07-08T09:27:22.000Z">
+<meta property="article:modified_time" content="2022-07-09T09:19:40.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="gc">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://hbasefly.com/wp-content/uploads/2022/01/20220104092833_78779.gif">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/08/java的gc几问/"/>
+
+
+
+
+
+  <title>java的gc几问 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/08/java%E7%9A%84gc%E5%87%A0%E9%97%AE/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">java的gc几问</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-07-08T17:27:22+08:00">
+                2022-07-08
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/java/" itemprop="url" rel="index">
+                    <span itemprop="name">java</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="java的gc几问"><a href="#java的gc几问" class="headerlink" title="java的gc几问"></a>java的gc几问</h1><h3 id="JVM-堆为什么要分代？"><a href="#JVM-堆为什么要分代？" class="headerlink" title="JVM 堆为什么要分代？"></a>JVM 堆为什么要分代？</h3><p>对象很多，有的存活期长，有的存活短，需要收集的话，就要讲究收集策略。因为大部分对象都是存活期短的，那么尽快找到这样的对象并且直接处理掉，释放空间，而那些老顽固并不需要每次都去管理，所以区分开，分开处理，整个对象回收才会更加高效。</p>
+<p>分代的垃圾回收策略，是基于两个假设：</p>
+<ol>
+<li>不同对象的生命周期是不一样的。可以大体分成两类，一类称为短寿对象，这类对象存活时间很短，比如局部变量、短链接对象。与之对应的称为长寿对象，比如数据缓存、session 对象等。</li>
+<li>大部分 Java 应用中短寿对象占比都占绝大多数，这类对象可以很快就会被回收。</li>
+</ol>
+<p>基于这两个事实假设，大多数 GC 算法都采用分代回收机制。将 JVM 堆划分成两个区域，一个小的新生代，一个大的老年代。<strong>新生代放置短寿对象，可以采用比较频繁的回收策略，每次可以回收掉大量的垃圾对象。老年代放置长寿对象，可以采用与新生代不同的回收策略</strong>。</p>
+<h3 id="新生代-GC-触发条件是什么？简单介绍一下新生代-GC-算法？"><a href="#新生代-GC-触发条件是什么？简单介绍一下新生代-GC-算法？" class="headerlink" title="新生代 GC 触发条件是什么？简单介绍一下新生代 GC 算法？"></a>新生代 GC 触发条件是什么？简单介绍一下新生代 GC 算法？</h3><p>应用程序在 Eden 区生成新对象，一旦 Eden 区满了之后就会触发新生代 GC，新生代 GC 算法使用<strong>复制算法</strong>。复制算法对 Eden 区以及 S0 区的对象进行标记，标记出活跃对象，然后将活跃对象复制到 S1 区。<strong>复制算法不会产生内存碎片</strong>。对于标记算法中如何判断一个对象是活跃的还是不活跃的（垃圾对象），现在一般使用<strong>可达性分析算法</strong>。</p>
+<p>更细节的问题：什么是可达性分析算法？如何标记一个对象？复制是否会有什么问题？</p>
+<h4 id="如何判断一个对象是否活跃？"><a href="#如何判断一个对象是否活跃？" class="headerlink" title="如何判断一个对象是否活跃？"></a><strong>如何判断一个对象是否活跃？</strong></h4><p>判断对象是否活跃目前一般使用可达性分析算法。通过一系列称为”<strong>GC Roots</strong>” 的元素作为起始点，从这些节点开始向下搜索，当一个对象到 GC Roots 没有任何<strong>引用链</strong>相连时，则说明此对象是不活跃的。</p>
+<p>“GC Roots” 是什么？它本质上是一组<strong>活跃的引用</strong>，注意<strong>不是对象</strong>。容易理解的有<strong>线程栈上的引用变量、静态变量到对象的引用</strong>，在分代算法中从非收集区域指向收集区域对象的引用等。</p>
+<p>新生代 GC 是 Stop-The-World（以下简称 STW）的，即只有标记线程工作，这样就可以将新生代堆想象成一个引用链快照，不会有应用线程去修改这个引用链，这样就可以使用深度优先算法进行引用遍历。JVM 中具体的实现算法是三色标记算法:</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2022/01/20220104092833_78779.gif" alt="img"></p>
+<p>我们把遍历对象图过程中遇到的对象，按” 是否访问过” 这个条件标记成以下三种颜色：</p>
+<ul>
+<li><p>白色：尚未访问过。</p>
+</li>
+<li><p>黑色：本对象已访问过，而且本对象引用到的其他对象也全部访问过了。</p>
+</li>
+<li><p>灰色：本对象已访问过，但是本对象引用到的其他对象尚未全部访问完。全部访问后，会转换为黑色。</p>
+</li>
+</ul>
+<p>假设现在有白、灰、黑三个集合（表示当前对象的颜色），其遍历访问过程为：</p>
+<ol>
+<li>初始时，所有对象都在【白色集合】中。</li>
+<li>将 GC Roots 直接引用到的对象挪到 【灰色集合】中。</li>
+<li>从灰色集合中获取对象：</li>
+</ol>
+<p>（1）将本对象引用到的其他对象全部挪到 【灰色集合】中。</p>
+<p>（2）将本对象挪到【黑色集合】里面。</p>
+<ol start="4">
+<li>重复步骤 3，直至【灰色集合】为空时结束。</li>
+<li>结束后，<strong>仍在【白色集合】的对象即为 GC Roots 不可达，可以进行回收</strong>。</li>
+</ol>
+<p>当STW时，对象间的引用是不会发生变化的，可以轻松完成标记（这句话重点记得，下文还会提到）。如下图所示，标记完成后为A、D、E、F和G节点都变成了黑色，B、C和H都是白色，表示B、C、H三个对象GC Roots不可达，为垃圾对象：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2022/01/20220104092901_74283.png" alt="img"></p>
+<h4 id="如何标记一个活跃对象？"><a href="#如何标记一个活跃对象？" class="headerlink" title="如何标记一个活跃对象？"></a><strong>如何标记一个活跃对象？</strong></h4><p>通过三色标记法可以找到所有的活跃对象，那怎么标记这些活跃对象呢？目前主要使用位图标记活跃对象，堆中每个对象都有一个对应的<strong>位图</strong>，如果是活跃对象，该位图设置为 1，否则设置为 0。</p>
+<h4 id="如何跨区迁移对象？"><a href="#如何跨区迁移对象？" class="headerlink" title="如何跨区迁移对象？"></a>如何跨区迁移对象？</h4><p>到目前为止，通过三色标记法我们找到了新生代中所有活跃对象，并将对应的位图进行了标记。接着，我们需要将这些活跃对象从 Eden/S0 区移动到 S1 区。整个移动过程分为如下 3 个子步骤：</p>
+<ol>
+<li>在 S1 区为对象申请特定大小的内存。</li>
+<li>初始化对象，并将对象的字段进行赋值。</li>
+<li>全部迁移完成之后将 Eden/S0 区的所有对象清除。</li>
+</ol>
+<h4 id="如何修改引用对象指针地址？"><a href="#如何修改引用对象指针地址？" class="headerlink" title="如何修改引用对象指针地址？"></a>如何修改引用对象指针地址？</h4><p>迁移完成之后还有一个问题，既然这些活跃对象从一个地方迁移到了另一个地方，那所有引用这些对象的对象指针就需要相应地修改，对吧？那这里就有一个问题，引用新生代对象的目标对象怎么找到呢？</p>
+<p>分析一下，这些要找的目标肯定不在新生代，因为新生代存活的对象已经迁移了。那目标对象肯定存在于老年代，也就是有一些老年代的对象引用了新生代的对象，后者地址发生变化之后就要通知前者进行指针变化。问题来了，如何精确找到老年代中的哪个对象引用了新生代的对象呢？</p>
+<p>有一个方案是扫描整个老年代的所有对象，但是这样的效率必然不高，尤其是在老年代内存设置非常大的情况下效率就会更差。于是 JVM 算法设计者设计了使用一个 Card Table 记录老年代对象到新生代对象的引用方案。</p>
+<p>这里多说一句，通常有两种方法记录对象之间的引用关系，一种为 Point Out，一种为 Point In。假设有这样的引用关系，对象 A 的成员变量指向对象 B（伪代码为：ObjA.Field = ObjB），对于 Point Out 的记录方式来说，会在对象 A（ObjA）的 Card Table 中记录对象 B（ObjB）的地址。对于 Point In 的记录方式来说，会在对象 B（ObjB）的 Card Table 中记录对象 A（ObjA）的地址，这相当于一种反向引用。这二者的区别在于处理时有所不同：Point Out 方式在记录这种引用关系的时候比较简单，但是在反向查找时需要对 Card Table 做全部扫描。Point In 记录引用关系操作相对稍微复杂，但是在标记扫描时可以直接找到有用和无用的对象，不需要进行额外的扫描，因为 Card Table 里面的对象可以看作根对象。”ParNew+CMS” 组合回收器中老年代到新生代的跨代引用使用的是 Point Out 模式。</p>
+<p>那 Card Table 是个什么数据结构呢？我们将老年代这个连续的堆内存空间划分成连续的 512Byte 内存块，Card Table 是一个连续的数组，数组的每个元素大小是 1Byte，分别映射老年代堆内存的 512Byte 空间。如果老年代的某个对象产生了跨代引用，就将对应 Card Table 上的数组元素标记为 Dirty，这个 Card 就是所谓的 Dirty Card。如下示意图所示：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2022/01/20220104092935_26383.png" alt="img"></p>
+<p>有了 Card Table，就不需要扫描整个老年代空间，而只需要扫描 Dirty Cards 对应的堆空间，遍历这些堆空间的对象进行必要的调整即可，这样可以大大提升扫描的效率，调整完成之后将对应的 Dirty Card 重置。</p>
+<h4 id="Card-Table-上的-Card-什么时候会被设置为-Dirty？"><a href="#Card-Table-上的-Card-什么时候会被设置为-Dirty？" class="headerlink" title="Card Table 上的 Card 什么时候会被设置为 Dirty？"></a>Card Table 上的 Card 什么时候会被设置为 Dirty？</h4><p>这里需要引入一个非常关键的概念 – 写屏障。写屏障可以简单理解为一个钩子函数，对一个对象引用进行写操作（即引用赋值）之前或之后附加执行的逻辑。JVM 通过写屏障维护 Card Table，如果某一个老年代对象引用一个新生代对象，在将引用赋值写入到内存之前，会执行一段特定代码将老年代对象所在内存区域对应的 Card 设置为 Dirty。没错，这听起来就像 AOP。</p>
+<h3 id="在哪些条件下对象会从新生代晋升到老年代？"><a href="#在哪些条件下对象会从新生代晋升到老年代？" class="headerlink" title="在哪些条件下对象会从新生代晋升到老年代？"></a>在哪些条件下对象会从新生代晋升到老年代？</h3><ol>
+<li>躲过 15 次新生代 GC 后晋升到老年代（15 是默认情况）。</li>
+<li>大对象直接进入老年代。</li>
+<li>动态对象年龄判断机制：假如当 Survivor 区中，相同年龄的对象总大小大于这 Survivor 区域总大小的 50%，那么大于等于这批对象年龄的对象，在下次 YGC 后就会晋升到老年代。</li>
+<li>YGC 后存活对象太多超过 Survivor 区大小，通过分配担保机制晋升到老年代。</li>
+</ol>
+<blockquote>
+<p>关于分配担保 ： <a href="https://xie.infoq.cn/article/d17f02c95954cf812e3b62fbb" target="_blank" rel="noopener">https://xie.infoq.cn/article/d17f02c95954cf812e3b62fbb</a></p>
+<p>担保，保的是老年代可以一次性容纳所有的要晋升过来的对象，否则就得执行full gc，然后再确认是否可以迁移对象到老年代。</p>
+</blockquote>
+<h3 id="老年代-GC-触发条件是什么？简单介绍一下老年代-GC-算法？"><a href="#老年代-GC-触发条件是什么？简单介绍一下老年代-GC-算法？" class="headerlink" title="老年代 GC 触发条件是什么？简单介绍一下老年代 GC 算法？"></a>老<strong>年</strong>代 GC 触发条件是什么？简单介绍一下老<strong>年</strong>代 GC 算法？</h3><p>老年代使用内存占老年代实际大小比例超过一定阈值（可以通过参数 - XX:CMSInitiatingOccupancyFraction 配置）之后会触发老年代 GC。老年代 GC 使用并发标记清理算法，算法分为初始标记、并发标记、预清理、可中断的预清理、再标记、并发清理以及并发重置状态等 7 个步骤，其中初始标记、再标记以及并发清理 3 个阶段是 STW。下面是一段完整老年代 GC 的日志片段：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2022/01/20220104092959_69483.png" alt="img"></p>
+<p><strong>1. 初始标记</strong>。从 GC Roots 集合以及新生代对象出发，标记直接引用的对象。示意图如下所示：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2022/01/20220104093034_77617.png" alt="img"></p>
+<p><strong>2. 并发标记。</strong>从初识标记阶段标记出来的对象开始基于” 三色标记法” 找出所有存活对象并标记。<strong>这个阶段应用线程会和标记线程并发执行</strong>。假如此时只有标记线程工作，那并发标记前后的示意图如下：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2022/01/20220104093102_34834.png" alt="img"></p>
+<p>然而实际上，应用线程会和标记线程一起并发执行，这就可能出现如下几种情况：</p>
+<ul>
+<li>对象引用被删除。</li>
+<li>应用线程直接在老年代分配新对象。</li>
+<li>新生代对象晋升到老年代。</li>
+<li>老年代对象之间引用发生变更。</li>
+</ul>
+<p>这样的话，并发标记完成后可能不是上面的示意图，而是如下这种示意图：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2022/01/20220104093136_28426.png" alt="img"></p>
+<p>分别来看这几种情况：</p>
+<ul>
+<li>对象引用被删除（上图场景 1）：假如一个对象在被标记为活跃对象之后引用关系被删除。因为该对象已经被标记为活跃对象，所以它不会在本次 GC 中被回收。但是理论上来讲，这个对象是应该被回收的。应该被回收的对象没有被回收，这种情况不影响正确性，但会产生” 浮动垃圾”。这种现象称为 “<strong>多标</strong>”。</li>
+<li>直接在老年代分配新对象（上图场景 2）：如果在标记线程执行结束之后应用线程重新 new 了一些新对象（比如大对象）并产生了引用关系。这些对象本应该被标记为活跃对象但实际上没有被标记，就会出现正确性问题。这是 “并发标记” 引入的第一个问题。</li>
+<li>新生代对象晋升到老年代（上图场景 3）：因为应用线程在工作，所以 Eden 区就可能会满，进而触发 YGC，YGC 之后就会有新生代对象晋升到老年代。晋升到老年代的对象本应该被标记为活跃对象但实际上没有被标记，就会出现正确性问题。与场景 2 类似。</li>
+<li>老年代对象之间引用发生变更（上图场景 4）：这个场景稍微复杂一点，使用下面的示意图分析一下。</li>
+</ul>
+<p><img src="http://hbasefly.com/wp-content/uploads/2022/01/20220104093214_38827.png" alt="img"></p>
+<p>假设标记线程已经遍历到对象 B（回想三色标记法，对象 B 变为灰色），这个时候应用线程执行了如下代码：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">objB.fieldC &#x3D; null; </span><br><span class="line">objA.filedC &#x3D; C;</span><br></pre></td></tr></table></figure>
+
+<p>对应示意图中对象 B 和对象 C 之间的引用关系断掉，然后对象 A 和对象 C 之间建立新的引用关系。注意对象 A 和对象 C 之间虽然建立了新的引用关系，但是对象 A 已经是黑色了，不会再重新做遍历处理了。最终导致的结果就是：对象 C 会一直是白色，最后被当作垃圾清理掉。很显然，这直接影响到了应用程序的正确性，是不可接受的。这种现象称为 “<strong>漏标</strong>”，这是“并发标记” 引入的第二个问题。</p>
+<p>可见，并发标记可以让应用线程与标记线程一起工作，不需要 STW。但是会引入如下两个问题：</p>
+<ul>
+<li>新增老年代对象没有被标记。</li>
+<li>引用变更导致的漏标问题。</li>
+</ul>
+<p>很显然，这些新增对象必须被重新标记上。那怎么重新标记这些新增的对象呢？</p>
+<ul>
+<li><p>对于场景 2，只能重新扫描 GC Roots。</p>
+</li>
+<li><p>对于场景 3，只能重新扫描新生代对象。</p>
+</li>
+<li><p>对于场景 4，如果在引用变更的时候记录下对应的对象，比如上述场景如果能够记录下对象 A，重新标记的时候从对象 A 开始重新标记，就可以相对快速的完成重新标记。实际实现中再次用到了上文介绍到的 Card Table，当引用发生变更时，将对象 A 所在的 Card 标记为 Dirty。后续只需扫描这些 Dirty Cards 的对象，避免扫描整个老年代。</p>
+</li>
+</ul>
+<p>这里有一个问题，如果在老年代并发标记的过程中同时发生了一次 YGC。上文我们说过 YGC 会扫描 Card Table 中的 Dirty Cards，找到跨代引用，同时在 YGC 完成后将 Dirty Cards 清空。很显然，增量更新和 YGC 这两个过程共用 Card Table 会产生冲突，一旦 YGC 完成之后将某个 Dirty Card 清空，但是这个 Dirty Card 刚好是” 并发标记” 过程中引用变更标记的，就会导致漏标。为了解决这个问题，CMS 算法引入另一种数据结构 <strong>Mod Union Table</strong>，它是一个位数组，数组中每个元素分别对应一个 Card。基于这个新结构，在每次 YGC 处理完 Dirty Card之前，会将该 Dirty Card 在 Mod Union Table 中对应的数组位置 1。这样 CMS 在执行重新标记阶段的时候，扫描 Mod Union Table 和 Card Table 里面被标记的项，找到所有可能的 Dirty Card。</p>
+<p><strong>3. 并发预处理。</strong></p>
+<p><strong>4. 可中断预处理。</strong></p>
+<p>这两个阶段都是为了尽可能降低重标记阶段的耗时，采用<strong>增量更新</strong>的方式重新标记” 并发标记” 阶段新增的对象。这两个阶段依然是应用线程和标记线程并发执行的，所以还是会有新增对象产生，不过数量会降低很多。</p>
+<p><strong>5. 重标记。</strong></p>
+<p>经过上面两个阶段的预处理之后，需要重新标记的新增对象理论上应该不是很多了。这个阶段采用 <strong>STW</strong> 模式，最后一次标记遗留的新增对象：</p>
+<ul>
+<li>遍历 GC Roots，标记直接关联的没有被标记的老年代对象以及引用链上的对象。</li>
+<li>遍历新生代对象，标记直接关联的没有被标记的老年代对象以及引用链上的对象。</li>
+<li>遍历老年代的 Dirty Cards，重新标记。</li>
+</ul>
+<p>“并发标记 - 预处理 - 重标记” 这个过程，类似于我们使用 Distcp 工具迁移一个不断写入的表。通常使用如下策略：</p>
+<ul>
+<li>使用 distcp 全量拷贝一次数据。这个过程 distcp 和业务写入并发进行。（对应并发标记）</li>
+<li>使用 distcp -update 增量拷贝一次或者多次数据。这个过程 distcp 和业务写入并发执行。（对应并发预处理）</li>
+<li>经过上述两个步骤之后，可以认为需要增量拷贝的数据已经不多了。这个时候暂停写入，再使用 distcp -update 增量拷贝一次就完成了表的迁移。（对应重标记）</li>
+</ul>
+<blockquote>
+<p>采用两遍标记处理的策略，最终的目的是为了减少STW的时间，也就是如果要绝对准确性，STW是唯一方式，但是追求STW的时间的减少，就成为CMS的主要目标。</p>
+</blockquote>
+<p>通过这种方式迁移对业务的影响应该是最低的。</p>
+<p><strong>6. 并发清理。</strong></p>
+<p>经过上述一系列的标记之后，没有被标记的对象就一定是垃圾对象。这些垃圾对象会被并发清理释放内存空间。</p>
+<p><strong>7. 并发重置。</strong></p>
+<p>进行 Card Table 等数据结构的重置等，为下一次 GC 做准备。</p>
+<h3 id="FGC-触发条件是什么？"><a href="#FGC-触发条件是什么？" class="headerlink" title="FGC 触发条件是什么？"></a>FGC 触发条件是什么？</h3><p>CMS 垃圾回收器中 FGC 一旦发生，就会暂停所有应用线程，并退化成单线程进行垃圾回收，整个暂停耗时非常之长。CMS 垃圾回收器一般有两种 FGC 触发条件：</p>
+<ol>
+<li>Concurrent Mode Failure 模式 FGC。上文我们讲过老年代使用内存占总堆大小超过阈值 <strong>- XX:CMSInitiatingOccupancyFraction</strong> 的话就会触发老年代 GC。老年代 GC 的” 并发标记” 阶段是应用线程和标记线程一起工作的，假如在并发标记的过程中，<strong>不断有对象晋升到老年代最终导致老年代内存放不下这些对象的话</strong>，就会触发 Concurrent Mode Failure 模式 FGC。根据字面意思也可以猜到这种 FGC 和并发执行有关系。</li>
+<li>Promotion Failure 模式 FGC。从字面意思来看是晋升失败，是一次新生代 GC 之后部分对象要晋升到老年代，但是老年代没有足够内存容纳这些对象导致 FGC。通常来说，是因为<strong>老年代存在大量的内存碎片</strong>导致这种模式的 FGC。</li>
+</ol>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/gc/" rel="tag"># gc</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/07/08/join%E4%B8%AD%E7%9A%84%E8%B0%93%E8%AF%8D%E4%B8%8B%E6%8E%A8/" rel="next" title="join中的谓词下推">
+                <i class="fa fa-chevron-left"></i> join中的谓词下推
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/07/09/java%E7%9A%84G1GC/" rel="prev" title="java的G1GC">
+                java的G1GC <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#java的gc几问"><span class="nav-number">1.</span> <span class="nav-text">java的gc几问</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#JVM-堆为什么要分代？"><span class="nav-number">1.0.1.</span> <span class="nav-text">JVM 堆为什么要分代？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#新生代-GC-触发条件是什么？简单介绍一下新生代-GC-算法？"><span class="nav-number">1.0.2.</span> <span class="nav-text">新生代 GC 触发条件是什么？简单介绍一下新生代 GC 算法？</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#如何判断一个对象是否活跃？"><span class="nav-number">1.0.2.1.</span> <span class="nav-text">如何判断一个对象是否活跃？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#如何标记一个活跃对象？"><span class="nav-number">1.0.2.2.</span> <span class="nav-text">如何标记一个活跃对象？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#如何跨区迁移对象？"><span class="nav-number">1.0.2.3.</span> <span class="nav-text">如何跨区迁移对象？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#如何修改引用对象指针地址？"><span class="nav-number">1.0.2.4.</span> <span class="nav-text">如何修改引用对象指针地址？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Card-Table-上的-Card-什么时候会被设置为-Dirty？"><span class="nav-number">1.0.2.5.</span> <span class="nav-text">Card Table 上的 Card 什么时候会被设置为 Dirty？</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#在哪些条件下对象会从新生代晋升到老年代？"><span class="nav-number">1.0.3.</span> <span class="nav-text">在哪些条件下对象会从新生代晋升到老年代？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#老年代-GC-触发条件是什么？简单介绍一下老年代-GC-算法？"><span class="nav-number">1.0.4.</span> <span class="nav-text">老年代 GC 触发条件是什么？简单介绍一下老年代 GC 算法？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#FGC-触发条件是什么？"><span class="nav-number">1.0.5.</span> <span class="nav-text">FGC 触发条件是什么？</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="计算机原理," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="计算机中关于32位和64位的思考最近在思考程序是怎么处理浮点数据的时候，突然被一个问题给顶住了，计算机32位和64位到底会有什么差别？带着这个疑问，我整理了一下两者的区别： 背景：操作系统只是硬件和应用软件中间的一个平台。而32位操作系统针对的是32位的CPU设计，64位操作系统针对的是64位的CPU设计。  这里先抛出来几个疑问：  为什么会有不同位数的CPU？ 为什么操作系统不能兼容一下，让">
+<meta property="og:type" content="article">
+<meta property="og:title" content="计算机中关于32位和64位的思考">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/04/%E8%AE%A1%E7%AE%97%E6%9C%BA%E4%B8%AD%E5%85%B3%E4%BA%8E32%E4%BD%8D%E5%92%8C64%E4%BD%8D%E7%9A%84%E6%80%9D%E8%80%83/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="计算机中关于32位和64位的思考最近在思考程序是怎么处理浮点数据的时候，突然被一个问题给顶住了，计算机32位和64位到底会有什么差别？带着这个疑问，我整理了一下两者的区别： 背景：操作系统只是硬件和应用软件中间的一个平台。而32位操作系统针对的是32位的CPU设计，64位操作系统针对的是64位的CPU设计。  这里先抛出来几个疑问：  为什么会有不同位数的CPU？ 为什么操作系统不能兼容一下，让">
+<meta property="og:image" content="https://tva1.sinaimg.cn/large/0081Kckwly1gl4pk672slj30mu0f2gn4.jpg">
+<meta property="og:image" content="https://tva1.sinaimg.cn/large/0081Kckwly1gl4wysiwmoj30f20b6jrv.jpg">
+<meta property="og:image" content="https://tva1.sinaimg.cn/large/0081Kckwly1gl641diafcj30np0n60v0.jpg">
+<meta property="article:published_time" content="2021-09-03T16:31:00.000Z">
+<meta property="article:modified_time" content="2022-05-12T07:21:54.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="计算机原理">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://tva1.sinaimg.cn/large/0081Kckwly1gl4pk672slj30mu0f2gn4.jpg">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/04/计算机中关于32位和64位的思考/"/>
+
+
+
+
+
+  <title>计算机中关于32位和64位的思考 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/04/%E8%AE%A1%E7%AE%97%E6%9C%BA%E4%B8%AD%E5%85%B3%E4%BA%8E32%E4%BD%8D%E5%92%8C64%E4%BD%8D%E7%9A%84%E6%80%9D%E8%80%83/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">计算机中关于32位和64位的思考</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-09-04T00:31:00+08:00">
+                2021-09-04
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%9F%BA%E7%A1%80/" itemprop="url" rel="index">
+                    <span itemprop="name">基础</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <hr>
+<h2 id="计算机中关于32位和64位的思考"><a href="#计算机中关于32位和64位的思考" class="headerlink" title="计算机中关于32位和64位的思考"></a>计算机中关于32位和64位的思考</h2><p>最近在思考程序是怎么处理浮点数据的时候，突然被一个问题给顶住了，计算机32位和64位到底会有什么差别？带着这个疑问，我整理了一下两者的区别：</p>
+<p>背景：操作系统只是硬件和应用软件中间的一个平台。而32位操作系统针对的是32位的CPU设计，64位操作系统针对的是64位的CPU设计。</p>
+<blockquote>
+<p>这里先抛出来几个疑问：</p>
+<ul>
+<li>为什么会有不同位数的CPU？</li>
+<li>为什么操作系统不能兼容一下，让一套操作系统可以兼容两者？</li>
+<li>64位的设计一定是优于32位的设计吗？</li>
+</ul>
+</blockquote>
+<p>下边我们遵循CPU位数的发展过程来看一下，为什么会发展出来64位？</p>
+<p>这里先温习一下冯诺依曼结构：</p>
+<p><img src="https://tva1.sinaimg.cn/large/0081Kckwly1gl4pk672slj30mu0f2gn4.jpg" alt="img"></p>
+<p>CPU 和内存以及其他设备之间，需要通信，因此我们用一种特殊的设备进行控制，就是<strong>总线</strong>。</p>
+<p>总线分成 3 种：</p>
+<ul>
+<li><strong>地址总线</strong>，专门用来指定 CPU 将要操作的内存地址</li>
+<li><strong>数据总线</strong>，用来读写内存中的数据</li>
+<li><strong>控制总线</strong>，用来发送和接收关键信号，比如中断信号，还有设备复位、就绪等信号，都是通过控制总线传输。CPU 需要对这些信号进行响应，这也需要控制总线。</li>
+</ul>
+<p>CPU就是使用电平的高低变化去传输数据，一个高电平表示 1 低电平表示 0。假设我们只有一条地址线，一次传输只能是一个电平0或1，那你要传输一个数字10(二进制)就必须传输两次。这种只有一条地址总线进行数据传输的方式称为<strong>串行传输</strong>。</p>
+<p>假设我们有两条地址总线，一次就能传输<strong>两个电平</strong>，数字10就只需要传输一次就好。</p>
+<p>这种用多条地址总线，一次传输多个信号的方式就是<strong>并行传输</strong>。</p>
+<p>当 CPU 需要读写内存的时候，先要通过地址总线来指定内存地址，再通过数据总线来传输数据。所以我们地址总线的根数决定寻址的能力，当我们有32根地址总线时我们的寻址能力就是2^32=4G。</p>
+<p>软件设计者在设计软件时是32位的，意味着程序里面使用的指针都是4byte的，也就意味着最大能寻到的地址2^32次方，也就是4G。</p>
+<p>所以当我们操作系统是32位时，最大只能访问到4G内存，不管我们加多大的内存条 都是无意义的。这也就是32位软件和64位软件最大的区别。</p>
+<p>而对于CPU，通常 32 位宽 CPU 最多操作 32 位宽的地址总线和数据总线，64 位宽 CPU 最多操作 64 位宽的地址总线和数据总线，这就存在一个问题，64位数字无法进行一次性传输到32位上让CPU进行计算，必须把64位数字拆分为两个32数字进行传输。所以，32位CPU和64位CPU的区别之一就是，<strong>CPU 的位宽决定能控制的总线根数</strong>，而总线的根数决定寻址能力。</p>
+<p>还可以看到的是，32位的CPU计算能力也是只能计算32位的数据，无法对64位的数据进行运算。32位CPU一次读入只能读取32bit的数据，同时32位的CPU只有32位的<strong>寄存器</strong>，64位具有<strong>向下兼容</strong>特性，64位可以跑32位的软件，可以进行32位的计算。</p>
+<p>补充一下cpu执行程序的步骤：</p>
+<p><img src="https://tva1.sinaimg.cn/large/0081Kckwly1gl4wysiwmoj30f20b6jrv.jpg" alt="指令周期"></p>
+<ol>
+<li>CPU读取PC指针指向的指令，简称<strong>取指</strong>（fetch）</li>
+<li>CPU 分析<strong>指令寄存器</strong>中的指令，确定指令的类型和参数，简称 <strong>解码</strong>（decode）</li>
+<li>如果是计算类型的指令，那么就交给逻辑运算单元计算；如果是存储类型的指令，那么由控制单元执行 ，简称<strong>执行</strong>（execute）</li>
+<li>将执行结果进行返回给寄存器或者将寄存器数据存入内存，简称 <strong>存储</strong>（store）</li>
+<li>PC 指针自增，并准备获取下一条指令</li>
+</ol>
+<p>在CPU运行的周期中可以看到，有一个核心的部件 <strong>寄存器</strong>，上面用到了 <strong>程序寄存器</strong> <strong>指令寄存器</strong>，寄存器本质就是<strong>指针</strong>，指针就是地址，地址就是一串数字编码而决定这串数字编码的就是地址的大小，地址的大小由<strong>寻址能力</strong>决定，寻址能力就是<strong>总线</strong>的根数，总线的根数是由<strong>CPU的位数</strong>决定的，说到这里就比较明白一些了。64 位 CPU 可以执行<strong>更大</strong>数字的运算，具体多大呢？ 2^64这么大，这个优势在普通应用上不明显，但是对于数值计算较多的应用就非常明显。</p>
+<p>32 位指令在 64 位机器上执行，困难不大，可以兼容。 如果是 64 位指令，在 32 位机器上执行就困难了，32 位指令在 64 位机器执行的时候，需要的是一套兼容机制就OK了，但是 64 位指令在 32 位机器上执行，32 位的寄存器都存不下指令的参数。操作系统也是一种程序，如果是 64 位操作系统，也就是操作系统中程序的指令都是 64 位指令，因此不能安装在 32 位机器上。</p>
+<p>补充一个CPU结构图：</p>
+<p><img src="https://tva1.sinaimg.cn/large/0081Kckwly1gl641diafcj30np0n60v0.jpg" alt="CPU内部结构图"></p>
+<p>图中虚线以内，<strong>寄存器是CPU内部集成的</strong>，<strong>内存是外部的</strong>，当我们访问内存时需要通过<strong>寄存器</strong>去找到对应的地址，再执行相应的指令，此时CPU会在数据总线上生成<strong>读取</strong>或<strong>写入</strong>内存的时钟信号，最后内存的内容会被CPU寄存器的内容更新或者读入，而<strong>寄存器就是一个指针，里面存放着地址</strong>。</p>
+<hr>
+<p>cpu早期都是从简单的位数发展过来的，只是随着需求越来越复杂，需要的计算也会越来越大，这时候就被迫需要计算机更新更大的位数。</p>
+<p>CPU是8位的时候，一次只能运算一个8位的“数据”或者一个8位的“指令”，比如+1这个运算，你要先指示CPU做“+”这个操作，然后再去取“1”这个输入给CPU。</p>
+<blockquote>
+<p>从以上可以看出来，这个位数最大的核心就是规定了一次计算可以输入的数据量，是计算机可以支持输入的单元大小。每次输入计算，多也这些，少也是这些，其他的困难交给上层去处理，反正我一次就做这么多。</p>
+</blockquote>
+<p>8位的缺点就是软件设计复杂，繁琐。不利于计算机的发展。优点就是设计简单，处理速度比较快。</p>
+<blockquote>
+<p>需求难度在增大，但是依然是8位的话，那就意味着难度都留给了上层设计，也就是要求计算机操作系统去做更多的设计。这样的话就不利于计算机拓展应用开发。</p>
+</blockquote>
+<p>后来有了16位的CPU，这就可以一次处理2个字节了。带来的提升就是上边8位处理器的问题的解决。但是要求会越来越高，于是就诞生了后边的32位和64位。</p>
+<p>一般来讲32位的CPU对于我们来讲是最理性的CPU，对于软件开发来讲足够了。</p>
+<p>但是2的32次方 = 4294967296bit = 4G左右，很显然32位CPU只有4G左右的内存寻址空间，对于一些服务器来讲4G的内存的远远不够的了。我们需要更加大的内存寻址空间的话就需要对CPU进升级。64位CPU就这样诞生了。64位CPU的内存寻址空间是多少你算算看！2的64次方（理论上）。</p>
+<blockquote>
+<p>这个cpu单次计算的位数，影响的不止是CPU本身的单次计算的宽度，还对于后续其他的问题都会有影响，因为CPU是计算机的核心组件，所有的使用基本都是围绕着CPU来说的，如果CPU有瓶颈，其他高效组件都会被影响，所以CPU效率提高了之后，其他组件的提升才能发挥出最大的能力。</p>
+<p>这里位数还代表了一个比较重要的概念，就是寻址，因为你只支持32位的话，那么他寻址是靠这个址，这个址也是数据，而且这个数据是不能拆分开的，所以这个位数支持的最大值，就是我们内存数据存储的最大值，也就是4G了。即使给个更大的，因为寻址行为达到不了那么远，空间也会被浪费掉。</p>
+</blockquote>
+<p>但是现在的AMD和Inter的64位CPU并不是真正意义上的64CPU，只是进行了部分64位的改进，比如64位的内存寻址等。要是真的全部都是64位的了，那么现在市场上的软件将全部被淘汰不能使用了，想像一下会是什么样子。</p>
+<p>64位的操作系统针对64位CPU设计的，增加了一些64位的指令，但还是和32兼容的。对于我们普通用户来讲64位系统意义不大。</p>
+<blockquote>
+<p>这里可以思考一个问题：什么指令给升级到64位了，收益是啥？</p>
+</blockquote>
+<hr>
+<h4 id="32位电脑与64位电脑有什么不同？"><a href="#32位电脑与64位电脑有什么不同？" class="headerlink" title="32位电脑与64位电脑有什么不同？"></a>32位电脑与64位电脑有什么不同？</h4><p>我们通常说的64位技术是相对于32位而言的，这个位数指的是CPU GPRs(General-Purpose Registers，通用寄存器)的数据宽度为64位，64位指令集就是运行64位数据的指令，也就是说处理器一次可以运行64bit数据。</p>
+<p>64位平台不管是在性能上，还是在功能上，都要领先于目前的32位平台，目前主流的32位处理器在性能执行模式方面存在一个严重的缺陷：当面临大量的数据流时，32位的寄存器和指令集不能及时进行相应的处理运算。32位处理器一次只能处理32位，也就是4个字节的数据；而64位处理器一次就能处理64位，即8个字节的数据。如果将总长128位的指令分别按16位、32位、64位为单位进行编辑的话：32位的处理器需要4个指令，而64位处理器则只要两个指令。显然，在工作频率相同的情况下，64位处理器的处理速度比32位的更快。</p>
+<p>除了运算能力之外，与32位处理器相比，64位处理器的优势还体现在系统对内存的控制上。由于地址使用的是特殊的整数，而64位处理器的一个ALU（算术逻辑运算器）和寄存器可以处理更大的整数，也就是更大的地址。传统32位处理器的寻址空间最大为4GB，而64位的处理器在理论上则可以达到1800万个TB（1TB=1024GB）。</p>
+<p>从32位到64位，表面上好象只是CPU字长增大了一倍，实际上它使<strong>寻址范围、最大内存容量、数据传输和处理速度、数值精度</strong>等指标也成倍增加，带来的结果就是CPU的处理能力得到大幅提升，尤其是对 <strong>强烈依赖数值运算、存在巨量数据吞吐和需要超大并发处理</strong> 的应用提升效果非常明显，如科学计算、人工智能、平面设计、视频处理、3D动画和游戏、数据库以及各种网络服务器等。</p>
+<blockquote>
+<p>目前主流CPU使用的64位技术主要有AMD公司的AMD64位技术、Intel公司的EM64T技术、和Intel公司的IA-64技术。其中IA-64是Intel独立开发，不兼容32位计算机，仅用于Itanium(安腾)以及后续产品Itanium 2，人们习惯性地称它为“纯64位技术”。</p>
+<p>64位计算技术从2004年推出至今，其产品线不断丰富。目前，AMD方面支持64位技术的CPU有Athlon 64系列、Athlon FX系列和Opteron系列。Intel方面支持64位技术的CPU有使用Nocona核心的Xeon系列、使用Prescott 2M核心的Pentium 4 6系列和使用Prescott 2M核心的P4 EE系列。</p>
+</blockquote>
+<hr>
+<h4 id="32位和64位机器怎么选？软件怎么选？"><a href="#32位和64位机器怎么选？软件怎么选？" class="headerlink" title="32位和64位机器怎么选？软件怎么选？"></a>32位和64位机器怎么选？软件怎么选？</h4><p>早期微软之所以开发64位操作系统，原因是为了满足复杂的机械分析设计、三维动画视频编辑创作和“大型”数据高性能计算等领域需要4G以上内存和浮点性能的客户特殊需求。</p>
+<p>那么，就普通用户来说，该怎么抉择呢？</p>
+<ul>
+<li>安装64位操作系统，必须建立在64位CPU基础之上；安装64位常用软件，必须建立在64位操作系统基础之上。换句话说就是：理想的“64位”，是CPU、系统、软件的“三位一体”。</li>
+<li>64位CPU能够向下兼容32位操作系统。但是按照“向下兼容”安装运行32位操作系统，就会使64位CPU“运算处理快”的优势大打折扣甚至无从发挥(从试验数据得出)。</li>
+<li>64位操作系统向下兼容绝大部分32位常用软件。但是运行32位常用软件时，64位CPU“运算处理快”的优势同样会大打折扣甚至无从发挥(从试验数据得出)。</li>
+<li>目前，64位常用软件较少。64位操作系统虽有向下兼容功能，但在安装运行有些32位常用软件时，仍会出现“不大兼容”或“不兼容”的情况(不能满足需求)。</li>
+<li>归根结底，最终运行的32位或64位常用软件，直接体现了64位CPU的性能发挥程度。溯本求源，64位常用软件的跟进，完全取决于64位操作系统“用户群”的多寡。</li>
+<li>64位CPU并不要求“必须配置4G以上内存”。但在4G以下内存运行“特大型”软件、处理“大型”数据高性能计算时，不会享受到64位CPU带来的“超常运算速度”，甚至适得其反。</li>
+</ul>
+<hr>
+<h4 id="总结："><a href="#总结：" class="headerlink" title="总结："></a>总结：</h4><p>目前为止，64位系统则针对运行大型软件工作者而言，32则针对日常玩家而言，如果仅用来娱乐，看电影，32位系统就已经足够了，若用64位系统，则是大材小用，并不能发挥出64位系统极致所在，相反有些时候玩家不是很注重系统使用规范，这样反而会适得其反。</p>
+<p>参考：<a href="https://www.cnblogs.com/zhonglongbo/p/14095539.html" target="_blank" rel="noopener">https://www.cnblogs.com/zhonglongbo/p/14095539.html</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/%E8%AE%A1%E7%AE%97%E6%9C%BA%E5%8E%9F%E7%90%86/" rel="tag"># 计算机原理</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/09/02/%E5%88%86%E5%B8%83%E5%BC%8F%E6%9E%B6%E6%9E%84%E7%9A%84%E6%80%9D%E8%80%83/" rel="next" title="分布式架构的思考">
+                <i class="fa fa-chevron-left"></i> 分布式架构的思考
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/09/04/%E5%A4%9A%E5%85%83%E6%9F%A5%E8%AF%A2%E5%BC%95%E6%93%8E%E6%9E%B6%E6%9E%84%E7%9A%84%E6%80%9D%E8%80%83/" rel="prev" title="多元查询引擎架构的思考">
+                多元查询引擎架构的思考 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#计算机中关于32位和64位的思考"><span class="nav-number">1.</span> <span class="nav-text">计算机中关于32位和64位的思考</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#32位电脑与64位电脑有什么不同？"><span class="nav-number">1.0.1.</span> <span class="nav-text">32位电脑与64位电脑有什么不同？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#32位和64位机器怎么选？软件怎么选？"><span class="nav-number">1.0.2.</span> <span class="nav-text">32位和64位机器怎么选？软件怎么选？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#总结："><span class="nav-number">1.0.3.</span> <span class="nav-text">总结：</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="hdfs," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="hdfs-read operation以及慢节点问题read operation的大体过程如下：  hdfs读取的代码如下： 1234567891011121314FileSystem fileSystem &#x3D; FileSystem.get(conf);Path path &#x3D; new Path(&quot;&#x2F;path&#x2F;to&#x2F;file.ext&quot;);if (!fileSystem.exists(path)) &amp;">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hdfs-read operation以及慢节点问题">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/03/hdfs-read-operation%E4%BB%A5%E5%8F%8A%E6%85%A2%E8%8A%82%E7%82%B9%E9%97%AE%E9%A2%98/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="hdfs-read operation以及慢节点问题read operation的大体过程如下：  hdfs读取的代码如下： 1234567891011121314FileSystem fileSystem &#x3D; FileSystem.get(conf);Path path &#x3D; new Path(&quot;&#x2F;path&#x2F;to&#x2F;file.ext&quot;);if (!fileSystem.exists(path)) &amp;">
+<meta property="og:image" content="http://chengfeng96.com/blog/2018/11/22/HDFS%E9%87%8Cread-operation%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90%E4%BB%A5%E5%8F%8A%E8%AF%BB%E6%85%A2%E8%8A%82%E7%82%B9%E9%97%AE%E9%A2%98%E6%8E%A2%E7%A9%B6/1.gif">
+<meta property="article:published_time" content="2022-09-03T15:07:10.000Z">
+<meta property="article:modified_time" content="2022-09-04T01:45:42.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="hdfs">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://chengfeng96.com/blog/2018/11/22/HDFS%E9%87%8Cread-operation%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90%E4%BB%A5%E5%8F%8A%E8%AF%BB%E6%85%A2%E8%8A%82%E7%82%B9%E9%97%AE%E9%A2%98%E6%8E%A2%E7%A9%B6/1.gif">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/03/hdfs-read-operation以及慢节点问题/"/>
+
+
+
+
+
+  <title>hdfs-read operation以及慢节点问题 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/03/hdfs-read-operation%E4%BB%A5%E5%8F%8A%E6%85%A2%E8%8A%82%E7%82%B9%E9%97%AE%E9%A2%98/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">hdfs-read operation以及慢节点问题</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-09-03T23:07:10+08:00">
+                2022-09-03
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/hadoop/" itemprop="url" rel="index">
+                    <span itemprop="name">hadoop</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="hdfs-read-operation以及慢节点问题"><a href="#hdfs-read-operation以及慢节点问题" class="headerlink" title="hdfs-read operation以及慢节点问题"></a>hdfs-read operation以及慢节点问题</h1><p>read operation的大体过程如下：</p>
+<p><img src="http://chengfeng96.com/blog/2018/11/22/HDFS%E9%87%8Cread-operation%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90%E4%BB%A5%E5%8F%8A%E8%AF%BB%E6%85%A2%E8%8A%82%E7%82%B9%E9%97%AE%E9%A2%98%E6%8E%A2%E7%A9%B6/1.gif" alt="img"></p>
+<p>hdfs读取的代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">FileSystem fileSystem = FileSystem.get(conf);</span><br><span class="line">Path path = <span class="keyword">new</span> Path(<span class="string">"/path/to/file.ext"</span>);</span><br><span class="line"><span class="keyword">if</span> (!fileSystem.exists(path)) &#123;</span><br><span class="line">	System.out.println(<span class="string">"File does not exists"</span>);</span><br><span class="line">	<span class="keyword">return</span>;</span><br><span class="line">&#125;</span><br><span class="line">FSDataInputStream in = fileSystem.open(path);</span><br><span class="line"><span class="keyword">int</span> numBytes = <span class="number">0</span>;</span><br><span class="line"><span class="keyword">while</span> ((numBytes = in.read(b))&gt; <span class="number">0</span>) &#123;</span><br><span class="line">	System.out.prinln((<span class="keyword">char</span>)numBytes));<span class="comment">// code to manipulate the data which is read</span></span><br><span class="line">&#125;</span><br><span class="line">in.close();</span><br><span class="line">out.close();</span><br><span class="line">fileSystem.close();</span><br></pre></td></tr></table></figure>
+
+
+
+<ul>
+<li>客户端通过调用 FileSystem 对象上的 open() 打开它希望读取的文件，对于 HDFS 来说的话，它是 DistributedFileSystem 的一个实例。</li>
+<li>DistributedFileSystem 使用 RPC 访问 namenode 来确定文件中前几个块的块的位置。 对于每个块，namenode 返回具有该块副本的 datanode 的地址，并且 datanode 根据它们与客户端的接近程度进行排序。</li>
+<li>DistributedFileSystem 将 FSDataInputStream 返回给客户端，以便从中读取数据。 因此，FSDataInputStream 包装管理 datanode 和 namenode I/O 的 DFSInputStream。客户端在流上调用 read()，DFSInputStream 存储了 datanode 地址，然后连接到文件中第一个块的最近的 datanode 来读取。</li>
+<li>数据从 datanode 流回客户端，因此客户端可以在流上重复调用 read()。当块结束时，DFSInputStream 将关闭与 datanode 的连接，然后找到下一个块的最佳 datanode。</li>
+<li>如果 DFSInputStream 在与 datanode 通信时遇到错误，它将尝试该块的下一个最接近的一个。它还会记住失败的数据节点，这样它就不会为了以后的块而不必要地重试它们。DFSInputStream 还验证从 datanode 传输给它的数据的校验和。 如果它找到损坏的块，它会在 DFSInputStream 尝试从另一个 datanode 读取块的副本之前将其报告给 namenode。</li>
+<li>当客户端读完数据后，它会调用流上的 close()。</li>
+</ul>
+<h2 id="DFSInputStream-read"><a href="#DFSInputStream-read" class="headerlink" title="DFSInputStream.read"></a>DFSInputStream.read</h2><p>我们执行 read 的入口函数是 DFSInputStream 里的 read 函数，注意，DFSInputStream 里有多个 read 函数，你可以理解为下面这个是个顺序读的 read 函数，并且它采用Byte数组来读。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">* Read the entire buffer.</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">int</span> <span class="title">read</span><span class="params">(<span class="keyword">final</span> <span class="keyword">byte</span> buf[], <span class="keyword">int</span> off, <span class="keyword">int</span> len)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">    <span class="comment">// 封装buf</span></span><br><span class="line">    ReaderStrategy byteArrayReader = <span class="keyword">new</span> ByteArrayStrategy(buf);</span><br><span class="line">  </span><br><span class="line">    <span class="keyword">return</span> readWithStrategy(byteArrayReader, off, len);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>首先它会将 buf 封装到 ByteArrayStrategy 里，ByteArrayStrategy 的结构比较简单，主要是封装了 buf，并且利用 BlockReader 具体执行 read 的 doRead 函数。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Used to read bytes into a byte[]</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">private</span> <span class="class"><span class="keyword">class</span> <span class="title">ByteArrayStrategy</span> <span class="keyword">implements</span> <span class="title">ReaderStrategy</span> </span>&#123;</span><br><span class="line">  <span class="keyword">final</span> <span class="keyword">byte</span>[] buf;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="title">ByteArrayStrategy</span><span class="params">(<span class="keyword">byte</span>[] buf)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 封装buf</span></span><br><span class="line">    <span class="keyword">this</span>.buf = buf;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">doRead</span><span class="params">(BlockReader blockReader, <span class="keyword">int</span> off, <span class="keyword">int</span> len)</span></span></span><br><span class="line"><span class="function">        <span class="keyword">throws</span> ChecksumException, IOException </span>&#123;</span><br><span class="line">    <span class="keyword">int</span> nRead = blockReader.read(buf, off, len);</span><br><span class="line">    updateReadStatistics(readStatistics, nRead, blockReader);</span><br><span class="line">    <span class="keyword">return</span> nRead;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="readWithStrategy"><a href="#readWithStrategy" class="headerlink" title="readWithStrategy"></a>readWithStrategy</h2><p>readWithStrategy就是具体执行读的逻辑了，我们先上整个函数的代码。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">synchronized</span> <span class="keyword">int</span> <span class="title">readWithStrategy</span><span class="params">(ReaderStrategy strategy, <span class="keyword">int</span> off, <span class="keyword">int</span> len)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">    dfsClient.checkOpen();</span><br><span class="line">    <span class="keyword">if</span> (closed.get()) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> IOException(<span class="string">"Stream closed"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    Map&lt;ExtendedBlock,Set&lt;DatanodeInfo&gt;&gt; corruptedBlockMap </span><br><span class="line">      = <span class="keyword">new</span> HashMap&lt;ExtendedBlock, Set&lt;DatanodeInfo&gt;&gt;();</span><br><span class="line">    failures = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">if</span> (pos &lt; getFileLength()) &#123;</span><br><span class="line">      <span class="keyword">int</span> retries = <span class="number">2</span>;</span><br><span class="line">      <span class="comment">// 重试两次</span></span><br><span class="line">      <span class="keyword">while</span> (retries &gt; <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">          <span class="comment">// currentNode can be left as null if previous read had a checksum</span></span><br><span class="line">          <span class="comment">// error on the same block. See HDFS-3067</span></span><br><span class="line">          <span class="comment">// pos 位置大于了当前 block 结束的位置</span></span><br><span class="line">          <span class="keyword">if</span> (pos &gt; blockEnd || currentNode == <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="comment">// 得到我们需要读取的 datanode</span></span><br><span class="line">            currentNode = blockSeekTo(pos);</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="comment">// 计算真正需要读取的字节长度</span></span><br><span class="line">          <span class="keyword">int</span> realLen = (<span class="keyword">int</span>) Math.min(len, (blockEnd - pos + <span class="number">1L</span>));</span><br><span class="line">          <span class="keyword">synchronized</span>(infoLock) &#123;</span><br><span class="line">            <span class="keyword">if</span> (locatedBlocks.isLastBlockComplete()) &#123;</span><br><span class="line">              realLen = (<span class="keyword">int</span>) Math.min(realLen,</span><br><span class="line">                  locatedBlocks.getFileLength() - pos);</span><br><span class="line">            &#125;</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="comment">// 具体执行读操作，主要利用 blockReader 来读，返回读取的字节数</span></span><br><span class="line">          <span class="keyword">int</span> result = readBuffer(strategy, off, realLen, corruptedBlockMap);</span><br><span class="line"></span><br><span class="line">          <span class="keyword">if</span> (result &gt;= <span class="number">0</span>) &#123;</span><br><span class="line">            pos += result;</span><br><span class="line">          &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// got a EOS from reader though we expect more data on it.</span></span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IOException(<span class="string">"Unexpected EOS from the reader"</span>);</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="keyword">if</span> (dfsClient.stats != <span class="keyword">null</span>) &#123;</span><br><span class="line">            dfsClient.stats.incrementBytesRead(result);</span><br><span class="line">          &#125;</span><br><span class="line">          <span class="keyword">return</span> result;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (ChecksumException ce) &#123;</span><br><span class="line">          <span class="keyword">throw</span> ce;            </span><br><span class="line">        &#125; <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">          <span class="keyword">if</span> (retries == <span class="number">1</span>) &#123;</span><br><span class="line">            DFSClient.LOG.warn(<span class="string">"DFS Read"</span>, e);</span><br><span class="line">          &#125;</span><br><span class="line">          blockEnd = -<span class="number">1</span>;</span><br><span class="line">          <span class="keyword">if</span> (currentNode != <span class="keyword">null</span>) &#123; addToDeadNodes(currentNode); &#125;</span><br><span class="line">          <span class="keyword">if</span> (--retries == <span class="number">0</span>) &#123;</span><br><span class="line">            <span class="keyword">throw</span> e;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">          <span class="comment">// Check if need to report block replicas corruption either read</span></span><br><span class="line">          <span class="comment">// was successful or ChecksumException occured.</span></span><br><span class="line">          reportCheckSumFailure(corruptedBlockMap, </span><br><span class="line">              currentLocatedBlock.getLocations().length);</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 没读到字节，标记读入流结束</span></span><br><span class="line">    <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>大体的逻辑很容易理解，retries 设为 2，意味着我们有两次重试的机会，在 read 时抛异常，相应的会在 catch 里将当前使用的datanode 加入 dead node 的 list 里，避免下次再选取这个 datanode 来进行读，最后在 finally 里做一次 checksum failure 的检查。<br>我们根据每次读入的字节数来更新pos，从而读完整个文件，接下来我们分析一下几个重点函数。</p>
+<h2 id="blockSeekTo"><a href="#blockSeekTo" class="headerlink" title="blockSeekTo"></a>blockSeekTo</h2><p>我们要根据 pos 来拿到需要读取的 datanode 来更新 currentNode，通过 blockSeekTo 函数完成。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Open a DataInputStream to a DataNode so that it can be read from.</span></span><br><span class="line"><span class="comment"> * We get block ID and the IDs of the destinations at startup, from the namenode.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">synchronized</span> DatanodeInfo <span class="title">blockSeekTo</span><span class="params">(<span class="keyword">long</span> target)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (target &gt;= getFileLength()) &#123;</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> IOException(<span class="string">"Attempted to read past end of file"</span>);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Will be getting a new BlockReader.</span></span><br><span class="line">  closeCurrentBlockReader();</span><br><span class="line"></span><br><span class="line">  <span class="comment">//</span></span><br><span class="line">  <span class="comment">// Connect to best DataNode for desired Block, with potential offset</span></span><br><span class="line">  <span class="comment">//</span></span><br><span class="line">  DatanodeInfo chosenNode = <span class="keyword">null</span>;</span><br><span class="line">  <span class="keyword">int</span> refetchToken = <span class="number">1</span>; <span class="comment">// only need to get a new access token once</span></span><br><span class="line">  <span class="keyword">int</span> refetchEncryptionKey = <span class="number">1</span>; <span class="comment">// only need to get a new encryption key once</span></span><br><span class="line">  </span><br><span class="line">  <span class="keyword">boolean</span> connectFailedOnce = <span class="keyword">false</span>;</span><br><span class="line">  </span><br><span class="line">  <span class="comment">// 不停的寻找</span></span><br><span class="line">  <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">    <span class="comment">//</span></span><br><span class="line">    <span class="comment">// Compute desired block</span></span><br><span class="line">    <span class="comment">// 根据 offset 获得 cache 的 block，会更新 pos</span></span><br><span class="line">    LocatedBlock targetBlock = getBlockAt(target, <span class="keyword">true</span>);</span><br><span class="line">    <span class="keyword">assert</span> (target==pos) : <span class="string">"Wrong postion "</span> + pos + <span class="string">" expect "</span> + target;</span><br><span class="line">    <span class="keyword">long</span> offsetIntoBlock = target - targetBlock.getStartOffset();</span><br><span class="line">    <span class="comment">// 得到具体的 datanode 信息</span></span><br><span class="line">    DNAddrPair retval = chooseDataNode(targetBlock, <span class="keyword">null</span>);</span><br><span class="line">    chosenNode = retval.info;</span><br><span class="line">    InetSocketAddress targetAddr = retval.addr;</span><br><span class="line">    StorageType storageType = retval.storageType;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      ExtendedBlock blk = targetBlock.getBlock();</span><br><span class="line">      Token&lt;BlockTokenIdentifier&gt; accessToken = targetBlock.getBlockToken();</span><br><span class="line">      CachingStrategy curCachingStrategy;</span><br><span class="line">      <span class="keyword">boolean</span> shortCircuitForbidden;</span><br><span class="line">      <span class="keyword">synchronized</span>(infoLock) &#123;</span><br><span class="line">        curCachingStrategy = cachingStrategy;</span><br><span class="line">        shortCircuitForbidden = shortCircuitForbidden();</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      shortCircuitForbidden |= retval.replicaPipeliner;</span><br><span class="line">      BlockReaderFactory builder = <span class="keyword">new</span> BlockReaderFactory(dfsClient.getConf()).</span><br><span class="line">          setInetSocketAddress(targetAddr).</span><br><span class="line">          setRemotePeerFactory(dfsClient).</span><br><span class="line">          setDatanodeInfo(chosenNode).</span><br><span class="line">          setStorageType(storageType).</span><br><span class="line">          setFileName(src).</span><br><span class="line">          setBlock(blk).</span><br><span class="line">          setBlockToken(accessToken).</span><br><span class="line">          setStartOffset(offsetIntoBlock).</span><br><span class="line">          setVerifyChecksum(verifyChecksum).</span><br><span class="line">          setClientName(dfsClient.clientName).</span><br><span class="line">          setLength(blk.getNumBytes() - offsetIntoBlock).</span><br><span class="line">          setCachingStrategy(curCachingStrategy).</span><br><span class="line">          setAllowShortCircuitLocalReads(!shortCircuitForbidden).</span><br><span class="line">          setClientCacheContext(dfsClient.getClientContext()).</span><br><span class="line">          setUserGroupInformation(dfsClient.ugi).</span><br><span class="line">          setConfiguration(dfsClient.getConfiguration());</span><br><span class="line">      <span class="keyword">if</span> (retval.replicaPipeliner) &#123;</span><br><span class="line">        builder.setUseUpstream(<span class="keyword">true</span>);</span><br><span class="line">        builder.setUpstreamDatanode(retval.replicaUpstream.info);</span><br><span class="line">        builder.setUpstreamAddr(retval.replicaUpstream.addr);</span><br><span class="line">        builder.setUpstreamStorageType(retval.replicaUpstream.storageType);</span><br><span class="line">      &#125;</span><br><span class="line">      blockReader = builder.build();</span><br><span class="line">      <span class="keyword">if</span>(connectFailedOnce) &#123;</span><br><span class="line">        DFSClient.LOG.info(<span class="string">"Successfully connected to "</span> + targetAddr +</span><br><span class="line">                           <span class="string">" for "</span> + blk);</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">return</span> chosenNode;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (IOException ex) &#123;</span><br><span class="line">      <span class="keyword">if</span> (ex <span class="keyword">instanceof</span> InvalidEncryptionKeyException &amp;&amp; refetchEncryptionKey &gt; <span class="number">0</span>) &#123;</span><br><span class="line">        DFSClient.LOG.info(<span class="string">"Will fetch a new encryption key and retry, "</span> </span><br><span class="line">            + <span class="string">"encryption key was invalid when connecting to "</span> + targetAddr</span><br><span class="line">            + <span class="string">" : "</span> + ex);</span><br><span class="line">        <span class="comment">// The encryption key used is invalid.</span></span><br><span class="line">        refetchEncryptionKey--;</span><br><span class="line">        dfsClient.clearDataEncryptionKey();</span><br><span class="line">      &#125; <span class="keyword">else</span> <span class="keyword">if</span> (refetchToken &gt; <span class="number">0</span> &amp;&amp; tokenRefetchNeeded(ex, targetAddr)) &#123;</span><br><span class="line">        refetchToken--;</span><br><span class="line">        fetchBlockAt(target);</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        connectFailedOnce = <span class="keyword">true</span>;</span><br><span class="line">        DFSClient.LOG.warn(<span class="string">"Failed to connect to "</span> + targetAddr + <span class="string">" for block"</span></span><br><span class="line">          + <span class="string">", add to deadNodes and continue. "</span> + ex, ex);</span><br><span class="line">        <span class="comment">// Put chosen node into dead list, continue</span></span><br><span class="line">        addToDeadNodes(chosenNode);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个函数的逻辑也很容易理解，在一个死循环里不停的执行 getBlockAt 和 chooseDataNode 直到找到一个能用的 datanode，然后根据 datanode 构造新的 blockReader，返回 DataNodeInfo，在这个过程里同样会判断死节点并加到 dead nodes 里。</p>
+<p>我们分别看一下 getBlockAt 和 chooseDataNode 这两个函数。</p>
+<h2 id="getBlockAt"><a href="#getBlockAt" class="headerlink" title="getBlockAt"></a>getBlockAt</h2><p>getBlockAt 根据 offset 得到具体的 LocatedBlock。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Get block at the specified position.</span></span><br><span class="line"><span class="comment"> * Fetch it from the namenode if not cached.</span></span><br><span class="line"><span class="comment"> * </span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> offset block corresponding to this offset in file is returned</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> updatePosition whether to update current position</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@return</span> located block</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@throws</span> IOException</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> LocatedBlock <span class="title">getBlockAt</span><span class="params">(<span class="keyword">long</span> offset,</span></span></span><br><span class="line"><span class="function"><span class="params">    <span class="keyword">boolean</span> updatePosition)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">  <span class="keyword">synchronized</span>(infoLock) &#123;</span><br><span class="line">    <span class="keyword">assert</span> (locatedBlocks != <span class="keyword">null</span>) : <span class="string">"locatedBlocks is null"</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> LocatedBlock blk;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//check offset</span></span><br><span class="line">    <span class="keyword">if</span> (offset &lt; <span class="number">0</span> || offset &gt;= getFileLength()) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> IOException(<span class="string">"offset &lt; 0 || offset &gt;= getFileLength(), offset="</span></span><br><span class="line">          + offset</span><br><span class="line">          + <span class="string">", updatePosition="</span> + updatePosition</span><br><span class="line">          + <span class="string">", locatedBlocks="</span> + locatedBlocks);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 大于了要读取文件的长度，默认定位到最后一个 block</span></span><br><span class="line">    <span class="keyword">else</span> <span class="keyword">if</span> (offset &gt;= locatedBlocks.getFileLength()) &#123;</span><br><span class="line">      <span class="comment">// offset to the portion of the last block,</span></span><br><span class="line">      <span class="comment">// which is not known to the name-node yet;</span></span><br><span class="line">      <span class="comment">// getting the last block</span></span><br><span class="line">      blk = locatedBlocks.getLastLocatedBlock();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="comment">// search cached blocks first</span></span><br><span class="line">      <span class="comment">// 内部查找通过二分查找实现</span></span><br><span class="line">      <span class="keyword">int</span> targetBlockIdx = locatedBlocks.findBlock(offset);</span><br><span class="line">      <span class="keyword">if</span> (targetBlockIdx &lt; <span class="number">0</span>) &#123; <span class="comment">// block is not cached</span></span><br><span class="line">        targetBlockIdx = LocatedBlocks.getInsertIndex(targetBlockIdx);</span><br><span class="line">        <span class="comment">// fetch more blocks</span></span><br><span class="line">        <span class="comment">// 通过 DFSClient 获得更多的块</span></span><br><span class="line">        <span class="keyword">final</span> LocatedBlocks newBlocks = dfsClient.getLocatedBlocks(src, offset);</span><br><span class="line">        <span class="keyword">assert</span> (newBlocks != <span class="keyword">null</span>) : <span class="string">"Could not find target position "</span> + offset;</span><br><span class="line">        locatedBlocks.insertRange(targetBlockIdx, newBlocks.getLocatedBlocks());</span><br><span class="line">      &#125;</span><br><span class="line">      blk = locatedBlocks.get(targetBlockIdx);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// update current position</span></span><br><span class="line">    <span class="keyword">if</span> (updatePosition) &#123;</span><br><span class="line">      <span class="comment">// synchronized not strictly needed, since we only get here</span></span><br><span class="line">      <span class="comment">// from synchronized caller methods</span></span><br><span class="line">      <span class="keyword">synchronized</span>(<span class="keyword">this</span>) &#123;</span><br><span class="line">        pos = offset;</span><br><span class="line">        <span class="comment">// 更新 blockEnd</span></span><br><span class="line">        blockEnd = blk.getStartOffset() + blk.getBlockSize() - <span class="number">1</span>;</span><br><span class="line">        currentLocatedBlock = blk;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> blk;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里主要利用 locatedBlocks 去拿到我们需要的 block，locatedBlocks 是通过 DFSClient 里拿到的一些块，它们是 cache 的。如果没有找到我们的块，我们会通知 DFSClient 去拿新的一批块。<br>还需要注意的是 blockEnd 在这里更新了，更新为我们拿到的 block 结束的位置。</p>
+<h2 id="chooseDataNode"><a href="#chooseDataNode" class="headerlink" title="chooseDataNode"></a>chooseDataNode</h2><p>一个 block 会有多个副本，它们存在不同的 datanode 上，chooseDataNode 会根据 block 拿到具体的最合适的 datanode。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> DNAddrPair <span class="title">chooseDataNode</span><span class="params">(LocatedBlock block,</span></span></span><br><span class="line"><span class="function"><span class="params">    Collection&lt;DatanodeInfo&gt; ignoredNodes)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">  <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> getBestNodeDNAddrPair(block, ignoredNodes);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (IOException ie) &#123;</span><br><span class="line">      String errMsg = getBestNodeDNAddrPairErrorString(block.getLocations(),</span><br><span class="line">        deadNodes, ignoredNodes);</span><br><span class="line">      String blockInfo = block.getBlock() + <span class="string">" file="</span> + src;</span><br><span class="line">      <span class="keyword">if</span> (failures &gt;= dfsClient.getMaxBlockAcquireFailures()) &#123;</span><br><span class="line">        String description = <span class="string">"Could not obtain block: "</span> + blockInfo;</span><br><span class="line">        DFSClient.LOG.warn(description + errMsg</span><br><span class="line">            + <span class="string">". Throwing a BlockMissingException"</span>);</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> BlockMissingException(src, description,</span><br><span class="line">            block.getStartOffset());</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      DatanodeInfo[] nodes = block.getLocations();</span><br><span class="line">      <span class="keyword">if</span> (nodes == <span class="keyword">null</span> || nodes.length == <span class="number">0</span>) &#123;</span><br><span class="line">        DFSClient.LOG.info(<span class="string">"No node available for "</span> + blockInfo);</span><br><span class="line">      &#125;</span><br><span class="line">      DFSClient.LOG.info(<span class="string">"Could not obtain "</span> + block.getBlock()</span><br><span class="line">          + <span class="string">" from any node: "</span> + ie + errMsg</span><br><span class="line">          + <span class="string">". Will get new block locations from namenode and retry..."</span>);</span><br><span class="line">      <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// Introducing a random factor to the wait time before another retry.</span></span><br><span class="line">        <span class="comment">// The wait time is dependent on # of failures and a random factor.</span></span><br><span class="line">        <span class="comment">// At the first time of getting a BlockMissingException, the wait time</span></span><br><span class="line">        <span class="comment">// is a random number between 0..3000 ms. If the first retry</span></span><br><span class="line">        <span class="comment">// still fails, we will wait 3000 ms grace period before the 2nd retry.</span></span><br><span class="line">        <span class="comment">// Also at the second retry, the waiting window is expanded to 6000 ms</span></span><br><span class="line">        <span class="comment">// alleviating the request rate from the server. Similarly the 3rd retry</span></span><br><span class="line">        <span class="comment">// will wait 6000ms grace period before retry and the waiting window is</span></span><br><span class="line">        <span class="comment">// expanded to 9000ms. </span></span><br><span class="line">        <span class="keyword">final</span> <span class="keyword">int</span> timeWindow = dfsClient.getConf().timeWindow;</span><br><span class="line">        <span class="keyword">double</span> waitTime = timeWindow * failures +       <span class="comment">// grace period for the last round of attempt</span></span><br><span class="line">          timeWindow * (failures + <span class="number">1</span>) * DFSUtil.getRandom().nextDouble(); <span class="comment">// expanding time window for each failure</span></span><br><span class="line">        DFSClient.LOG.warn(<span class="string">"DFS chooseDataNode: got # "</span> + (failures + <span class="number">1</span>) + <span class="string">" IOException, will wait for "</span> + waitTime + <span class="string">" msec."</span>);</span><br><span class="line">        <span class="comment">// 休眠一个随机时间</span></span><br><span class="line">        Thread.sleep((<span class="keyword">long</span>)waitTime);</span><br><span class="line">      &#125; <span class="keyword">catch</span> (InterruptedException iex) &#123;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="comment">// 清空deadNodes</span></span><br><span class="line">      deadNodes.clear(); <span class="comment">//2nd option is to remove only nodes[blockId]</span></span><br><span class="line">      openInfo();</span><br><span class="line">      block = getBlockAt(block.getStartOffset(), <span class="keyword">false</span>);</span><br><span class="line">      failures++;</span><br><span class="line">      <span class="keyword">continue</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="getBestNodeDNAddrPair"><a href="#getBestNodeDNAddrPair" class="headerlink" title="getBestNodeDNAddrPair"></a>getBestNodeDNAddrPair</h2><p>它会遍历 block 的所有副本，它们存在不同的 datanode 上，这里 best 是指之前 namenode 返回给我们 blocks 的时候，已经根据一些条件对所有副本进行了排序，我们根据排序优先级选择第一个还没有试过的副本，之前用过但出问题的 datanode 会被加到 ignored nodes 里。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Get the best node from which to stream the data.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> block LocatedBlock, containing nodes in priority order.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> ignoredNodes Do not choose nodes in this array (may be null)</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@return</span> The DNAddrPair of the best node.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@throws</span> IOException</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> DNAddrPair <span class="title">getBestNodeDNAddrPair</span><span class="params">(LocatedBlock block,</span></span></span><br><span class="line"><span class="function"><span class="params">    Collection&lt;DatanodeInfo&gt; ignoredNodes)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">  DatanodeInfo[] nodes = block.getLocations();</span><br><span class="line">  StorageType[] storageTypes = block.getStorageTypes();</span><br><span class="line">  DatanodeInfo chosenNode = <span class="keyword">null</span>;</span><br><span class="line">  StorageType storageType = <span class="keyword">null</span>;</span><br><span class="line">  <span class="keyword">boolean</span> replicaPipeliner = <span class="keyword">false</span>;</span><br><span class="line">  DNAddrPair replicaUpstream = <span class="keyword">null</span>;</span><br><span class="line">  <span class="keyword">if</span> (nodes != <span class="keyword">null</span>) &#123;</span><br><span class="line">    <span class="comment">// 遍历所有副本，选择第一个还没有被用过的副本</span></span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; nodes.length; i++) &#123;</span><br><span class="line">      <span class="keyword">if</span> (!deadNodes.containsKey(nodes[i])</span><br><span class="line">          &amp;&amp; (ignoredNodes == <span class="keyword">null</span> || !ignoredNodes.contains(nodes[i]))) &#123;</span><br><span class="line">        chosenNode = nodes[i];</span><br><span class="line">        <span class="comment">// Storage types are ordered to correspond with nodes, so use the same</span></span><br><span class="line">        <span class="comment">// index to get storage type.</span></span><br><span class="line">        <span class="keyword">if</span> (storageTypes != <span class="keyword">null</span> &amp;&amp; i &lt; storageTypes.length) &#123;</span><br><span class="line">          storageType = storageTypes[i];</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">if</span> (chosenNode == <span class="keyword">null</span>) &#123;</span><br><span class="line">    <span class="keyword">if</span> (block.getReplicaPipeliner() != <span class="keyword">null</span>) &#123;</span><br><span class="line">      chosenNode = block.getReplicaPipeliner();</span><br><span class="line">      storageType = block.getReplicaPipeliner().getStorageType();</span><br><span class="line">      replicaPipeliner = <span class="keyword">true</span>;</span><br><span class="line">      replicaUpstream = getBestNodeDNAddrPair(block.getOriginalLocatedBlock(), ignoredNodes);</span><br><span class="line">      DFSClient.LOG.warn(<span class="string">"Using remote replica pipeline, upstream: "</span> + replicaUpstream.info);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> IOException(<span class="string">"No live nodes contain block "</span> + block.getBlock() +</span><br><span class="line">        <span class="string">" after checking nodes = "</span> + Arrays.toString(nodes) +</span><br><span class="line">        <span class="string">", ignoredNodes = "</span> + ignoredNodes);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">final</span> String dnAddr =</span><br><span class="line">      chosenNode.getXferAddr(dfsClient.getConf().connectToDnViaHostname);</span><br><span class="line">  <span class="keyword">if</span> (DFSClient.LOG.isDebugEnabled()) &#123;</span><br><span class="line">    DFSClient.LOG.debug(<span class="string">"In DFS Connecting to datanode "</span> + dnAddr);</span><br><span class="line">  &#125;</span><br><span class="line">  InetSocketAddress targetAddr = NetUtils.createSocketAddr(dnAddr);</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">new</span> DNAddrPair(chosenNode, targetAddr, storageType, replicaPipeliner, replicaUpstream);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>因为上一步传入的 ignoredNodes 为空，这里的 ignoredNodes 基本是个摆设，主要靠 deadNodes 来过滤掉一些坏节点。<br>　　如果你看懂这里的逻辑，也就明白了为啥对于慢节点问题，<strong>就算重启一个 speculative task，依然会出现慢节点问题，因为它们读的同一个副本，因为很可能 namenode 提供的副本排序并没有变，所以它们读的依然是第一个不是坏节点的节点，只不过它是慢节点</strong>。</p>
+<h2 id="readBuffer"><a href="#readBuffer" class="headerlink" title="readBuffer"></a>readBuffer</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* This is a used by regular read() and handles ChecksumExceptions.</span></span><br><span class="line"><span class="comment"> * name readBuffer() is chosen to imply similarity to readBuffer() in</span></span><br><span class="line"><span class="comment"> * ChecksumFileSystem</span></span><br><span class="line"><span class="comment"> */</span> </span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">synchronized</span> <span class="keyword">int</span> <span class="title">readBuffer</span><span class="params">(ReaderStrategy reader, <span class="keyword">int</span> off, <span class="keyword">int</span> len,</span></span></span><br><span class="line"><span class="function"><span class="params">    Map&lt;ExtendedBlock, Set&lt;DatanodeInfo&gt;&gt; corruptedBlockMap)</span></span></span><br><span class="line"><span class="function">    <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">  IOException ioe;</span><br><span class="line">  </span><br><span class="line">  <span class="comment">/* we retry current node only once. So this is set to true only here.</span></span><br><span class="line"><span class="comment">   * Intention is to handle one common case of an error that is not a</span></span><br><span class="line"><span class="comment">   * failure on datanode or client : when DataNode closes the connection</span></span><br><span class="line"><span class="comment">   * since client is idle. If there are other cases of "non-errors" then</span></span><br><span class="line"><span class="comment">   * then a datanode might be retried by setting this to true again.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="keyword">boolean</span> retryCurrentNode = <span class="keyword">true</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">    <span class="comment">// retry as many times as seekToNewSource allows.</span></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> reader.doRead(blockReader, off, len);</span><br><span class="line">    &#125; <span class="keyword">catch</span> ( ChecksumException ce ) &#123;</span><br><span class="line">      DFSClient.LOG.warn(<span class="string">"Found Checksum error for "</span></span><br><span class="line">          + getCurrentBlock() + <span class="string">" from "</span> + currentNode</span><br><span class="line">          + <span class="string">" at "</span> + ce.getPos());        </span><br><span class="line">      ioe = ce;</span><br><span class="line">      retryCurrentNode = <span class="keyword">false</span>;</span><br><span class="line">      <span class="comment">// we want to remember which block replicas we have tried</span></span><br><span class="line">      <span class="comment">// 将读取失败的副本加入corrupted map</span></span><br><span class="line">      addIntoCorruptedBlockMap(getCurrentBlock(), currentNode,</span><br><span class="line">          corruptedBlockMap);</span><br><span class="line">    &#125; <span class="keyword">catch</span> ( IOException e ) &#123;</span><br><span class="line">      <span class="keyword">if</span> (!retryCurrentNode) &#123;</span><br><span class="line">        DFSClient.LOG.warn(<span class="string">"Exception while reading from "</span></span><br><span class="line">            + getCurrentBlock() + <span class="string">" of "</span> + src + <span class="string">" from "</span></span><br><span class="line">            + currentNode, e);</span><br><span class="line">      &#125;</span><br><span class="line">      ioe = e;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">boolean</span> sourceFound = <span class="keyword">false</span>;</span><br><span class="line">    <span class="keyword">if</span> (retryCurrentNode) &#123;</span><br><span class="line">      <span class="comment">/* possibly retry the same node so that transient errors don't</span></span><br><span class="line"><span class="comment">       * result in application level failures (e.g. Datanode could have</span></span><br><span class="line"><span class="comment">       * closed the connection because the client is idle for too long).</span></span><br><span class="line"><span class="comment">       */</span> </span><br><span class="line">      <span class="comment">// 重试同一个副本</span></span><br><span class="line">      sourceFound = seekToBlockSource(pos);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="comment">// 将当前datanode加入dead node，内部调用了blockSeekTo得到新的datanode上的副本</span></span><br><span class="line">      addToDeadNodes(currentNode);</span><br><span class="line">      sourceFound = seekToNewSource(pos);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (!sourceFound) &#123;</span><br><span class="line">      <span class="keyword">throw</span> ioe;</span><br><span class="line">    &#125;</span><br><span class="line">    retryCurrentNode = <span class="keyword">false</span>;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>如果在读的过程中抛异常，对于第一个副本它会重试一次相同的副本，如果还是出错，会将当前 datanode 加入 dead node，并且采用新的 datanode 上的副本，直到成功读取或者所有的副本都出错抛异常跳出循环。<br>它具体执行读的逻辑我们前面的 ByteArrayStrategy 里的 doRead 函数里讲过，里面调用了 blockReader.read 方法，这里的 blockReader 大多 RemoteBlockReader2 实现。</p>
+<h2 id="reportCheckSumFailure"><a href="#reportCheckSumFailure" class="headerlink" title="reportCheckSumFailure"></a>reportCheckSumFailure</h2><p>这主要进行的文件校验的工作，Hadoop为了保证数据的一致性，会对文件生成相应的校验文件，并在读写的时候进行校验，确保数据的准确性，如果出现了错误，一些情况下需要汇报给 namenode。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"> * DFSInputStream reports checksum failure.</span><br><span class="line"> * Case I : client has tried multiple data nodes and at least one of the</span><br><span class="line"> * attempts has succeeded. We report the other failures as corrupted block to</span><br><span class="line"> * namenode. </span><br><span class="line"> * Case II: client has tried out all data nodes, but all failed. We</span><br><span class="line"> * only report <span class="keyword">if</span> the total number of replica is <span class="number">1</span>. We <span class="keyword">do</span> not</span><br><span class="line"> * report otherwise since <span class="keyword">this</span> maybe due to the client is a handicapped client</span><br><span class="line"> * (who can not read).</span><br><span class="line"> * <span class="meta">@param</span> corruptedBlockMap map of corrupted blocks</span><br><span class="line"> * <span class="meta">@param</span> dataNodeCount number of data nodes who contains the block replicas</span><br><span class="line"> */</span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">reportCheckSumFailure</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">    Map&lt;ExtendedBlock, Set&lt;DatanodeInfo&gt;&gt; corruptedBlockMap, </span></span></span><br><span class="line"><span class="function"><span class="params">    <span class="keyword">int</span> dataNodeCount)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (corruptedBlockMap.isEmpty()) &#123;</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  Iterator&lt;Entry&lt;ExtendedBlock, Set&lt;DatanodeInfo&gt;&gt;&gt; it = corruptedBlockMap</span><br><span class="line">      .entrySet().iterator();</span><br><span class="line">  Entry&lt;ExtendedBlock, Set&lt;DatanodeInfo&gt;&gt; entry = it.next();</span><br><span class="line">  ExtendedBlock blk = entry.getKey();</span><br><span class="line">  Set&lt;DatanodeInfo&gt; dnSet = entry.getValue();</span><br><span class="line">  <span class="keyword">if</span> (((dnSet.size() &lt; dataNodeCount) &amp;&amp; (dnSet.size() &gt; <span class="number">0</span>))</span><br><span class="line">      || ((dataNodeCount == <span class="number">1</span>) &amp;&amp; (dnSet.size() == dataNodeCount))) &#123;</span><br><span class="line">    DatanodeInfo[] locs = <span class="keyword">new</span> DatanodeInfo[dnSet.size()];</span><br><span class="line">    <span class="keyword">int</span> i = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">for</span> (DatanodeInfo dn:dnSet) &#123;</span><br><span class="line">      locs[i++] = dn;</span><br><span class="line">    &#125;</span><br><span class="line">    LocatedBlock [] lblocks = &#123; <span class="keyword">new</span> LocatedBlock(blk, locs) &#125;;</span><br><span class="line">    dfsClient.reportChecksumFailure(src, lblocks);</span><br><span class="line">  &#125;</span><br><span class="line">  corruptedBlockMap.clear();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>我们看到有两种情况会给 namenode 汇报：</p>
+<ul>
+<li>尝试了多个副本，其中至少一个成功了，其他失败的副本会被汇报给 namenode。</li>
+<li>如果所有副本都失败了，只有当副本数为 1 时才会被汇报给 namenode，否则不汇报。</li>
+</ul>
+<blockquote>
+<p>Datanode 在把数据实际存储之前会验证数据的校验和。client 通过 pipeline 把数据写入 datanode，最后一个 datanode 会负责检查校验和。当 client 从 datanode 读取数据时，也会检查校验和。把真实数据的校验和 datanode 上的校验进行比较。<br>　　每个 datanode 都保存有一个 checksum 验证的持久化日志，日志中有当前 datanode 每个 block 最后的更新时间。当 client 成功验证了一个 block，它会告诉 datanode，之后 datanode 会更新它的日志。保存这些信息有助于检测坏磁盘。<br>　　除了会在 client 读取数据时验证 block，每个 datanode 还会在后台运行一个 DataBlockScanner 线程来周期性验证所有存储在 datanode 上的 block，这用来防止物理存储媒介上出现”位衰减”。<br>　　因为 HDFS 保存有同一个 block 的多个备份,所以它可以用好的副本来替换损坏的数据副本。如果某个 client 在读取数据时检测到数据错误，在抛出 ChecksumException 后，它会向 namenode 上报信息告知具体的 bad block 还有 datanode。namenode 会把指定的 block 标记为 corrupt，之后的 client 就不会再被定位到此 block，此 block 也不会再被复制到其它 datanode。之后 namenode 会调度一个此 block 的正常副本，以保证负载平衡。这之后，损坏的 block 副本会被删除。<br>　　可以在对 FileSystem 调用 open() 之前调用 setVerifyChecksum() 来禁止校验和检测，也可以通过在 shell 中执行 get -copyToLocal 命令时指定 -ignoreCrc 选项做到。</p>
+</blockquote>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>我们通过阅读 read operation 的源码，了解了 HDFS 读文件的整个过程，以及它的一些重试以及容错功能，并且知道了为什么对于读慢节点问题，如果重启 speculative task，依然会很慢，主要问题是因为它读的依然是同一个节点。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/hdfs/" rel="tag"># hdfs</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/09/03/spark-3-3%E6%96%B0%E7%89%B9%E6%80%A7/" rel="next" title="spark-3.3新特性">
+                <i class="fa fa-chevron-left"></i> spark-3.3新特性
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/09/04/spark-%E5%90%84%E7%A7%8Dbykey%E7%9A%84%E5%8C%BA%E5%88%AB/" rel="prev" title="spark-各种bykey的区别">
+                spark-各种bykey的区别 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#hdfs-read-operation以及慢节点问题"><span class="nav-number">1.</span> <span class="nav-text">hdfs-read operation以及慢节点问题</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#DFSInputStream-read"><span class="nav-number">1.1.</span> <span class="nav-text">DFSInputStream.read</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#readWithStrategy"><span class="nav-number">1.2.</span> <span class="nav-text">readWithStrategy</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#blockSeekTo"><span class="nav-number">1.3.</span> <span class="nav-text">blockSeekTo</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#getBlockAt"><span class="nav-number">1.4.</span> <span class="nav-text">getBlockAt</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#chooseDataNode"><span class="nav-number">1.5.</span> <span class="nav-text">chooseDataNode</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#getBestNodeDNAddrPair"><span class="nav-number">1.6.</span> <span class="nav-text">getBestNodeDNAddrPair</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#readBuffer"><span class="nav-number">1.7.</span> <span class="nav-text">readBuffer</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#reportCheckSumFailure"><span class="nav-number">1.8.</span> <span class="nav-text">reportCheckSumFailure</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">1.9.</span> <span class="nav-text">总结</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

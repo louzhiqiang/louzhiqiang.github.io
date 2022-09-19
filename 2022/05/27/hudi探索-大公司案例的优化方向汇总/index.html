@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="hudi," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="hudi探索–大公司案例的优化方向汇总阿里DLA团队对于hudi的改进： 参数自动化：hudi的参数比较多，有一些是针对于计算任务中，线程并行度等等的设置，而这些参数针对每一种不同量级和不同计算复杂度的数据，都是有差异的。所以就进行了优化，任务提交的时候根据数据特征进行了复杂的计算而得到的。  大表的MIN&#x2F;MAX缓存：可以提升很大一部分性能。  compact并发度限制，限制compact的资源">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hudi探索--大公司案例的优化方向汇总">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/27/hudi%E6%8E%A2%E7%B4%A2-%E5%A4%A7%E5%85%AC%E5%8F%B8%E6%A1%88%E4%BE%8B%E7%9A%84%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91%E6%B1%87%E6%80%BB/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="hudi探索–大公司案例的优化方向汇总阿里DLA团队对于hudi的改进： 参数自动化：hudi的参数比较多，有一些是针对于计算任务中，线程并行度等等的设置，而这些参数针对每一种不同量级和不同计算复杂度的数据，都是有差异的。所以就进行了优化，任务提交的时候根据数据特征进行了复杂的计算而得到的。  大表的MIN&#x2F;MAX缓存：可以提升很大一部分性能。  compact并发度限制，限制compact的资源">
+<meta property="og:image" content="https://mmbiz.qpic.cn/mmbiz_png/jC2t9Zib67r2hQNfm9MLJLq0iaTJhbDiaCbdN6Xn3V1zfWIULtpsFmwOr7KG5097tiaeCKJJDshhIDZcfgk24RqqKQ/640?wx_fmt=png">
+<meta property="og:image" content="https://mmbiz.qpic.cn/mmbiz_png/jC2t9Zib67r2hQNfm9MLJLq0iaTJhbDiaCbC14yOoLeub49tMEDDjTibBVGhymgiawIdGBtQQfJRu5kLhMUqzOpIHLw/640?wx_fmt=png">
+<meta property="og:image" content="https://mmbiz.qpic.cn/mmbiz_png/zHbzQPKIBPjqXvt5VCm6v09sV5SAibicL30MqBMMza6uaRmDrzkfQS9NmT7NeMIXoeMAwSX7hicM6cBZJSiaxRMf1A/640?wx_fmt=png">
+<meta property="article:published_time" content="2022-05-27T07:51:42.000Z">
+<meta property="article:modified_time" content="2022-06-06T09:29:28.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="hudi">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://mmbiz.qpic.cn/mmbiz_png/jC2t9Zib67r2hQNfm9MLJLq0iaTJhbDiaCbdN6Xn3V1zfWIULtpsFmwOr7KG5097tiaeCKJJDshhIDZcfgk24RqqKQ/640?wx_fmt=png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/27/hudi探索-大公司案例的优化方向汇总/"/>
+
+
+
+
+
+  <title>hudi探索--大公司案例的优化方向汇总 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/27/hudi%E6%8E%A2%E7%B4%A2-%E5%A4%A7%E5%85%AC%E5%8F%B8%E6%A1%88%E4%BE%8B%E7%9A%84%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91%E6%B1%87%E6%80%BB/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">hudi探索--大公司案例的优化方向汇总</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-27T15:51:42+08:00">
+                2022-05-27
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="hudi探索–大公司案例的优化方向汇总"><a href="#hudi探索–大公司案例的优化方向汇总" class="headerlink" title="hudi探索–大公司案例的优化方向汇总"></a>hudi探索–大公司案例的优化方向汇总</h2><h3 id="阿里DLA团队对于hudi的改进："><a href="#阿里DLA团队对于hudi的改进：" class="headerlink" title="阿里DLA团队对于hudi的改进："></a>阿里DLA团队对于hudi的改进：</h3><ul>
+<li><p>参数自动化：hudi的参数比较多，有一些是针对于计算任务中，线程并行度等等的设置，而这些参数针对每一种不同量级和不同计算复杂度的数据，都是有差异的。所以就进行了优化，任务提交的时候根据数据特征进行了复杂的计算而得到的。</p>
+</li>
+<li><p>大表的MIN/MAX缓存：可以提升很大一部分性能。</p>
+</li>
+<li><p>compact并发度限制，限制compact的资源使用，防止占用太多资源，导致其他任务受影响。</p>
+</li>
+<li><p>精细化拆分insert/update，原因是upsert是比较省事儿，但是找更新这个操作还是比较耗时，所以insert和update数据区分开，数据的写入时间可以节省30%~~100%。</p>
+</li>
+<li><p>针对全量和增量的数据同步，需要任务编排，达到自动化的目的。</p>
+</li>
+<li><p>充分利用好clustering的能力，减少小文件，重新布局文件，平衡读写的利器：clustering会针对设置的指定字段进行排序存储，这回让相同key的数据在一个fileGroup里，这对于查询就极其友好了。因为排序之后的minmax索引效果也会更有效，下推下去之后，价值突显。</p>
+</li>
+<li><p>FileGroup级别的缓存，对于读多写少的场景，效果会很显著。</p>
+</li>
+<li><p>如何支持<code>schema</code>演进？</p>
+<ul>
+<li><p>schema enforcement 规则：</p>
+<ul>
+<li><p>不支持删除字段</p>
+</li>
+<li><p>不支持rename以及大小写敏感</p>
+</li>
+<li><p>不支持不兼容类型更改</p>
+</li>
+</ul>
+</li>
+<li><p>schema evolution规则：</p>
+<ul>
+<li><p>添加带default值的新列</p>
+</li>
+<li><p>可兼容类型修改</p>
+</li>
+</ul>
+</li>
+<li><p>schema演进的作用：</p>
+<ul>
+<li><p>保证写入正确性</p>
+</li>
+<li><p>拒绝脏数据</p>
+</li>
+<li><p>拒绝数据丢失</p>
+</li>
+<li><p>保证分析的可靠性</p>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>metadata读取耗时：DLA的优化是原本的存储只存储database、table、metadata  关于分区数据，会用一个单独的表来存储，而那个单独的存储的加载是很快的，这样就可以减少这部分的解析。</p>
+</li>
+</ul>
+<blockquote>
+<p>hudi metadata 也是带有版本的，原始是数据本身是带有版本的，如果meta没有版本的话，需要回滚或者需要读取历史的数据，元数据如果只有一个的话，就会出现差错，比如元数据字段删除，会发现有些历史数据中的字段再也无法读取了。</p>
+<p>还有不兼容类型的修改，如果没有元数据的多版本，也会出问题，比如原先的数据类型是string，现在如果改成了int的话，原先string的数据是无法转化为现在的int类型的。</p>
+</blockquote>
+<blockquote>
+<p>hudi 的所有操作都是围绕着timeline，而timeline就是版本。</p>
+</blockquote>
+<blockquote>
+<p>深入理解hudi里版本的相关设计。因为他的事务是基于mvcc的，那么就严重依赖于版本的设计，所以这里对于版本的设计要比较清晰，整个过程中，有很多地方都是直接利用了这个多版本。</p>
+</blockquote>
+<p>参考：</p>
+<p><a href="https://appukvkryx45804.pc.xiaoe-tech.com/detail/v_60b9ece0e4b07e4d7fdbf8ed/3" target="_blank" rel="noopener">DataFunTalk</a></p>
+<p><a href="https://appukvkryx45804.pc.xiaoe-tech.com/detail/v_60b9c50ee4b0017651a1ea3b/3" target="_blank" rel="noopener">https://appukvkryx45804.pc.xiaoe-tech.com/detail/v_60b9c50ee4b0017651a1ea3b/3</a></p>
+<h3 id="字节在hudi上的优化"><a href="#字节在hudi上的优化" class="headerlink" title="字节在hudi上的优化"></a>字节在hudi上的优化</h3><p>字节内部的数据湖最初是基于开源的数据湖框架 Hudi 构建的，选择 Hudi，最简单的一个原因是相比于 Iceberg 和 Delta Lake，Hudi 原生支持可扩展的索引系统，能够帮助数据快速定位到所在的位置，达到高效更新的效果。</p>
+<blockquote>
+<p>字节在查询场景的重视，让他们对于索引的需求比较多，而hudi在这个方向上的开放性，让它很适合字节。</p>
+</blockquote>
+<h4 id="元数据"><a href="#元数据" class="headerlink" title="元数据"></a>元数据</h4><p>字节首先是对于数据湖有一个清晰的定义，但是也只是当前的，而不是恒定的，因为随着大数据生态的发展，数据湖也是在变的。</p>
+<p>字节遇到的第一个问题是元数据中心的问题，数据湖是通过追踪文件来管理元数据。管理的力度更细了，自然也就避免了无效的读写放大，从而提供了高效的更新删除、增量消费、时间旅行等一系列的能力。但这其实也意味着另外一个问题，就是一个目录中可以包含多个版本的文件，这与 Hive 管理元数据的方式产生了分歧，因为 Hive Metastore 是通过目录的形式来管理元数据的，数据更新也是通过覆盖目录来保证事务。</p>
+<p>hudi中是使用一个分布式存储来管理这个timeline，里边记录了每次操作的元数据，也记录了一些表的schema和分区信息，自己同步了这个数据到hive metastore里。返现了三个问题：</p>
+<ul>
+<li><p>分区元数据分散在两个系统当中，缺乏 single source of true。</p>
+<blockquote>
+<p><a href="https://www.zhihu.com/question/303277926" target="_blank" rel="noopener">https://www.zhihu.com/question/303277926</a> 关于 single source of true 的解释</p>
+</blockquote>
+</li>
+<li><p>元数据分散，获取的时候，无法达到秒级响应，延迟较大。</p>
+</li>
+<li><p>读表的时候需要拉取大量的目录和 Timeline 上记录的表操作对应的元数据进行比对，找出最新的这个版本包含的文件。元数据读取本身就很重，并且缺乏裁剪能力，这在近实时的场景下带来了比较大的 overhead。</p>
+</li>
+</ul>
+<p>字节的解决方案是<strong>Hudi Metastore Server 融合了 Hive Metastore 和 Hudi MetaData 管理的优势。</strong></p>
+<p>首先，Hudi Metastore Server 提供了多租户的、中心化的元数据管理服务，将文件一级的元数据保存在适合随机读写的存储中，让数据湖的元数据不再分散在多个文件当中，满足了 single source of true。</p>
+<p>其次，Hudi Metastore Server 针对元数据的查询，尤其是一些变更操作。比如 Job position 提供了与 Hive Metastore 完全兼容的接口，用户在使用一张数据湖上的表的时候，享受到这些增加的高效更新、删除、增量消费等能力的同时，也能享受到一张 Hive 表所具备的功能，例如通过 Spark、Flink、Presto 查询，以及在一些数据开发工具上在线的去获取到元数据以及一些分区 TTL 清理的能力。</p>
+<h4 id="并发更新弱"><a href="#并发更新弱" class="headerlink" title="并发更新弱"></a>并发更新弱</h4><p>在 Hudi Metastore Server 的 Timeline 之上，使用乐观锁去重新实现了这个并发的更新能力。同时这个并发控制模块还能支持更灵活的行列级别并发写策略，为后续要介绍到的实时数据关联的场景的落地提供了一个可能。</p>
+<h5 id="单个-Flink-任务的扩展性问题"><a href="#单个-Flink-任务的扩展性问题" class="headerlink" title="单个 Flink 任务的扩展性问题"></a>单个 Flink 任务的扩展性问题</h5><p>字节通过在 Flink 的 embedding term server 上支持对当前进行中的事务元信息进行一下缓存，大幅提升了单个任务能够并发写入的文件量级，基本上是在 80 倍的量级。结合分区级别的并发写入，我们整体支撑了近千万 QPS 的数据量的增量入湖。</p>
+<h5 id="批量并发冲突的问题"><a href="#批量并发冲突的问题" class="headerlink" title="批量并发冲突的问题"></a>批量并发冲突的问题</h5><p>批流并发冲突问题类似于一个我们在传统数据湖中遇到的场景，就是有一连串的小事务和一个周期比较长的长事务，如果这两者发生冲突，应该如何处理。</p>
+<p>为了解决批流冲突的问题，字节的思路是提供更灵活的冲突检查和数据合并策略。最基础的就是行级并发。首先两个独立的 writer 写入的数据在物理上是隔离的，借助文件系统的租约机制也能够保证对于一个文件同时只有一个 writer。所以这个冲突实际上不是发生在数据层面的，而是发生在元数据层面。那数据的冲突与否，就可以交由用户来定义。很多时候入湖的数据实际上并不是一个现实中正在发生的事情，而是一个现实操作的回放。比如图中的这个场景，我们假设删除的作业是针对一个特定的 Snapshot。即使有冲突，我们可以认为整个删除的过程是瞬时完成的，后续的新事物可以追加发生在这次删除作业之后。</p>
+<p>增加了列级并发，写数据的时候，减小影响范围，两个原本需要更新的事务，要更新的列如果不是同一列，也是可以进行并发更新的。并不会冲突。</p>
+<p>设计了冲突合并，如果行级别和列级别都冲突，那么就参考git对于commit的冲突的解决方式，提供merge值的策略，比如按照事务时间来更新。</p>
+<h4 id="更新性能差"><a href="#更新性能差" class="headerlink" title="更新性能差"></a>更新性能差</h4><p>hudi的可扩展索引的好处：</p>
+<p>一个是避免读取不需要的文件；</p>
+<p>二是避免更新不必要的文件；</p>
+<p>三是避免将更新的数据和历史的数据做分布式关联，而是通过提前将文件分好组的方式直接在文件组内进行合并。</p>
+<p>但是随着数据量的增大，hudi索引，根据主键去定位文件的效率会越来越差，根本原因是bloom filter的假阳性。数据量越大，这个问题会越明显。更新操作越多，也越明显。</p>
+<p>Bloom Filter 索引的问题，根因是读取历史数据进行定位，导致定位的时间越来越长。那有没有什么办法是无需读历史数据，也可以快速定位到数据所在位置呢？我们想到了类似于 Hive 的 bucket，也就是哈希的方法来解决这个问题。</p>
+<p>bucket index 首先要明确  bucket 是跟FileGroup对齐的粒度，也就是定位了桶，也就定位到了FileGroup。这种通过一次hash定位到FileGroup的过程，避免了bloom的假阳性问题。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/jC2t9Zib67r2hQNfm9MLJLq0iaTJhbDiaCbdN6Xn3V1zfWIULtpsFmwOr7KG5097tiaeCKJJDshhIDZcfgk24RqqKQ/640?wx_fmt=png" alt=""></p>
+<p>实际的插入过程如下：</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/jC2t9Zib67r2hQNfm9MLJLq0iaTJhbDiaCbC14yOoLeub49tMEDDjTibBVGhymgiawIdGBtQQfJRu5kLhMUqzOpIHLw/640?wx_fmt=png" alt=""></p>
+<ol>
+<li><p>在建表时先预估表的单个分区数据存储大小，设置一个分桶数 numBuckets。</p>
+</li>
+<li><p>在数据插入前，首先生成 n 个 File ID, 将 File ID 的前 8 位替换成 bucketId 的数字</p>
+<p>00000000-e929-4327-8b0c-7d0d66091321</p>
+<p>00000001-e3cd-4756-b311-863803a6cdaf</p>
+<p>00000002-c4ed-4418-90d4-6e348f380636</p>
+<p>00000003-c7bd-4916-78c5-6g787g090636</p>
+<p>3.在插入过程中，最重要的一步就是标记每条新插入的记录属于哪个文件 File Group，然后找到对应的 File Group 去更新或者合并。在目前的设计中， 分桶数跟 File Group 是一一对应的映射关系，因此找到每条 Record 对应的桶 ID ，即可确定 Record Key 跟 File Group 的映射关系。</p>
+</li>
+</ol>
+<p>在具体实现中，我们会对更新数据的索引键计算哈希，再对分桶数取模快速定位到每个 Record 对应的桶，整个过程如下面的 Hash 函数所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hashKeyFields.hashCode() &amp; Integer.MAX_VALUE) % numBuckets</span><br></pre></td></tr></table></figure>
+
+<p>其中 hashKeyFields 可以由用户指定，是 Record Key 的一个子集，当默认不指定时，会以 Record Key 本身作为 hash 键。在计算好后，每条记录即可知道即将写入的桶。</p>
+<ol start="4">
+<li>经过索引层之后，每条数据都会带有一个 File ID，引擎会根据 File ID 进行一次 Shuffle，将相同 File ID 的数据导入到同一个子任务中。对于 COW 表而言，更新 Update 部分需要和已有的 BaseFile 合并生成新的 BaseFile。而 MOR 表将 Update 的数据直接写入对应 File Group 的 delta log，Insert 部分生成新的 BaseFile，最终完成该批次数据的 Upsert。</li>
+</ol>
+<p>这种定位方式，不会随着数据量的增大，而出现定位数据效率下降的问题。同时分桶操作会在每个桶内对分桶列排序，排序后的数据一般能获得更高的压缩率，也能节省存储。</p>
+<p>这个bucket 既然可以根据设置的键进行定位数据，在查询场景也就可以发挥作用了，通过bucket进行剪枝就可以大量减少扫描的数据。也可以去影响join等场景的查询计划，减少exchange 和 shuffle。</p>
+<blockquote>
+<p>目前这个方案的缺点是桶的数量预估设置以及动态扩展，需要一个新的hash index策略来规避这个问题。这个也是bucket后边的改进目标。</p>
+</blockquote>
+<p>可扩展 hash 这个数据结构。利用这个结构，我们可以很自然地做桶的分裂和合并，让整个 bucket 的索引从手动驾驶进化到自动驾驶。在数据写入的时候，也可以快速地根据现有的总数，推断出最深的有效哈希值的长度，通过不断地对 2 的桶深度次方进行取余的方式，匹配到最接近的分桶写入。 自己已经总结过hash的这部分知识，可以再去看看。</p>
+<h4 id="日志难入湖"><a href="#日志难入湖" class="headerlink" title="日志难入湖"></a>日志难入湖</h4><p>日志无索引，也没主键，而hudi的索引要求必须要这个主键，如果简单一点处理，就是用uuid，那性能上就比较浪费，也不高效。字节就实现了一套新的机制，绕过hudi的索引，来做入湖，这个时候就没有主键了，也就无法upsert了。而这个时候要实现udate，也就只能shuffle了。</p>
+<h4 id="其他："><a href="#其他：" class="headerlink" title="其他："></a>其他：</h4><p>1、设计了 compaction service，负责 compaction 任务的调度，避免compact任务影响线上任务。</p>
+<p>2、优化了读文件系统的长尾问题，支持了实时表的列裁剪。</p>
+<p>3、对 Avro 日志进行了短序列化和序列化的 case by case 的优化，还引入了列存的 log 进一步提升查询性能。</p>
+<p>4、推进了一个实时多维汇总的方案落地。数仓的同学通过实时计算引擎完成数据的多维度的轻度汇总，并且实时地更新入湖。下游可以灵活地按需获取重度汇总的数据，这种方式可以缩短数据链路，提升研发效能。</p>
+<h4 id="针对多维这个场景，做了以下单独的一些有针对性的优化："><a href="#针对多维这个场景，做了以下单独的一些有针对性的优化：" class="headerlink" title="针对多维这个场景，做了以下单独的一些有针对性的优化："></a>针对多维这个场景，做了以下单独的一些有针对性的优化：</h4><p>在实际的业务场景中，对于不同的业务诉求，又可以细分成三个不同的子场景。</p>
+<p><strong>第一个场景是内部用户的可视化查询和报表这一类场景</strong>。它的特点是查询频率不高，但是维度和指标的组合灵活，同时用户也能容忍数秒的延迟。在这种场景下，上层的数据应用直接调用底层的 Presto 引擎行为实时入库的数据进行多维度的重度聚合之后，再做展现。</p>
+<p><strong>另外一个主要的场景就是面向在线的数据产品。</strong> 这种场景对高查询频率、低查询延迟的诉求比较高，但是对数据可见性的要求反而不那么高。而且，经过重度汇总的数据量也比较小，这就对数据分析工具提出了比较大的挑战。因此在当前阶段，我们通过增加了一个预计算链路来解决。</p>
+<p><strong>多维重度汇总的多维计算结果是从我们湖里批量读出来，然后定时地去写入 KV 存储，由存储去直接对接数据产品</strong>。从长期来看，我们下一步计划就是对实时数据湖之上的表去进行自动地构建物化视图，并且加载进缓存，以此来兼顾灵活性和查询性能，让用户在享受这种低运维成本的同时，又能满足低延低查询延迟、高查询频率和灵活使用的诉求。</p>
+<p><strong>第四个典型的场景是实时数据关联。</strong> 数据的关联在数仓中是一个非常基础的诉求，数仓的同学需要将多个流的指标和维度列进行关联，形成一张宽表。但是使用维表 join，尤其是通过缓存加速的方式，数据准确性往往很难保障。而使用多流 join 的方式又需要维持一个大状态，尤其是对于一些关联周期不太确定的场景，稳定性和准确性之间往往很难取舍。</p>
+<p><img src="https://mmbiz.qpic.cn/mmbiz_png/zHbzQPKIBPjqXvt5VCm6v09sV5SAibicL30MqBMMza6uaRmDrzkfQS9NmT7NeMIXoeMAwSX7hicM6cBZJSiaxRMf1A/640?wx_fmt=png" alt=""></p>
+<p>基于以上背景，实时数据湖方案通过了这个列级的并发写入和确定性的索引。支持多个流式任务并发地去写入同一张表中，每个任务只写表中的部分列。数据写入的 log 件在物理上其实是隔离的，每个 log 文件当中也只包含了宽表中的部分列，实际上不会产生互相影响。再异步地通过 compaction 任务定期的对之前对 log 数据进行合并，在这个阶段对数据进行真正的实际的关联操作。通过这种方式，提供一个比较稳定的性能。使用这一套方案，实时关联用户也不用再关注状态大小和 TTL 该如何设置这个问题了，宽表的数据也可以做到实时可查。</p>
+<blockquote>
+<p>物化视图对于要求效率的场景，始终是一个利器，但是物化视图的更新始终一个难点，而如果可以利用好流式计算，通过溯源的事件来进行触发，也可能算是一个解决思路。</p>
+</blockquote>
+<p>字节后续的规划方向：</p>
+<ul>
+<li><p>元数据加速：meta cache  &amp;  file pruning：数据湖托管了文件级别的元数据，元数据的数据量相比数仓有了几个量级的增长，但同时也给我们带来了一些优化的机会。比如我们未来计划将查询的谓词直接下推到元数据系统当中，让这个引擎在 scan 阶段无需访问系统，直接去跳过无效文件来提升查询的性能。</p>
+</li>
+<li><p>数据加速：当前的实时数据湖由于其 serverless 架构对文件系统的重度依赖，在生产实践中还是处于分钟级，秒级依旧处于验证阶段。那我们接下来计划将这个数据湖加速服务不断地去打磨成熟，用来做实时数据的交换和热数据的存储，以解决分钟级到秒级的最后一公里问题。智能加速层面临的最大的挑战是批流数据写入的一致性问题，这也是我们接下来重点要解决的问题。例如在这种端到端的实时生产链路中，如何在提供秒级延时的前提下解决类似于跨表事务的问题。</p>
+</li>
+<li><p>索引加速 ：二级索引 &amp; 物化视图：通过 bucket, zorder 等一系列的主键索引，进一步提升数据湖之上的数据的查询性能，过滤掉大量的原始数据，避免无效的数据交换。同时我们接下来也会非常注重二级索引的支持，因为二级索引的支持可以延伸湖上数据的更新能力，从而去加速非主线更新的效率。</p>
+</li>
+<li><p>智能优化：table management service：我们接下来会通过一套表优化服务来实现智能优化，因为对于两个类似的查询能否去提供一个稳定的查询性能，表的数据分布是一个关键因素。从用户的角度来看，用户只要查询快、写入快，像类似于 compaction 或 clustering、索引构建等一系列的表优化的方式，只会提升用户的使用门槛。我们的计划是通过一个智能的表优化服务分析用户的查询特征，同时监听这个数据湖上数据的变化，自适应地触发这个表的一系列优化操作，可以做到在用户不需要了解过多细节的情况下，做到智能的互加速。</p>
+</li>
+</ul>
+<p>我这里引用一下那个文章最后作者回答的关于可扩展的hash的实现的原理：</p>
+<p>可控扩展性的 Bucket Index 其实是把哈希值的 String 用一个字典树的思路去解决。我们把它当成一个一个的 bit ，比如说当我们把两个 bucket 合并了之后，我们就可以少用一个 bit，如果我们把一个 bucket 分裂之后，就会增加一个 bit。</p>
+<p>然后这里面其实主要是两点，一个是查询层我们怎么去识别它到底属于哪个 bucket。这个我们是可以通过一个当前的桶数算出一个最大的这个哈希深度。然后我们去对哈希值和这个桶的深度的 N 次方去进行取余。如果取余能匹配上，就说明这个桶是存在的。如果匹配不上，我们就把这个深度减 1，然后再进行取余，直到能匹配上为止，这个是在写入的时候。</p>
+<p>第二个就是在查询层面，我们会找一个合理的并行度，比如说我们这个桶的深度可能是 6，但是这个 6 的文件占的数量特别少，那我们可能就再把它减少一位。然后从整个查询的这个角度来看，我们减少一位的话，这个数据分布其实应该是更为合理的。我们把文件先分好组，让每个 task 去拿到对应的一个特定的哈希值上的一个文件。</p>
+<p>还有一个就是当数据真正发生这 merge 和 split 的时候，这个阶段我们是如何处理的？这个阶段其实这样的，当一个文件发生分裂的时候，它原始的数据是不用动的。我们可以认为它就是一个引用，因为我们匹配到了新的 file group。我们可以找到之前它引用的原生没有扩容的这个 bucket，然后我们依旧还是可以去把这个数据拿到，并且在这个没有扩容的 file group 上，我们可以套一层 hash filter ，然后可以保证这个数据不会有重复。最后我们异步地去做一个 clustering 这个时候真正地去对数据物理上面去完成一个历史数据的重分布。</p>
+<blockquote>
+<p>充分理解整体的模型，然后记住一些痛点，为了规避这些痛点，我们的原则是什么，比如最好能直接定位到文件，最好不要轻易修改原本数据的fileGroup。比如字节为了实现扩充hash时不挪动原本的文件，使用的方式就是多次hash，按照逐层递减的深度去多次hash。因为有限，所以成本可控。</p>
+</blockquote>
+<p>关于 schema on read：</p>
+<p>其实是这样的，schema on read 目前的实践整体来说是比较少的，但是其实我们是有一些预期的。我可以大概讲一下我的理解，首先我们在数据入湖的时候，对数据的期望还是它要是结构化的。但是我们 schema on read 的核心可能不是说去支持这种类似于非结构化或者说是没有办法去结构化的数据，我们的核心可能是要去支持数据的一个灵活的演变能力。那这里面其实有几种思路。</p>
+<p>第一种思路的话就是我们在表的 schema 层，去做一个灵活演变的支持。第二个思路也非常的类似于 git 的思路，就是我们的这个用户其实对同一份数据它有不同视图的需求。我们可以把这个数据以 git 的思路去把它做成分支。每个人在同一份数据上面，有一个自己的数据的视图，这个我认为可能也是 schema on read 的下一个重要的发展方向，我们可能有一张表，这张表每个人他看到的这个视图可能是不一样的。然后每个人可以往自己的视图里头去加上一些自己想要的数据。这个在实际的业务场景中其实也是存在的。比如说一个实时数据，它进来的时候，它可能这个指标不是很全的，但是我们有些指标可能是需要在这个离线加工完之后再回灌进去。那这样的话，其实这一张表对用户呈现的就是两个视图。那我们接下来可能要做的就是如何去解决这个不同视图之间的这个隔离的问题。不管是存储上面的这个隔离，还是权限上面的隔离，还是元数据上面的隔离。</p>
+<p>以上两个理解还是很重要的。</p>
+<p>参考：</p>
+<p><a href="https://mp.weixin.qq.com/s/4mnMJwMhe4q26HXJaYut4w" target="_blank" rel="noopener">https://mp.weixin.qq.com/s/4mnMJwMhe4q26HXJaYut4w</a></p>
+<p><a href="https://mp.weixin.qq.com/s/TaWTYBYmHsAmcBV3p9d8gQ" target="_blank" rel="noopener">https://mp.weixin.qq.com/s/TaWTYBYmHsAmcBV3p9d8gQ</a></p>
+<h3 id="快手在hudi上的优化"><a href="#快手在hudi上的优化" class="headerlink" title="快手在hudi上的优化"></a>快手在hudi上的优化</h3><h3 id="痛点"><a href="#痛点" class="headerlink" title="痛点"></a>痛点</h3><ul>
+<li><p>调度：调度受限于数据模式，资源消耗大，从而影响数据就绪周期。</p>
+</li>
+<li><p>同步：数据刷新成本高，任务稳定性差，SLA比较差。</p>
+</li>
+<li><p>修复回刷：数据资源消耗大、周期长。</p>
+</li>
+</ul>
+<h3 id="如何用hudi解决业务问题"><a href="#如何用hudi解决业务问题" class="headerlink" title="如何用hudi解决业务问题"></a>如何用hudi解决业务问题</h3><ul>
+<li><p>结合业务诉求和痛点来拆分方案。</p>
+</li>
+<li><p>数仓设计跟hudi的模型特点要贴合，发挥hudi的最大小效率。</p>
+</li>
+<li><p>多分区时可以控制并发和数据分布问题。</p>
+</li>
+</ul>
+<p>参考：</p>
+<p><a href="https://appukvkryx45804.pc.xiaoe-tech.com/detail/i_61e92729e4b02b8258452bca/1" target="_blank" rel="noopener">DataFunTalk-快手在hudi上的应用与优化</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/hudi/" rel="tag"># hudi</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/05/27/hudi%E6%8E%A2%E7%B4%A2-timeline%E6%BA%90%E7%A0%81/" rel="next" title="hudi探索--timeline源码">
+                <i class="fa fa-chevron-left"></i> hudi探索--timeline源码
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/05/31/flink%E5%8E%9F%E7%90%86-%E7%BA%BF%E7%A8%8B%E6%A8%A1%E5%9E%8B/" rel="prev" title="flink原理--线程模型">
+                flink原理--线程模型 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#hudi探索–大公司案例的优化方向汇总"><span class="nav-number">1.</span> <span class="nav-text">hudi探索–大公司案例的优化方向汇总</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#阿里DLA团队对于hudi的改进："><span class="nav-number">1.1.</span> <span class="nav-text">阿里DLA团队对于hudi的改进：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#字节在hudi上的优化"><span class="nav-number">1.2.</span> <span class="nav-text">字节在hudi上的优化</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#元数据"><span class="nav-number">1.2.1.</span> <span class="nav-text">元数据</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#并发更新弱"><span class="nav-number">1.2.2.</span> <span class="nav-text">并发更新弱</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#单个-Flink-任务的扩展性问题"><span class="nav-number">1.2.2.1.</span> <span class="nav-text">单个 Flink 任务的扩展性问题</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#批量并发冲突的问题"><span class="nav-number">1.2.2.2.</span> <span class="nav-text">批量并发冲突的问题</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#更新性能差"><span class="nav-number">1.2.3.</span> <span class="nav-text">更新性能差</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#日志难入湖"><span class="nav-number">1.2.4.</span> <span class="nav-text">日志难入湖</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#其他："><span class="nav-number">1.2.5.</span> <span class="nav-text">其他：</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#针对多维这个场景，做了以下单独的一些有针对性的优化："><span class="nav-number">1.2.6.</span> <span class="nav-text">针对多维这个场景，做了以下单独的一些有针对性的优化：</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#快手在hudi上的优化"><span class="nav-number">1.3.</span> <span class="nav-text">快手在hudi上的优化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#痛点"><span class="nav-number">1.4.</span> <span class="nav-text">痛点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#如何用hudi解决业务问题"><span class="nav-number">1.5.</span> <span class="nav-text">如何用hudi解决业务问题</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

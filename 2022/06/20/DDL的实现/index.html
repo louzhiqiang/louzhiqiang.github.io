@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="DDL的实现这个话题其实有些宽泛，不过为了说明大数据中针对ddl的处理方式，尤其是实时场景，所以为了说明白这个问题，我们可以先说一下OLTP数据库的处理方式，然后再针对实时场景的特殊问题再去对比说一下会把哪些问题复杂化。 SCHEMA EVOLUTIONSchema evolution 大致可以分为4种：  Backwards compatible: 向后兼容，用新的schema可以读取旧数据，如">
+<meta property="og:type" content="article">
+<meta property="og:title" content="DDL的实现">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/20/DDL%E7%9A%84%E5%AE%9E%E7%8E%B0/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="DDL的实现这个话题其实有些宽泛，不过为了说明大数据中针对ddl的处理方式，尤其是实时场景，所以为了说明白这个问题，我们可以先说一下OLTP数据库的处理方式，然后再针对实时场景的特殊问题再去对比说一下会把哪些问题复杂化。 SCHEMA EVOLUTIONSchema evolution 大致可以分为4种：  Backwards compatible: 向后兼容，用新的schema可以读取旧数据，如">
+<meta property="og:image" content="https://pic3.zhimg.com/v2-5d3c33ccc792c589cb85cab6cb5d0b12_b.jpg">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20211206_a7c17dea-5649-11ec-907e-fa163eb4f6be.png">
+<meta property="article:published_time" content="2022-06-20T04:06:08.000Z">
+<meta property="article:modified_time" content="2022-06-22T00:12:14.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://pic3.zhimg.com/v2-5d3c33ccc792c589cb85cab6cb5d0b12_b.jpg">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/20/DDL的实现/"/>
+
+
+
+
+
+  <title>DDL的实现 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/20/DDL%E7%9A%84%E5%AE%9E%E7%8E%B0/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">DDL的实现</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-20T12:06:08+08:00">
+                2022-06-20
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="DDL的实现"><a href="#DDL的实现" class="headerlink" title="DDL的实现"></a>DDL的实现</h1><p>这个话题其实有些宽泛，不过为了说明大数据中针对ddl的处理方式，尤其是实时场景，所以为了说明白这个问题，我们可以先说一下OLTP数据库的处理方式，然后再针对实时场景的特殊问题再去对比说一下会把哪些问题复杂化。</p>
+<h2 id="SCHEMA-EVOLUTION"><a href="#SCHEMA-EVOLUTION" class="headerlink" title="SCHEMA EVOLUTION"></a>SCHEMA EVOLUTION</h2><p>Schema evolution 大致可以分为4种：</p>
+<ol>
+<li>Backwards compatible: 向后兼容，用新的schema可以读取旧数据，如果字段没值，就用default值，这也是Hudi提供的兼容方式。</li>
+<li>Forwards compatible: 向前兼容，用旧schema可以读取新数据，Avro将忽略新加的字段，如果要向前兼容，删掉的字段必须要有默认值。</li>
+<li>Full compatible: 支持向前兼容，向后兼容，如果要全兼容，那么就需要只添加有默认值的字段，并且只移除有默认值的字段。</li>
+<li>No Compatibility Checking：这种情况一般来说就是需要强制改变某个字段的类型，此时就需要做全量的数据迁移，不推荐。</li>
+</ol>
+<blockquote>
+<p>schema 的变更跟接口的字段变更是一样的概念，如果需要升级api如何保证业务滚动升级且数据不会出现脏数据的问题。</p>
+</blockquote>
+<p>除了字段的添加、删除还有一个更新，比较更改字段的名称、更改字段的类型、字段在元数据中的序列。</p>
+<p>除了以上，还有一个复杂变更，就是复杂数据类型的元数据变更。=，比如针对array里的内部类型的变更，或者针对map中的value的数据类型的变更，还有针对struct中的内部类型的数据变更。这个嵌套数据类型的变更可以演变为基础类型的演变。</p>
+<h2 id="MYSQL的DDL"><a href="#MYSQL的DDL" class="headerlink" title="MYSQL的DDL"></a>MYSQL的DDL</h2><h3 id="原理"><a href="#原理" class="headerlink" title="原理"></a>原理</h3><p>MySQL 的 DDL(Data Definition Language) 包括增减字段、增减索引等操作。在 MySQL 5.6 之前，MySQL 的 DDL 操作会按照原来的表复制一份，并做相应的修改，例如，对表 A 进行 DDL 的具体过程如下：</p>
+<ol>
+<li>按照表 A 的定义新建一个表 B</li>
+<li>对表 A 加写锁</li>
+<li>在表 B 上执行 DDL 指定的操作</li>
+<li>将 A 中的数据拷贝到 B</li>
+<li>释放 A 的写锁</li>
+<li>删除表 A</li>
+<li>将表 B 重命名为 A</li>
+</ol>
+<p>在 2-4 的过程中，如果表 A 数据量比较大，拷贝到表 B 的过程会消耗大量时间，并占用额外的存储空间。此外，由于 DDL 操作占用了表 A 的写锁，所以表 A 上的 DDL 和 DML 都将阻塞无法提供服务。</p>
+<p>因此，MySQL 5.6 增加了 Online DDL，允许在不中断数据库服务的情况下进行 DDL 操作。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> tbl_name <span class="keyword">ADD</span> PRIMARY <span class="keyword">KEY</span> (<span class="keyword">column</span>), ALGORITHM=INPLACE, <span class="keyword">LOCK</span>=<span class="keyword">NONE</span>;</span><br></pre></td></tr></table></figure>
+
+<p>ALTER 语句中可以指定参数 ALGORITHM 和 LOCK 分别指定 DDL 执行的方式和 DDL 期间 DML 的并发控制。</p>
+<ol>
+<li><p>ALGORITHM=INPLACE 表示执行DDL的过程中不发生表拷贝，过程中允许并发执行DML（INPLACE不需要像COPY一样占用大量的磁盘I/O和CPU，减少了数据库负载。同时减少了buffer pool的使用，避免 buffer pool 中原有的查询缓存被大量删除而导致的性能问题）。<br>如果设置 ALGORITHM=COPY，DDL 就会按 MySQL 5.6 之前的方式，采用表拷贝的方式进行，过程中会阻塞所有的DML。另外也可以设置 ALGORITHEM=DAFAULT，让 MySQL 以尽量保证 DML 并发操作的原则选择执行方式。  </p>
+</li>
+<li><p>LOCK=NONE 表示对 DML 操作不加锁，DDL 过程中允许所有的 DML 操作。此外还有 EXCLUSIVE（持有排它锁，阻塞所有的请求，适用于需要尽快完成DDL或者服务库空闲的场景）、SHARED（允许SELECT，但是阻塞INSERT UPDATE DELETE，适用于数据仓库等可以允许数据写入延迟的场景）和 DEFAULT（根据DDL的类型，在保证最大并发的原则下来选择LOCK的取值）</p>
+</li>
+</ol>
+<p>不过并不是所有的 DDL 操作都能用 INPLACE 的方式执行，具体的支持情况可以在 <a href="https://link.zhihu.com/?target=https%3A//dev.mysql.com/doc/refman/5.6/en/innodb-online-ddl-operations.html">MySQL Reference Manual — Online DDL Operations</a>) 中查看。</p>
+<p>有一些操作不允许在当前系统中存在两种结果，因为会冲突，这个冲突主要是查询过程会导致异常，还有可能是函数处理等，总之就是会阻碍数据库的正常使用。</p>
+<p>比如修改表字段类型从float到int，这种转换是从宽数据到窄数据的，就不支持INPLACE，而必须是copy的。</p>
+<h3 id="执行过程"><a href="#执行过程" class="headerlink" title="执行过程"></a>执行过程</h3><ol>
+<li><p>初始化：根据存储引擎、用户指定的操作、用户指定的 ALGORITHM 和 LOCK 计算 DDL 过程中允许的并发量，这个过程中会获取一个 shared metadata lock，用来保护表的结构定义</p>
+</li>
+<li><p>执行 DDL：根据第一步的情况决定是否将 shared metadata lock 升级为 exclusive metadata lock（仅在语句准备阶段），然后生成语句并执行。执行期间的 shared metadata lock 保证了不会同时执行其他的 DDL，但 DML 能可以正常执行。</p>
+<p>在允许读写并行的时候，所有新事务所涉及的变更都会写入 RowLog，RowLog 切分为多个小块，增量数据始终写入最后一块。同时开始索引构建流程，将全量数据排序后填充到索引中。</p>
+<p>填充完成后就要开始顺序应用 RowLog，在应用 RowLog 的最后一步，禁止表上的写入操作。</p>
+</li>
+<li><p>提交：将 shared metadata lock 升级为 exclusive metadata lock，然后删除旧的表定义，提交新的表定义</p>
+</li>
+</ol>
+<p><img src="https://pic3.zhimg.com/v2-5d3c33ccc792c589cb85cab6cb5d0b12_b.jpg" alt=""></p>
+<p>Online DDL 过程中占用 exclusive MDL 的步骤执行很快，所以几乎不会阻塞 DML 语句。</p>
+<p>不过，在 DDL 执行前或执行时，其他事务可以获取 MDL。由于需要用到 exclusive MDL，所以必须要等到其他占有 metadata lock 的事务提交或回滚后才能执行上面两个涉及到 MDL 的地方。</p>
+<p> Online DDL 执行过程中需要获取 MDL，MDL (metadata lock) 是 MySQL 5.5 引入的表级锁，在访问一个表的时候会被自动加上，以保证读写的正确性。当对一个表做 DML 操作的时候，加 MDL 读锁；当做 DDL 操作时候，加 MDL 写锁。</p>
+<blockquote>
+<p>为了在大表执行 DDL 的过程中同时保证 DML 能并发执行，前面使用了 ALGORITHM=INPLACE 的 Online DDL，但这里仍然存在死锁的风险，问题就出在 Online DDL 过程中需要 exclusive MDL 的地方。</p>
+</blockquote>
+<h3 id="Online-DDL-的特点"><a href="#Online-DDL-的特点" class="headerlink" title="Online DDL 的特点"></a>Online DDL 的特点</h3><p>会在几个时间段上排它锁：</p>
+<ul>
+<li>Execution 初期 和 Commit 阶段短暂获取 exclusive MDL，禁止表上的读写操作</li>
+<li>Execution 阶段应用最后一块 RowLog 时，禁止目标表上的写操作</li>
+</ul>
+<p>从这个功能实现来看，Online DDL 会出现以下问题：</p>
+<ol>
+<li>如果DDL执行之前有长事务，那会阻塞后续这个表上的所有请求，从而导致后续的请求全部堆积起来，打满连接；</li>
+<li>数据回填期间虽然降级成 shared MDL，允许读写，但是业务高峰期执行还是有风险，并不能实现真正的 Online。</li>
+</ol>
+<p>参考：</p>
+<p><a href="https://zhuanlan.zhihu.com/p/162073721" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/162073721</a></p>
+<p><a href="https://asktug.com/t/topic/69597" target="_blank" rel="noopener">https://asktug.com/t/topic/69597</a></p>
+<h2 id="ICEBERG的DDL"><a href="#ICEBERG的DDL" class="headerlink" title="ICEBERG的DDL"></a>ICEBERG的DDL</h2><p>作为构建新一代数据湖的主流中间件，Apache Iceberg支持<strong>Full</strong> Schema Evolution的功能，包括添加列，删除列，更新列，更新分区列等操作。用户可以任意的对表的结构进行in-place的更新，包括对普通列以及嵌套类型的列进行结构更新，甚至当用户的存储更换时还支持对分区的列进行更新。</p>
+<blockquote>
+<p>值得一提的是，Iceberg的表结构更新是内在的元信息更新，不需要花费数据迁移或者数据重写的代价。</p>
+</blockquote>
+<h3 id="Partition-Evolution"><a href="#Partition-Evolution" class="headerlink" title="Partition Evolution"></a>Partition Evolution</h3><p>和Spark与Hive不同，Iceberg采用的分区方式是隐式分区，这种隐式分区的方式使得分区更加灵活，可以通过以某些列作为输入，然后指定一个变换函数结合起来作为一个分区格式。例如，假设表的设计里面有一列是event_time，那么可能的分区方法有：</p>
+<ul>
+<li><p>date(event_time)：根据日期分区</p>
+</li>
+<li><p>mouth(event_time)：根据月分区</p>
+</li>
+<li><p>year(event_time)：根据年分区</p>
+</li>
+<li><p>day(event_time)：根据天分区</p>
+</li>
+<li><p>bucket(event_time, 10)：分成10个桶</p>
+</li>
+<li><p>identity(event_time)：根据event_time分区</p>
+</li>
+<li><p>truncate(event_time, 5)：根据event_time前5位的宽度分区</p>
+</li>
+</ul>
+<p>当然如果你觉得这些都不够用， 那么你还可以自己写一个Transform 接口的实现来指定分区策略。</p>
+<p>在隐式分区技术的基础上，Iceberg实现了Partition Evolution，这个功能可以让上层的查询语句不需要做任何的更新，仍然可以无缝的使用分区过滤功能。</p>
+<h3 id="Schema-Evolution内核剖析"><a href="#Schema-Evolution内核剖析" class="headerlink" title="Schema Evolution内核剖析"></a>Schema Evolution内核剖析</h3><p>Iceberg 通过 schema 以及 一系列的visitor用于访问和更新Schema。通过这套独立的Schema逻辑以及一系列visitor，Iceberg Schema可以不用和Spark 的Schema以及底层的文件格式Schema耦合，从而实现 full schema evolution。</p>
+<blockquote>
+<p>这个解耦是iceberg后续灵活性的来源。</p>
+</blockquote>
+<p>visitor的概念就是如何遍历schema的操作模式，对于不同的模式，可以应对不同的场景有不同的效率和方式。</p>
+<p>比如 当前iceberg的schema与以下类型都可以直接互换：</p>
+<ul>
+<li><p>spark schema</p>
+</li>
+<li><p>与avro类型的转换</p>
+</li>
+<li><p>与parquet类型的转换</p>
+</li>
+<li><p>分配Field ID的visitor</p>
+</li>
+<li><p>更新schema的visitor</p>
+</li>
+</ul>
+<p>visitor的设计让schema的操作变得维护性更模块化。</p>
+<p>参考：</p>
+<p><a href="https://www.modb.pro/db/184149" target="_blank" rel="noopener">Apache Iceberg的Schema Evolution详解 - 墨天轮</a></p>
+<h2 id="HUDI的DDL"><a href="#HUDI的DDL" class="headerlink" title="HUDI的DDL"></a>HUDI的DDL</h2><p>hudi的schema evolution支持的操作如下：</p>
+<ul>
+<li><p>列的添加、删除、重命名。</p>
+</li>
+<li><p>列的属性更改，比如列类型（支持由窄变宽）、列的属性更改、列的序列更改。</p>
+<table>
+<thead>
+<tr>
+<th>Source\Target</th>
+<th>long</th>
+<th>float</th>
+<th>double</th>
+<th>string</th>
+<th>decimal</th>
+<th>date</th>
+<th>int</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>int</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>N</td>
+<td>Y</td>
+</tr>
+<tr>
+<td>long</td>
+<td>Y</td>
+<td>N</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>N</td>
+<td>N</td>
+</tr>
+<tr>
+<td>float</td>
+<td>N</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>N</td>
+<td>N</td>
+</tr>
+<tr>
+<td>double</td>
+<td>N</td>
+<td>N</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>N</td>
+<td>N</td>
+</tr>
+<tr>
+<td>decimal</td>
+<td>N</td>
+<td>N</td>
+<td>N</td>
+<td>Y</td>
+<td>Y</td>
+<td>N</td>
+<td>N</td>
+</tr>
+<tr>
+<td>string</td>
+<td>N</td>
+<td>N</td>
+<td>N</td>
+<td>Y</td>
+<td>Y</td>
+<td>Y</td>
+<td>N</td>
+</tr>
+<tr>
+<td>date</td>
+<td>N</td>
+<td>N</td>
+<td>N</td>
+<td>Y</td>
+<td>N</td>
+<td>Y</td>
+<td>N</td>
+</tr>
+</tbody></table>
+</li>
+</ul>
+<p>这里要区分的角度有三个：</p>
+<ul>
+<li><p>表类型</p>
+</li>
+<li><p>计算引擎</p>
+</li>
+<li><p>查询引擎</p>
+</li>
+</ul>
+<p>在查询的时候要考虑到不同的表类型，写数据的时候也要考虑到不同的类型。</p>
+<h3 id="HoodieFlinkStreamer"><a href="#HoodieFlinkStreamer" class="headerlink" title="HoodieFlinkStreamer"></a>HoodieFlinkStreamer</h3><p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20211206_a7c17dea-5649-11ec-907e-fa163eb4f6be.png" alt=""></p>
+<h3 id="方案"><a href="#方案" class="headerlink" title="方案"></a>方案</h3><p>经过对<code>HoodieFlinkStreamer</code>  分析，其中用到的一些主要 Function(Source、Map、Sink 等) 都是在最初定义时传入参数配置类，要么在构造方法中、要么在 open 方法中，根据配置（包含 schema）生成 <strong>deserialer、converter、writeClient</strong> 等对数据进行反序列化、转换、保存的实例，由于是根据最初 schema 生成的实例，即使数据中有新增的字段，转换后新增的字段也没有保留。所以采用的方式是，在各个 Function 处理数据的方法中，判断如果数据中的 schema 与当前 Function 中的 schema 不一致（一种简单的优化），就使用数据中的 schema 重新生成这些 deserialer、converter、writeClient，这样数据经过处理后，就有新增的字段。</p>
+<h3 id="需要考虑哪些"><a href="#需要考虑哪些" class="headerlink" title="需要考虑哪些"></a>需要考虑哪些</h3><p>基于上述流程，我们知道了他会在哪里留有数据的痕迹，那么这些地方都是需要考虑的。</p>
+<ul>
+<li><p>source 数据读取的序列化类要进行变更，coverter也要跟着变更。</p>
+</li>
+<li><p>sink 实时写入，由于avro本身就是支持schema evolution，所以这部分算是OK。</p>
+</li>
+<li><p>compaction  要支持到parquet数据的存储变更，因为历史数据中并不包含变更的schema，所以compact操作会异常。compact的时候合并schema，针对不同情况要给与不同的处理策略。</p>
+</li>
+<li><p><strong>StreamWriteOperatorCoordinator</strong> 支持数据保存到元数据中以及同步到hive中。</p>
+</li>
+<li><p>读取：因为涉及到parquet文件的读取，在读取parquet之前，在init的时候，会生成schema，这里要把schema信息补全，并且知道默认为null的情况，就可以了。</p>
+</li>
+<li><p>flink中的state要实现schema evolution 这个下边会说。</p>
+</li>
+</ul>
+<p>参考：</p>
+<p><a href="https://hudi.apache.org/docs/next/schema_evolution" target="_blank" rel="noopener">https://hudi.apache.org/docs/next/schema_evolution</a></p>
+<p><a href="https://www.modb.pro/db/189643" target="_blank" rel="noopener">一种Hudi on Flink动态同步元数据变化的方法 - 墨天轮</a></p>
+<p><a href="https://www.linkflowtech.com/6060.html" target="_blank" rel="noopener">Linkflow是如何使用Apache Hudi构建实时数据湖的？ - Linkflow联否官网</a></p>
+<h2 id="FLINK-STATE的EVOLUTION"><a href="#FLINK-STATE的EVOLUTION" class="headerlink" title="FLINK STATE的EVOLUTION"></a>FLINK STATE的EVOLUTION</h2><p>为了对给定的状态类型进行升级，你需要采取以下几个步骤：</p>
+<ol>
+<li>对 Flink 流作业进行 savepoint 操作。</li>
+<li>升级程序中的状态类型（例如：修改你的 Avro 结构）。</li>
+<li>从 savepoint 恢复作业。当第一次访问状态数据时，Flink 会判断状态数据 schema 是否已经改变，并进行必要的迁移。</li>
+</ol>
+<p>用来适应状态结构的改变而进行的状态迁移过程是自动发生的，并且状态之间是互相独立的。 Flink 内部是这样来进行处理的，首先会检查新的序列化器相对比之前的序列化器是否有不同的状态结构；如果有， 那么之前的序列化器用来读取状态数据字节到对象，然后使用新的序列化器将对象回写为字节。</p>
+<p>目前，仅支持 POJO 和 Avro 类型的 schema 升级 因此，如果你比较关注于状态数据结构的升级，那么目前来看强烈推荐使用 Pojo 或者 Avro 状态数据类型。</p>
+<ul>
+<li><h3 id="POJO-类型"><a href="#POJO-类型" class="headerlink" title="POJO 类型"></a>POJO 类型</h3><p>  Flink 基于下面的规则来支持 <a href="https://nightlies.apache.org/flink/flink-docs-master/zh/docs/dev/datastream/fault-tolerance/serialization/types_serialization/#pojo-%e7%b1%bb%e5%9e%8b%e7%9a%84%e8%a7%84%e5%88%99" target="_blank" rel="noopener">POJO 类型</a>结构的升级:</p>
+</li>
+</ul>
+<ol>
+<li>可以删除字段。一旦删除，被删除字段的前值将会在将来的 checkpoints 以及 savepoints 中删除。</li>
+<li>可以添加字段。新字段会使用类型对应的默认值进行初始化，比如 <a href="https://docs.oracle.com/javase/tutorial/java/nutsandbolts/datatypes.html" target="_blank" rel="noopener">Java 类型</a>。</li>
+<li>不可以修改字段的声明类型。</li>
+<li>不可以改变 POJO 类型的类名，包括类的命名空间。</li>
+</ol>
+<ul>
+<li><h3 id="Avro类型"><a href="#Avro类型" class="headerlink" title="Avro类型"></a>Avro类型</h3><p>  Flink 完全支持 Avro 状态类型的升级，只要数据结构的修改是被 <a href="http://avro.apache.org/docs/current/spec.html#Schema+Resolution" target="_blank" rel="noopener">Avro 的数据结构解析规则</a>认为兼容的即可。</p>
+</li>
+</ul>
+<p>一个例外是如果新的 Avro 数据 schema 生成的类无法被重定位或者使用了不同的命名空间，在作业恢复时状态数据会被认为是不兼容的。</p>
+<blockquote>
+<p><strong>Kryo</strong> cannot be used for schema evolution.When Kryo is used, there is no possibility for the framework to verify if any incompatible changes have been made.</p>
+</blockquote>
+<h3 id="State-Schema-Migration"><a href="#State-Schema-Migration" class="headerlink" title="State Schema Migration"></a>State Schema Migration</h3><p>这个的关键点是savepoint中序列化存储使用的是A的schema，而新的任务使用的是B的schema，主要问题在于<strong>在从 Savepoint 恢复时我们如何读取之前的版本的序列化对象</strong>。</p>
+<p>State Schema 的更新主要是和业务逻辑的变更相关，比如新增一个字段或者移除一个字段，这种版本升级主要需要考虑序列化框架的兼容性，比如 Java 默认的对象序列化框架，可以兼容新增字段但不能兼容移除或重命名字段。如果变更是可兼容的，那么无需额外操作即可迁移，否则可能需要考虑更换序列号框架。然而 Flink 默认情况下会根据 State 的 POJO 类型来生成 Adhoc 的（反）序列化器（PojoSerializer），任何 POJO 的变更都会导致不同的序列化器，因此对于 Flink 来说 State Schema 的更新通常等同于 State 序列化框架的更新。</p>
+<h3 id="Savepoint-Management"><a href="#Savepoint-Management" class="headerlink" title="Savepoint Management"></a>Savepoint Management</h3><p>Savepoint Management 的目的是提供离线读写 State 的能力，这也就意味着可以在不中断任务的情况下去修改线上state中的数据。这种能力对于修复线上异常数据，效率会非常明显。</p>
+<p>参考：</p>
+<p><a href="http://www.whitewood.me/2019/03/17/%E4%BB%80%E4%B9%88%E6%98%AF-Flink-State-Evolution/" target="_blank" rel="noopener">什么是 Flink State Evolution? | 时间与精神的小屋</a></p>
+<p><a href="https://nightlies.apache.org/flink/flink-docs-release-1.13/docs/dev/datastream/fault-tolerance/schema_evolution/" target="_blank" rel="noopener">State Schema Evolution | Apache Flink</a></p>
+<p><a href="https://nightlies.apache.org/flink/flink-docs-master/zh/docs/dev/datastream/fault-tolerance/serialization/custom_serialization/" target="_blank" rel="noopener">https://nightlies.apache.org/flink/flink-docs-master/zh/docs/dev/datastream/fault-tolerance/serialization/custom_serialization/</a></p>
+<h2 id="DELTA-LAKE的schema-evolution"><a href="#DELTA-LAKE的schema-evolution" class="headerlink" title="DELTA LAKE的schema evolution"></a>DELTA LAKE的schema evolution</h2><p>delta lake在约束上更加严格，evolution的实现也比较单薄，比如添加列、修改非数据相关的属性。</p>
+<p>而涉及数据本身的变更，基本都是重写。</p>
+<p>参考：</p>
+<p><a href="https://developer.aliyun.com/article/753783" target="_blank" rel="noopener">深入剖析 Delta Lake：Schema Enforcement &amp; Evolution-阿里云开发者社区</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/06/15/flink%E5%8E%9F%E7%90%86-Async-IO%E7%9A%84%E5%8E%9F%E7%90%86/" rel="next" title="flink原理--Async IO的原理">
+                <i class="fa fa-chevron-left"></i> flink原理--Async IO的原理
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/06/22/%E7%89%A9%E5%8C%96%E8%A7%86%E5%9B%BE%E7%9A%84%E5%AE%9E%E7%8E%B0/" rel="prev" title="物化视图的实现">
+                物化视图的实现 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#DDL的实现"><span class="nav-number">1.</span> <span class="nav-text">DDL的实现</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#SCHEMA-EVOLUTION"><span class="nav-number">1.1.</span> <span class="nav-text">SCHEMA EVOLUTION</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#MYSQL的DDL"><span class="nav-number">1.2.</span> <span class="nav-text">MYSQL的DDL</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#原理"><span class="nav-number">1.2.1.</span> <span class="nav-text">原理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#执行过程"><span class="nav-number">1.2.2.</span> <span class="nav-text">执行过程</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Online-DDL-的特点"><span class="nav-number">1.2.3.</span> <span class="nav-text">Online DDL 的特点</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ICEBERG的DDL"><span class="nav-number">1.3.</span> <span class="nav-text">ICEBERG的DDL</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Partition-Evolution"><span class="nav-number">1.3.1.</span> <span class="nav-text">Partition Evolution</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Schema-Evolution内核剖析"><span class="nav-number">1.3.2.</span> <span class="nav-text">Schema Evolution内核剖析</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#HUDI的DDL"><span class="nav-number">1.4.</span> <span class="nav-text">HUDI的DDL</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#HoodieFlinkStreamer"><span class="nav-number">1.4.1.</span> <span class="nav-text">HoodieFlinkStreamer</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#方案"><span class="nav-number">1.4.2.</span> <span class="nav-text">方案</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#需要考虑哪些"><span class="nav-number">1.4.3.</span> <span class="nav-text">需要考虑哪些</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#FLINK-STATE的EVOLUTION"><span class="nav-number">1.5.</span> <span class="nav-text">FLINK STATE的EVOLUTION</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#POJO-类型"><span class="nav-number">1.5.1.</span> <span class="nav-text">POJO 类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Avro类型"><span class="nav-number">1.5.2.</span> <span class="nav-text">Avro类型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#State-Schema-Migration"><span class="nav-number">1.5.3.</span> <span class="nav-text">State Schema Migration</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Savepoint-Management"><span class="nav-number">1.5.4.</span> <span class="nav-text">Savepoint Management</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#DELTA-LAKE的schema-evolution"><span class="nav-number">1.6.</span> <span class="nav-text">DELTA LAKE的schema evolution</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="G1," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="java的G1GC针对ParNew + CMS的问题：  长时间运行无法避免 Full GC Remark 阶段 STW 时间较长  CMS 垃圾回收器在 JDK9 被标记弃用，慢慢开始退出历史舞台。JVM 重新设计了另一款垃圾回收器 G1，有效地解决了 CMS 垃圾回收器遇到的上述两大问题。 G1 回收器核心数据结构 Region  为什么 CMS 垃圾回收器长时间运行无法避免 FGC？本质是因">
+<meta property="og:type" content="article">
+<meta property="og:title" content="java的G1GC">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/09/java%E7%9A%84G1GC/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="java的G1GC针对ParNew + CMS的问题：  长时间运行无法避免 Full GC Remark 阶段 STW 时间较长  CMS 垃圾回收器在 JDK9 被标记弃用，慢慢开始退出历史舞台。JVM 重新设计了另一款垃圾回收器 G1，有效地解决了 CMS 垃圾回收器遇到的上述两大问题。 G1 回收器核心数据结构 Region  为什么 CMS 垃圾回收器长时间运行无法避免 FGC？本质是因">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/02/20220223110802_31056.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/02/20220223110835_14416.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/02/20220223111122_11538.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/02/20220223111252_99631.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/02/20220223113126_61327.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/02/20220223111448_86679.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/02/20220223111635_53744.png">
+<meta property="article:published_time" content="2022-07-09T09:20:32.000Z">
+<meta property="article:modified_time" content="2022-07-11T03:37:46.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="G1">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://hbasefly.com/wp-content/uploads/2022/02/20220223110802_31056.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/09/java的G1GC/"/>
+
+
+
+
+
+  <title>java的G1GC | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/09/java%E7%9A%84G1GC/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">java的G1GC</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-07-09T17:20:32+08:00">
+                2022-07-09
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/java/" itemprop="url" rel="index">
+                    <span itemprop="name">java</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="java的G1GC"><a href="#java的G1GC" class="headerlink" title="java的G1GC"></a>java的G1GC</h1><p>针对ParNew + CMS的问题：</p>
+<ul>
+<li>长时间运行无法避免 Full GC</li>
+<li>Remark 阶段 STW 时间较长</li>
+</ul>
+<p>CMS 垃圾回收器在 JDK9 被标记弃用，慢慢开始退出历史舞台。JVM 重新设计了另一款垃圾回收器 G1，有效地解决了 CMS 垃圾回收器遇到的上述两大问题。</p>
+<h3 id="G1-回收器核心数据结构"><a href="#G1-回收器核心数据结构" class="headerlink" title="G1 回收器核心数据结构"></a><strong>G1 回收器核心数据结构</strong></h3><ol>
+<li><h3 id="Region"><a href="#Region" class="headerlink" title="Region"></a>Region</h3></li>
+</ol>
+<p>为什么 CMS 垃圾回收器长时间运行无法避免 FGC？本质是因为 CMS 垃圾回收器中老年代采用标记清理算法，这种算法会产生较多内存碎片，当内存碎片很碎无法给对象分配出连续空间的时候，JVM 就会触发 FGC 整理老年代。那有些同学就会问为什么不在每次老年代 GC 的时候执行整理操作呢？这主要是因为老年代如果很大的话，整理一次 STW 的时间会不可控。那怎么破这个局呢？JVM 设计者提出了一个思路：老年代不是很大吗，那就将老年代<strong>划分成很多小的格子</strong>，在此基础上 GC 算法基本不变，还是先标记，不过在标记完成后，<strong>按照优先级选择部分格子使用复制算法进行整理</strong>，这样每次整理的内存空间是可控的，STW 的时间就相对可控，而且因为使用复制算法就不再会出现内存碎片。对，这就是 G1 垃圾回收器的核心设计思想。</p>
+<p>G1 是一个分代回收器，它依然保留了”ParNew+CMS” 垃圾回收器中新生代和老年代的分代逻辑。但与”ParNew+CMS” 回收器不同的是，它引入了一个新的数据结构 – <strong>Region</strong>，也就是上文中笔者提到的小格子。G1 垃圾回收器会把整个堆划分成一个个大小相等的 Region，每个 Region 的大小可以通过参数设置，通常大小在 1~32M 之间，默认大小取决于总堆的大小。下图是 G1 回收器堆划分的示意图：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2022/02/20220223110802_31056.png" alt="img"></p>
+<blockquote>
+<p>他是把整个内存进行了划分，而不是只有老年代。</p>
+</blockquote>
+<p>上图中整个堆区会被划分为新生代以及老年代，其中新生代又分为 Eden 区和 Survivor 区，这和”ParNew+CMS” 回收器是相同的。不同的主要有两点：</p>
+<ul>
+<li><p><strong>G1 回收器不要求新生代或者老年代的 Region 连续分布</strong>，换言之，这些 Region 可以随意分布在整个堆区，它和新生代或者老年代的隶属关系属于逻辑隶属。</p>
+</li>
+<li><p>如果一个对象大小超过 Region 大小的一半，就会被视为<strong>巨型对象</strong>（Humongous Object），巨型对象会被分配到 Humongous Region。</p>
+</li>
+</ul>
+<ol start="2">
+<li><h3 id="RememberedSet（RSet）和-Card-Table"><a href="#RememberedSet（RSet）和-Card-Table" class="headerlink" title="RememberedSet（RSet）和 Card Table"></a>RememberedSet（RSet）和 Card Table</h3></li>
+</ol>
+<p>ParNew + CMS 是分代的，而分代有个比较棘手的问题就是跨代引用。比如 YGC 阶段标记新生代对象的时候，不仅需要扫描 GC Roots 标记其直接引用的新生代对象，<strong>还需要扫描所有老年代对象，查看其是否引用了新生代对象</strong>，如果引用了的话，对应新生代对象也是需要标记的，否则就会发生<strong>漏标</strong>。然而实际实现中，扫描整个老年代对象的代价相当大。文章中我们介绍了可以通过 Card Table 这种数据结构大幅降低扫描老年代对象查找跨代引用的代价，简单来说，就是通过<strong>写屏障技术</strong>在老年代对象引用新生代对象的时候将 Card Table 对应 Card 设置成” 脏卡”，这样的话，查找跨代引用，只需要扫描 Card Table 脏卡对应的老年代区域，而不需要扫描整个老年代，大大降低了扫描代价。</p>
+<p>G1 也是一个分代回收器，也需要处理跨代引用扫描代价大的问题。为了解决这个问题，G1 引用了另一种新的数据结构 – <strong>Remembered Set</strong>，简称 RSet。</p>
+<p><strong>RSet 是什么样的数据结构呢？</strong></p>
+<p>在 G1 实现中，每个 Region 会被划分成很多 512Byte 大小的小块，这样一个 32M 的 Region 就会被划分为 65536 个小块。与之大小对应的会有一个长度为 65536 的 <strong>Card Table 数组</strong>，数组的每个元素只有 1Byte，对应 Region 的每个小块。Card Table 数组这个结构和 CMS 垃圾回收器中 Card Table 是相同的。</p>
+<p>除了 Card Table 数组之外，每个 Region 还会有一个 <strong>RSet 数据结构</strong>，RSet 主要用来记录<strong>哪个 Region 的哪个 Card 上的对象引用了本 Region 中的对象</strong>。实际实现中，RSet 默认是一个 <strong>HashMap，Map 的 key 是引用 Region，value 是一个 List，List 中存储引用 Region 中的引用 Card 列表</strong>。Region、Card Table 以及 RSet 的示意图如下所示：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2022/02/20220223110835_14416.png" alt="img"></p>
+<p>上图中，RegionA 和 RegionB 中分别有对象引用 RegionC 中的对象，在 RegionC 对应的 RSet 就会记录这样的引用关系。该 RSet 中有两个 KV 对，第一个 KV 对的 key 是 RegionA，value 是一个列表，列表中有两个元素 3 和 65534，分别代表 RegionA 中引用对象在对应 Card Table 中的下标。第二个 KV 对的 key 是 RegionB，value 中列表只有一个元素 1565，代表 RegionB 中引用对象在对应 Card Table 中的下标。</p>
+<blockquote>
+<p>Rset主要是记录了谁引用了我这里的元素</p>
+</blockquote>
+<p>与 CMS 回收器中 Card Table 相比，Card Table 中的脏卡代表” 我引用了别的对象”，属于一种 <strong>points-out</strong> 结构。而 RSet 记录的是哪些其他 Region 引用了本 Region 中的对象，属于 <strong>points-into</strong> 结构。两者是有本质区别的。</p>
+<p>按照上述介绍，如果一个 Region 是<strong>热点 Region</strong>，表示这个 Region 中的对象被大量其他 Region 中的对象所引用，那么 RSet 占用的内存空间开销就会越大。但我们要清楚一点，RSet 内存开销不是为业务服务的，实际上不应该占用太多。因此为了控制 RSet 占用内存空间的大小，RSet 会根据引用 Region 个数的多少，设置 3 种不同的实现方式（上文中介绍的是其中一种），分别称为：</p>
+<ul>
+<li><p>sparse per-region-table (PRT)，从字面意思来看表示这个 RSet 是一个稀疏的集合。具体实现使用 HashMap 方式记录引用关系，其中 Map 的 key 是引用 Region，value 是一个 List，List 中存储引用 Region 中的引用 Card 列表。上文有过介绍。</p>
+</li>
+<li><p>fine-grained PRT，还是使用 HashMap 方式记录引用关系，其中 Map 的 key 是引用 Region，但 value 不再是 List，而是一个 bitmap，bit 位为 1 表示对应 Card 是引用 Card，否则不是引用 Card。</p>
+</li>
+<li><p>coarse-grained bitmap，从字面意思可以看出来这就是一个 bitmap，不过 bitmap 中每个 bit 位引用粒度不再是 Card，而是 Region。如果 bit 位值为 1，表示这个 Region 是引用 Region，即这个 Region 中有对象引用了该 Region 中的对象。</p>
+</li>
+</ul>
+<p>上述 3 种实现方式中，spase PRT 和 fine-grained PRT 都是精确到 Card，而 coarse-grained bitmap 是精确到 Region。</p>
+<p><strong>G1 是如何管理 RSet 的？</strong></p>
+<p>G1 会创建一个用于管理 RSet 的线程池，这些线程称为 Refine 线程。G1 中 RSet 的更新不是同步完成的，G1 会把所有引用关系都先放入一个队列中，称为 <strong>Dirty Card Queue（DCQ）</strong>，然后使用 Refine 线程来消费这个队列完成引用关系的记录并更新 RSet。如果 Refine 线程忙不过来，GC 线程以及应用线程也可能会协助更新 RSet。</p>
+<h4 id="G1-回收器核心工作流程"><a href="#G1-回收器核心工作流程" class="headerlink" title="G1 回收器核心工作流程"></a><strong>G1 回收器核心工作流程</strong></h4><p>先简单回顾一下”ParNew+CMS” 回收器的工作流程:</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2022/02/20220223111122_11538.png" alt="img"></p>
+<p>G1 回收器核心工作流程与”ParNew+CMS” 回收器基本相同，参考上图看下图：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2022/02/20220223111252_99631.png" alt="img"></p>
+<p>对比”ParNew+CMS” 回收器工作流程，G1 中同样会比较频繁地进行新生代 YGC，同样也有老年代并发标记周期。不同的是，G1 在并发标记之后并<strong>没有直接清理全部垃圾对象</strong>，而是新增了一个<strong>混合收集周期</strong>，这个周期包含多次 Mixed GC，每次 Mixed GC 只会<strong>回收部分 Region</strong>，直至未处理 Region 集合占比低于特定阈值。之所以将这个周期称为”Mixed Collection Cycle”，是因为每次 Mixed GC 都会同时回收新生代和老生代中的 Region。</p>
+<p>上图中，IHOP(InitiatingHeapOccupancyPercent) Trigger 代表” 并发标记周期” 触发的阈值。一旦当前 JVM 已使用内存 / 总堆内存超过这个阈值，就会触发并发标记。</p>
+<p>虽然 G1 回收器的工作流程和”ParNew+CMS” 回收器差的不是很多，但是每个核心步骤的具体实现却有很大的不同。接下来分别来看 G1 中的 YGC、Concurrent Marking Cycle 以及 Mixed GC 的一些核心实现细节。</p>
+<h4 id="Young-GC-核心流程"><a href="#Young-GC-核心流程" class="headerlink" title="Young GC 核心流程"></a><strong>Young GC 核心流程</strong></h4><p>和”ParNew+CMS” 一样，一旦 Eden 区满了之后，就会触发 YGC。YGC 只负载回收堆中新生代的所有 Region，不回收老年代的 Region。基本流程可以表示为如下几步：</p>
+<ul>
+<li>将 eden 区和 survivor 区所有 Region 添加到 CSet 中准备回收。注：CSet 是一个存放待回收 Region 的数据结构。</li>
+<li>标记阶段<ul>
+<li>从 GC Roots 开始标记直接引用的新生代对象。</li>
+<li>基于 RSet 标记跨代引用的新生代对象。</li>
+</ul>
+</li>
+<li>复制阶段：将标记活跃的对象复制到其他 Region 中。</li>
+</ul>
+<p><img src="http://hbasefly.com/wp-content/uploads/2022/02/20220223113126_61327.png" alt="img"></p>
+<h4 id="Concurrent-Marking-Cycle-核心流程"><a href="#Concurrent-Marking-Cycle-核心流程" class="headerlink" title="Concurrent Marking Cycle 核心流程"></a><strong>Concurrent Marking Cycle 核心流程</strong></h4><p>根据上文介绍，一旦”JVM 已使用内存 / 总内存” 的比例超过设定阈值 IHOP（InitiatingHeapOccupancyPercent）后，G1 会执行一次 Concurrent Marking Cycle，并在之后进行多轮 Mixed GC。和 CMS 回收器基本一样，G1 中一轮并发标记周期包含初始标记、并发标记、重新标记，再加上一个 cleanup 阶，这样就可以完成整堆所有 Region 的对象标记。下面是一段 G1 回收器中并发标记周期的完整日志：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2022/02/20220223111448_86679.png" alt="img"></p>
+<ul>
+<li><p>初始标记（Initial Marking）：初始化标记是伴随一次普通的 YGC 发生的，从 GC Root 开始标记直接可达的对象。</p>
+</li>
+<li><p>并发标记 (Concurrent Marking)：这个阶段标记线程和应用线程并发工作，遍历整堆所有可达对象并标记。这个阶段需要特别关注并发标记可能产生的” 漏标”问题，G1 使用 Snapshot AT Begining（简称 SATB）算法避免漏标问题发生，这和 CMS 完全不同。3.4 小节深入介绍。</p>
+</li>
+<li><p>重新标记 (Remark) ：标记那些在并发标记阶段发生变化的对象, 将被回收。</p>
+</li>
+<li><p>清理 (Cleanup)：释放没有存活对象的 Region。</p>
+</li>
+</ul>
+<h4 id="Mixed-GC-核心流程"><a href="#Mixed-GC-核心流程" class="headerlink" title="Mixed GC 核心流程"></a><strong>Mixed GC 核心流程</strong></h4><p>一轮并发标记之后紧接着是混合回收周期，包括多次 Mixed GC，每次 Mixed GC 只回收部分 Region。这里有三个问题：</p>
+<ul>
+<li>为什么这些 Region 需要分为多次回收？</li>
+</ul>
+<p>主要原因是所有 Region 一起回收的话有可能会导致暂停时间比较长，尤其在内存较大的情况下。为了每次回收的暂停时间可控，就将一次大回收分成很多次小回收。</p>
+<ul>
+<li>每次回收 Region 集合的选择原则是什么？</li>
+</ul>
+<p>在执行混合回收之前，G1 会将所有 Region 按照每个 Region 中垃圾对象占比进行一次排序，垃圾对象占比越高，排名越靠前。排好序之后，每次 Mixed GC 按顺序选择部分 Region 进行回收，选择多少 Region 取决于<strong>这些 Region 的回收预估暂停时间不超过设置的最大暂停时间</strong>。这个回收算法称为 Garbage First，也就是 G1 的意思。</p>
+<ul>
+<li>每次 Mixed GC 的过程是怎么样的？</li>
+</ul>
+<p>具体的回收过程和上文中介绍的 Young GC 没有太大区别.</p>
+<h4 id="并发标记阶段对象”-漏标”-问题解法-–-SATB-算法"><a href="#并发标记阶段对象”-漏标”-问题解法-–-SATB-算法" class="headerlink" title="并发标记阶段对象” 漏标” 问题解法 – SATB 算法"></a><strong>并发标记阶段对象” 漏标” 问题解法 – SATB 算法</strong></h4><p>在介绍 SATB 算法之前，先简单介绍一下并发标记过程中可能出现的对象” 漏标” 问题。</p>
+<h5 id="对象漏标简介"><a href="#对象漏标简介" class="headerlink" title="对象漏标简介"></a>对象漏标简介</h5><p>什么是对象漏标？就是<strong>本应该被标记为活跃的对象因为某些原因最终没有被标记</strong>，被垃圾回收器认为是垃圾对象而回收掉，最终导致应用错误，很显然这种情况是不允许发生的。</p>
+<p>并发标记阶段什么场景下会发生对象漏标？应用线程和标记线程并发执行，在下面两种场景下会出现漏标：</p>
+<ol>
+<li>应用线程在并发标记过程中<strong>新生成的活跃对象</strong>因为某些原因没有被标记线程标记。</li>
+<li>应用线程在并发标记过程中<strong>变更引用关系</strong>的时候在特定场景下会出现漏标，具体场景涉及标记算法” 三色标记法”，详细可以阅读文章《【大内存服务 GC 实践】- 一文看懂”ParNew+CMS” 垃圾回收器》。这里只简单进行描述：</li>
+</ol>
+<p><img src="http://hbasefly.com/wp-content/uploads/2022/02/20220223111635_53744.png" alt="img"></p>
+<p>如上图所示，老年代中有三个对象 A、B 和 C，在标记之前的引用关系是 A 引用 B，B 引用 C。先分别介绍一下他们的标记情况：</p>
+<ul>
+<li>对象 A 已经被标记为黑色，表示为 A 为活跃对象且所有它引用的对象也完成标记。</li>
+<li>对象 B 被标记为灰色，表示 B 对象是活跃对象，但是它关联的对象还没有被完全标记完。</li>
+<li>对象 C 是白色，表示还没有被标记。</li>
+</ul>
+<p>在这种背景下，应用线程此时发生了一次引用关系变更，B 引用 C 的关系被删除了且同时 A 引用了 C，即如下所示代码：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">objB.fieldC &#x3D; null;</span><br><span class="line">objA.filedC &#x3D; C;</span><br></pre></td></tr></table></figure>
+
+<p>此时，标记线程就不再会标记对象 C，因为对象 A 已经是黑色，表示所有它引用的对象都已经完成标记。然而实际上活跃的对象 C 就会被漏标最终被回收掉。</p>
+<h5 id="SATB-算法思想简介"><a href="#SATB-算法思想简介" class="headerlink" title="SATB 算法思想简介"></a>SATB 算法思想简介</h5><p>对象漏标介绍之后简单介绍一下 SATB 算法的基本思想，可以概括为如下三句话：</p>
+<ol>
+<li><p>并发标记之前先给 Region 内存打个快照，标记线程基于这个<strong>快照</strong>独立进行标记。应用线程不会直接修改这个快照中的对象，也就是说应用线程不会干扰标记线程的工作。</p>
+</li>
+<li><p>应用线程<strong>新分配的对象</strong>都认为是活跃对象，实际在<strong>下一个并发标记周期</strong>进行标记。上文说过漏标发生的第一种场景是” 应用线程在并发标记过程中新生成的活跃对象因为某些原因没有被标记线程标记”，那如果能够将标记阶段新分配的对象全都集合到一起，这些对象全部都标记为活跃对象（实际肯定会有部分垃圾对象，将垃圾对象标记为活跃对象不影响程序正确性）就可以解决这个问题。</p>
+</li>
+<li><p>并发标记过程中已存在对象的引用关系变更在<strong>Remark</strong> 阶段单独进行处理。上文介绍了漏标发生的第二种场景，为了解决这个场景引入的漏标问题，可以将引用关系变更分解为旧的引用关系先删除，新的引用关系生成两个步骤，只要破坏任何一个步骤就可以防止漏标发生。因此有两种针对性解法：</p>
+<ol>
+<li><p>在并发标记阶段<strong>如果有新引用关系生成，就记录下来</strong>，Remark 阶段进行重标记，这个破坏了步骤二，即黑色对象重新引用了白色对象，就记录下来重新扫描黑色对象，将其引用的所有对象都标记成存活对象。这个就是 CMS 垃圾回收器使用的增量更新算法。</p>
+</li>
+<li><p>在并发标记阶段<strong>如果有引用关系被删除，就记录下来</strong>，Remark 阶段对这些引用关系被删除的重标记，这个破坏了步骤一，即灰色对象断开了白色对象引用的时候，记录下来，后面重新把这个白色对象标记成存活对象。这个就是 G1 垃圾回收器使用的算法。</p>
+</li>
+</ol>
+<p>简单来说，SATB 明确将并发标记这一个大工程分成了三个字模块，分别是对快照进行并发标记、对并发标记过程中新分配的对象全部标记为活跃、对并发标记过程中引用关系变更的对象单独进行处理。</p>
+</li>
+</ol>
+<h5 id=""><a href="#" class="headerlink" title=""></a></h5>
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/G1/" rel="tag"># G1</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/07/08/java%E7%9A%84gc%E5%87%A0%E9%97%AE/" rel="next" title="java的gc几问">
+                <i class="fa fa-chevron-left"></i> java的gc几问
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/07/12/impala%E5%8E%9F%E7%90%86/" rel="prev" title="impala原理">
+                impala原理 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#java的G1GC"><span class="nav-number">1.</span> <span class="nav-text">java的G1GC</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#G1-回收器核心数据结构"><span class="nav-number">1.0.1.</span> <span class="nav-text">G1 回收器核心数据结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Region"><span class="nav-number">1.0.2.</span> <span class="nav-text">Region</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#RememberedSet（RSet）和-Card-Table"><span class="nav-number">1.0.3.</span> <span class="nav-text">RememberedSet（RSet）和 Card Table</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#G1-回收器核心工作流程"><span class="nav-number">1.0.3.1.</span> <span class="nav-text">G1 回收器核心工作流程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Young-GC-核心流程"><span class="nav-number">1.0.3.2.</span> <span class="nav-text">Young GC 核心流程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Concurrent-Marking-Cycle-核心流程"><span class="nav-number">1.0.3.3.</span> <span class="nav-text">Concurrent Marking Cycle 核心流程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Mixed-GC-核心流程"><span class="nav-number">1.0.3.4.</span> <span class="nav-text">Mixed GC 核心流程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#并发标记阶段对象”-漏标”-问题解法-–-SATB-算法"><span class="nav-number">1.0.3.5.</span> <span class="nav-text">并发标记阶段对象” 漏标” 问题解法 – SATB 算法</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#对象漏标简介"><span class="nav-number">1.0.3.5.1.</span> <span class="nav-text">对象漏标简介</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#SATB-算法思想简介"><span class="nav-number">1.0.3.5.2.</span> <span class="nav-text">SATB 算法思想简介</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#"><span class="nav-number">1.0.3.5.3.</span> <span class="nav-text"></span></a></li></ol></li></ol></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

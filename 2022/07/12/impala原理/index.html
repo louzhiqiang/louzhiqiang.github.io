@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="impala," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="impala原理Impala是由Cloudera公司开发的新型查询系统，它提供SQL语义，能查询存储在Hadoop的HDFS和HBase上的PB级大数据，在性能上比Hive高出3~30倍。 impala是典型的MPP架构数据查询服务，依赖于hive的metastore元数据服务，查询也是基于hadoop上的，属于典型的数据数据查询加速组件。  Impala主要由Impalad，State Stor">
+<meta property="og:type" content="article">
+<meta property="og:title" content="impala原理">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/12/impala%E5%8E%9F%E7%90%86/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="impala原理Impala是由Cloudera公司开发的新型查询系统，它提供SQL语义，能查询存储在Hadoop的HDFS和HBase上的PB级大数据，在性能上比Hive高出3~30倍。 impala是典型的MPP架构数据查询服务，依赖于hive的metastore元数据服务，查询也是基于hadoop上的，属于典型的数据数据查询加速组件。  Impala主要由Impalad，State Stor">
+<meta property="og:image" content="https://cshihong.github.io/2018/05/22/Impala%E6%8A%80%E6%9C%AF%E5%8E%9F%E7%90%86/%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84.png">
+<meta property="og:image" content="https://pics6.baidu.com/feed/0824ab18972bd407af424ff02cddd9580eb30997.png?token=a528afe8f931c725211c80d1813827be">
+<meta property="og:image" content="https://ask.qcloudimg.com/developer-images/article/6896109/0i1sm2ng3r.png">
+<meta property="og:image" content="https://pic3.zhimg.com/v2-dc5bb80ef859f5d2ea07a4fe6fa5c259_r.jpg?source=1940ef5c">
+<meta property="article:published_time" content="2022-07-12T07:07:54.000Z">
+<meta property="article:modified_time" content="2022-07-14T07:36:54.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="impala">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cshihong.github.io/2018/05/22/Impala%E6%8A%80%E6%9C%AF%E5%8E%9F%E7%90%86/%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/12/impala原理/"/>
+
+
+
+
+
+  <title>impala原理 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/12/impala%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">impala原理</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-07-12T15:07:54+08:00">
+                2022-07-12
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="impala原理"><a href="#impala原理" class="headerlink" title="impala原理"></a>impala原理</h1><p>Impala是由Cloudera公司开发的新型查询系统，它提供SQL语义，能查询存储在Hadoop的HDFS和HBase上的PB级大数据，在性能上比Hive高出3~30倍。</p>
+<p>impala是典型的MPP架构数据查询服务，依赖于hive的metastore元数据服务，查询也是基于hadoop上的，属于典型的数据数据查询加速组件。</p>
+<p><img src="https://cshihong.github.io/2018/05/22/Impala%E6%8A%80%E6%9C%AF%E5%8E%9F%E7%90%86/%E7%B3%BB%E7%BB%9F%E6%9E%B6%E6%9E%84.png" alt="系统架构"></p>
+<p>Impala主要由Impalad，State Store和CLI三部分组成。</p>
+<ul>
+<li><p>Impalad</p>
+<ul>
+<li><p>负责协调客户端提交的查询的执行。</p>
+</li>
+<li><p>包含 Query Planner、Query Coordinator和Query Exec Engine三个模块。</p>
+</li>
+<li><p>与HDFS的数据节点（HDFS DN）运行在同一节点上。</p>
+</li>
+<li><p>给其他Impalad分配任务以及收集其他Impalad的执行结果进行汇总。</p>
+</li>
+<li><p>执行其他Impalad给其分配的任务，主要就是对本地HDFS和HBase里的部分数据进行操作。</p>
+</li>
+</ul>
+</li>
+<li><p>State Store：集群各个节点的健康检测，负责跟各个节点的<strong>Impala daemon</strong>进行通信，这样分布式查询的节点列表就是通过这个来保证。</p>
+<ul>
+<li><p>创建一个statestored进程。</p>
+</li>
+<li><p>收集分布在集群中各个Impalad进程的资源信息，用于查询调度。</p>
+</li>
+</ul>
+</li>
+<li><p>CLI：这个主要是查询入口。一般也会提供jdbc等入口方式。</p>
+</li>
+</ul>
+<p><img src="https://pics6.baidu.com/feed/0824ab18972bd407af424ff02cddd9580eb30997.png?token=a528afe8f931c725211c80d1813827be" alt=""></p>
+<ul>
+<li><p>每个impalad节点都是查询的入口，serverless。</p>
+</li>
+<li><p><strong>C++开发而不是Java，降低运行负荷</strong>。<strong><em>运行时代码生成（LLVM IR）</em></strong>，提高效率。</p>
+</li>
+<li><p>全内存处理，没有落盘的逻辑。</p>
+</li>
+<li><p>更多的本地计算：</p>
+<ul>
+<li><p><strong>Impala拥有HDFS上面各个data block的信息，当它处理查询的时候能够在各个datanode上面更均衡的分发查询。(hdfs的dfs.datanode.hdfs-blocks-metadata.enabled)</strong></p>
+</li>
+<li><p><strong>Impala为每个查询产生汇编级的代码*</strong>，当Impala在本地内存中运行的时候，这些汇编代码执行效率比其它任何代码框架都更快，因为<strong>代码框架会增加额外的延迟。</strong></p>
+</li>
+<li><p><strong>允许Impala执行short-circuit read</strong></p>
+</li>
+</ul>
+</li>
+</ul>
+<h2 id="元数据同步"><a href="#元数据同步" class="headerlink" title="元数据同步"></a>元数据同步</h2><p>impala基于整个集群是有一个<strong>catalogd</strong>节点，会监控hive执行的ddl语句以及本集群内的ddl语句，当出现这样的语句的时候，会触发广播，来更新每个节点的元数据存储，这样保证元数据是跟进的。</p>
+<p>目前基于impala本身执行的ddl与基于hive执行的ddl在做了很多兼容，但是还是有区别的，比如元数据变更之后，影响的不只是字段本身的变更，可能还有数据本身的stat的变更，这些信息的同步目前是不一样的更新策略。</p>
+<h2 id="调优"><a href="#调优" class="headerlink" title="调优"></a>调优</h2><ul>
+<li><p>基于特征信息进行的计划优化。</p>
+</li>
+<li><p><strong>启用block location跟踪</strong>：主要是dfs.datanode.hdfs-blocks-metadata.enabledtrue 的开启</p>
+</li>
+<li><p><strong>启用native checksumming</strong>：对大量数据计算校验和（checksum）会带来巨大的时间损耗，因此<strong>用本地库（native library）来执行校验和会带来性能上的提升。</strong></p>
+</li>
+<li><p>横向扩展成本很低。</p>
+</li>
+<li><p>支持资源隔离。</p>
+</li>
+</ul>
+<h2 id="join算法实现"><a href="#join算法实现" class="headerlink" title="join算法实现"></a>join算法实现</h2><ul>
+<li><p>hash join</p>
+</li>
+<li><p>brodcast join</p>
+</li>
+</ul>
+<p>impala基于parquet的查询，做过一个runtime filter join的策略优化，主要是广播bloomfilter。</p>
+<p>impala在查询计划上，在join的顺序上基于成本有过优化。</p>
+<p>Impala确定join order 是采用left-deep tree的形式：最大的表在左侧left side、小表在右侧right side。依据单节点查询计划，构造如下图所示的left-tree结构</p>
+<p><img src="https://ask.qcloudimg.com/developer-images/article/6896109/0i1sm2ng3r.png" alt=""></p>
+<p>Impala优化器首先找到容量最大的表T1，与所有的表进行比较，找到最小的表T2，连接之后可以生成最小的中间结果（intermedia result）. 将最大的表与最小的表进行组合（join）生成中间的表。然后重复此过程，最终生成left-deep tree.</p>
+<p>为什么Impala使用left-deep tree呢？ <strong><em>因为它可以很好的实现并行性，树的所有右节点都可以实现并行执行</em></strong>。</p>
+<p>备份一个presto和impala的对比：</p>
+<p><img src="https://pic3.zhimg.com/v2-dc5bb80ef859f5d2ea07a4fe6fa5c259_r.jpg?source=1940ef5c" alt=""></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/impala/" rel="tag"># impala</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/07/09/java%E7%9A%84G1GC/" rel="next" title="java的G1GC">
+                <i class="fa fa-chevron-left"></i> java的G1GC
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/08/03/java-NIO%E6%B5%85%E6%9E%90/" rel="prev" title="java-NIO浅析">
+                java-NIO浅析 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#impala原理"><span class="nav-number">1.</span> <span class="nav-text">impala原理</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#元数据同步"><span class="nav-number">1.1.</span> <span class="nav-text">元数据同步</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#调优"><span class="nav-number">1.2.</span> <span class="nav-text">调优</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#join算法实现"><span class="nav-number">1.3.</span> <span class="nav-text">join算法实现</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

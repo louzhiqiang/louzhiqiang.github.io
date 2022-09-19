@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="hbase," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="hbase的gchbase的gc优化的主要原则就是减少fullgc，优化目标主要是Memstore 和 blockcache。 针对 Memstore 主要是Thread-Local Allocation Buffer和MemStore Chunk Pool ， 针对blockcache 主要是 BucketCache 方案。  full gc 的触发主要是老年代的垃圾回收方式 cms 算法。根据">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hbase原理 第二篇">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/28/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E4%BA%8C%E7%AF%87/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="hbase的gchbase的gc优化的主要原则就是减少fullgc，优化目标主要是Memstore 和 blockcache。 针对 Memstore 主要是Thread-Local Allocation Buffer和MemStore Chunk Pool ， 针对blockcache 主要是 BucketCache 方案。  full gc 的触发主要是老年代的垃圾回收方式 cms 算法。根据">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/08/20160809211013_37305.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/07/3.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/07/5.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/07/6.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/07/3-1.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/07/4-1.png">
+<meta property="article:published_time" content="2022-06-28T00:42:01.000Z">
+<meta property="article:modified_time" content="2022-07-03T11:44:06.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="hbase">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://hbasefly.com/wp-content/uploads/2016/08/20160809211013_37305.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/28/hbase原理-第二篇/"/>
+
+
+
+
+
+  <title>hbase原理 第二篇 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/28/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E4%BA%8C%E7%AF%87/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">hbase原理 第二篇</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-28T08:42:01+08:00">
+                2022-06-28
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="hbase的gc"><a href="#hbase的gc" class="headerlink" title="hbase的gc"></a>hbase的gc</h1><p>hbase的gc优化的主要原则就是减少fullgc，优化目标主要是Memstore 和 blockcache。</p>
+<p>针对 Memstore 主要是Thread-Local Allocation Buffer和MemStore Chunk Pool ， 针对blockcache 主要是 BucketCache 方案。</p>
+<blockquote>
+<p>full gc 的触发主要是老年代的垃圾回收方式 cms 算法。根据标记算法，会回收掉未标记的数据，但是没有重新压缩分配空间，这样就产生了大量的碎片空间。而再有新的s1的数据过来的时候，或者有个大对象直接过来的时候，就会产生fullgc。这个产生时机很重要，所有的优化也都是围绕着这个点来进行，就是减少这个点的触发时机，也就减少fullgc。</p>
+</blockquote>
+<p>上边的优化方案主要是通过内存管理来进行的，也就是设置内存池的方式，预先分配，然后使用完的内存块会回收利用。</p>
+<p>blockcache的思路是减少堆内对象的使用，直接使用堆外内存。</p>
+<blockquote>
+<p>这两个思路都是比较常见的优化思路。</p>
+</blockquote>
+<blockquote>
+<p>关于lrucache 和 bucket cache的区别，前者是堆内，后者是堆外，但是在不用的场景，两者的效率是不一样的，cache命中率更高的场景，lru效率更佳，而后者虽然减少了堆内存的问题，但是在返回数据的时候需要一次copy，导致在cache命中率很好的情况下，效率是在下降的。</p>
+<p>在命中率一半的情况下，推荐 bucket。</p>
+</blockquote>
+<p>新生代使用并行标记整理清除算法(<strong>Parallel New Collector</strong>)，老年代使用cms(<strong>Concurrent Mark-Sweep</strong>)收集算法。</p>
+<p>参考：</p>
+<p><a href="http://hbasefly.com/2016/05/21/hbase-gc-1/" target="_blank" rel="noopener">HBase GC的前生今世 &#8211; 身世篇 &#8211; 有态度的HBase/Spark/BigData</a></p>
+<p><a href="http://hbasefly.com/2016/05/29/hbase-gc-2/" target="_blank" rel="noopener">HBase GC的前生今世 &#8211; 演进篇 &#8211; 有态度的HBase/Spark/BigData</a></p>
+<h1 id="CMS-GC调优"><a href="#CMS-GC调优" class="headerlink" title="CMS GC调优"></a>CMS GC调优</h1><p> GC 调优的最终目标和基本原则：</p>
+<ol>
+<li><p>平均 Minor GC 时间尽可能短。因为整个 Minor GC 都处于 STW，因此短时间 Minor GC 会使用户读写更加平稳，延迟可控。</p>
+</li>
+<li><p>CMS GC 次数越少越好。时间越短越好。一方面是因为一次 CMS GC 一般都会引起至少秒级的应用暂停，对用户读写影响较大；另一方面频繁的 CMS GC 会产生大量的内存碎片，严重的时候会引起 Full GC，导致 RegionServer 宕机。</p>
+</li>
+</ol>
+<h3 id="阶段一：默认推荐配置"><a href="#阶段一：默认推荐配置" class="headerlink" title="阶段一：默认推荐配置"></a>阶段一：默认推荐配置</h3><p><img src="http://hbasefly.com/wp-content/uploads/2016/08/20160809211013_37305.png" alt=""></p>
+<p>对性能影响重大的参数：Xmn、SurvivorRatio 以及 MaxTenuringThreshold。</p>
+<p>需要注意只有在添加参数 - XX:+PrintTenuringDistribution 才能打印对应日志，<strong>强烈建议线上集群开启该参数</strong>，他会记录各个区的大小，以及各个年龄段的分布。</p>
+<h3 id="阶段二：NewParSize-调优"><a href="#阶段二：NewParSize-调优" class="headerlink" title="阶段二：NewParSize 调优"></a><strong>阶段二：NewParSize 调优</strong></h3><p>NewParSize 表示 young 区大小，而 young 区大小直接决定 minor gc 的频率。</p>
+<ol>
+<li><p>增大 young 区大小，minor gc 频率降低，单次 gc 时间会较长（young 区设置更大，一次 gc 就需要复制更多对象，耗时必然比较长），业务读写操作延迟抖动较大。反之，业务读写操作延迟抖动较小，比较平稳。</p>
+</li>
+<li><p>减小 young 区大小，minor gc 频率增快，但会加快晋升到老年代的对象总量（每 gc 一次，对象 age 就会加一，当 age 超过阈值就会晋升到老年代，因此 gc 频率越高，age 就增加越快），潜在增加 old gc 风险。</p>
+</li>
+</ol>
+<p>Xmn 设置过小会导致 CMS GC 性能较差，而设置过大会导致 Minor GC 性能较差，因此建议在 JVM Heap 为 64g 以上的情况下设置 Xmn 在 1～3g 之间，在 32g 之下设置为 512m～1g；具体最好经过简单的线上调试；需要特别强调的是，笔者在很多场合都看到很多 HBase 线上集群会把 Xmn 设置的很大，比如有些集群 Xmx 为 48g，Xmn 为 10g，查看日志发现 GC 性能极差：单次 Minor GC 基本都在 300ms～500ms 之间，CMS GC 更是很多超过 1s。在此强烈建议，将 Xmn 调大对 GC（无论 Minor GC 还是 CMS GC）没有任何好处，不要设置太大。</p>
+<h3 id="阶段三：增大-Survivor-区大小（减小-SurvivorRatio）-amp-增大-MaxTenuringThreshold"><a href="#阶段三：增大-Survivor-区大小（减小-SurvivorRatio）-amp-增大-MaxTenuringThreshold" class="headerlink" title="阶段三：增大 Survivor 区大小（减小 SurvivorRatio） &amp; 增大 MaxTenuringThreshold"></a><strong>阶段三：增大 Survivor 区大小（减小 SurvivorRatio） &amp; 增大 MaxTenuringThreshold</strong></h3><p>一次 Minor GC 会将存活对象从 Eden 区（以及 survivor from 区）复制到 Survivor 区（to 区），因此增大 Survivor 区可以容纳更多的存活对象。这样就会防止因为 Survivor 区太小导致很对存活对象还没有达到 MaxTenuringThreshold 阈值就直接进入老生代，潜在增大 old gc 的触发频率；但是 Survivor 区设置太大也会有一定的问题，Survivor 设置较大会使得对象可以在 Young 区’待’的时间很长，但是对于一些长寿对象较多的场景下（比如 HBase），大量长寿对象长时间待在 Young 区做很多’无谓’的复制，一定程度上增加 Minor GC 开销。</p>
+<p>另外，增加 MaxTenuringThreshold 相当于提高了进入老年代的门槛，可以有效限制进入老年代的对象数。和 Survivor 设置相似，调整 MaxTenuringThreshold 也需要做一个取舍，设置太小会增加 CMS GC 的触发频率以及耗时，而设置太大则会在长寿对象较多场景下增加 Minor GC 开销。一般情况下，默认 MaxTenuringThreshold=15 已经相对比较大，不需要做任何调整。</p>
+<h2 id="CMS-调优结论"><a href="#CMS-调优结论" class="headerlink" title="CMS 调优结论"></a><strong>CMS 调优结论</strong></h2><ol>
+<li><p>缓存模式采用 BucketCache 策略 Offheap 模式</p>
+</li>
+<li><p>对于大内存（大于 64G），采用如下配置：</p>
+</li>
+</ol>
+<p>-Xmx64g -Xms64g -Xmn2g -Xss256k -XX:MaxPermSize=256m -XX:SurvivorRatio=2  -XX:+UseConcMarkSweepGC -XX:+UseParNewGC<br>-XX:+CMSParallelRemarkEnabled -XX:MaxTenuringThreshold=15 -XX:+UseCMSCompactAtFullCollection  -XX:+UseCMSInitiatingOccupancyOnly<br>-XX:CMSInitiatingOccupancyFraction=75 -XX:-DisableExplicitGC</p>
+<p>其中 Xmn 可以随着 Java 分配堆内存增大而适度增大，但是不能大于 4g，取值范围在 1~3g 范围；SurvivorRatio 一般建议选择为 2；MaxTenuringThreshold 设置为 15；</p>
+<ol start="3">
+<li>对于小内存（小于 64G），只需要将上述配置中 Xmn 改为 512m-1g 即可</li>
+</ol>
+<p>参考：</p>
+<p><a href="http://hbasefly.com/2016/08/09/hbase-cms-gc/" target="_blank" rel="noopener">HBase最佳实践－CMS GC调优 &#8211; 有态度的HBase/Spark/BigData</a></p>
+<h1 id="客户端重试机制"><a href="#客户端重试机制" class="headerlink" title="客户端重试机制"></a>客户端重试机制</h1><p>hbase在查询的时候，需要元数据，然后元数据是缓存在内存中的。但是元数据只加载一次，所以为了应对并发，有一个锁，来方式并发的加载。</p>
+<p>但是当出现网络抖动等异常的时候，可能会造成锁等待。</p>
+<p>为了应对这种偶尔的网络抖动导致的异常，hbase的客户端，支持使用重试机制来屏蔽这样的问题，但是每次重试都是有时间间隔的，用来规避网络抖动。按照默认配置，最长可能会间隔20S，按照默认31次的重试机制，可能需要总共时间448S的延迟。而这段时间内，客户端会一直持有这把锁。</p>
+<p>为了避免这种情况，可以选择改小这个参数，改小重试次数。</p>
+<p>参考：</p>
+<p><a href="http://hbasefly.com/2016/06/04/hbase-client-1/" target="_blank" rel="noopener">HBase最佳实践 &#8211; 客户端重试机制 &#8211; 有态度的HBase/Spark/BigData</a></p>
+<h1 id="客户端超时机制"><a href="#客户端超时机制" class="headerlink" title="客户端超时机制"></a>客户端超时机制</h1><p>hbase针对复杂的客户端访问策略，设置了很多的超时策略参数。</p>
+<p><strong>hbase.rpc.timeout</strong> 表示一次rpc请求的超时时间。</p>
+<p><strong>hbase.client.operation.timeout</strong> 表示一次操作的时间。一次操作是可能包含多个rpc请求的。这个操作不包含scan操作。</p>
+<p><strong>hbase.client.scanner.timeout.period</strong> HBase 会将一次大的 scan 操作根据设置条件拆分为多个 RPC 请求，每次只返回规定数量的结果。参数 hbase.client.scanner.timeout.period 就用来表示这么一次 RPC 请求的超时时间，默认为 60000ms，一旦请求超时，就会抛出 SocketTimeoutException 异常。</p>
+<p>一次完整的 scan 通常会被拆分为多个 RPC 请求，实际实现中，RegionServer 接收到第一次 RPC 请求之后，会为该 scan 操作生成一个全局唯一的 id，称为 scanId。除此之外，RegionServer 还会进行大量的准备工作，构建整个 scan 体系，构造需要用到的所有对象，后续的 RPC 请求只需要携带相同的 scanId 作为标示就可以直接利用这些已经构建好的资源进行检索。也就是说，在整个 scan 过程中，客户端其实都占用着服务器端的资源，此时如果此客户端意外宕机，是否就意味着这些资源永远都不能得到释放呢？租约机制就是为了解决这个问题。RegionServer 接收到第一次 RPC 之后，除了生成全局唯一的 scanId 之外还会生成一个携带有超时时间的 lease，超时时间可以通过参数 <strong>hbase.regionserver.lease.period</strong> 配置，一旦在超时时间内后续 RPC 请求没有到来（比如客户端处理太慢），RegionServer 就认为客户端出现异常，此时会将该 lease 销毁并将整个 scan 所持有的资源全部释放，客户端在处理完成之后再发后续的 RPC 过来，检查到对应的 lease 已经不存在，就会抛出 leaseExcption。</p>
+<p>参考：</p>
+<p><a href="http://hbasefly.com/2016/06/11/hbase-client-2/" target="_blank" rel="noopener">HBase最佳实践－客户端超时机制 &#8211; 有态度的HBase/Spark/BigData</a></p>
+<h1 id="列族设计优化"><a href="#列族设计优化" class="headerlink" title="列族设计优化"></a>列族设计优化</h1><h2 id="BLOCKSIZE-设置"><a href="#BLOCKSIZE-设置" class="headerlink" title="BLOCKSIZE 设置"></a>BLOCKSIZE 设置</h2><p>用户平均读取数据的大小。理论上讲，如果用户平均读取数据的大小较小，建议将块大小设置较小，这样可以使得内存可以缓存更多 block，读性能自然会更好。相反，建议将块大小设置较大。</p>
+<p>随着 BlockSize 增大，scan 的吞吐量逐渐增大，延迟不断降低。</p>
+<p>如果业务请求以 Get 请求为主，可以考虑将块大小设置较小；如果以 Scan 请求为主，可以将块大小调大；默认的 64K 块大小是在 Scan 和 Get 之间取得的一个平衡。</p>
+<h2 id="COMPRESSION设置"><a href="#COMPRESSION设置" class="headerlink" title="COMPRESSION设置"></a>COMPRESSION设置</h2><p><img src="http://hbasefly.com/wp-content/uploads/2016/07/3.png" alt=""></p>
+<p>压缩和编码是在flush阶段进行的。所以压缩和编码是对flush有影响，对于写没有影响。</p>
+<p>读取阶段需要先解压，然后再decode。所以编码对于大部分读取都有影响，而解压操作，只在缓存未命中的情况下有影响。</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/07/5.png" alt=""></p>
+<p>Snappy 的压缩率最低，但是编解码速率最高，对 CPU 的消耗也最小，目前一般建议使用 Snappy。</p>
+<h2 id="Encode-Decode"><a href="#Encode-Decode" class="headerlink" title="Encode/Decode"></a>Encode/Decode</h2><p>HBase 目前提供了四种常用的编码方式：Prefix | Diff | Fast_Diff | Prefix_Tree。</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/07/6.png" alt=""></p>
+<p>prefix_tree 压缩算法在不同的 block size 下性能都比较稳定，而另外两种压缩算法的查找性能会随着 blocksize 直线下降。对于我们默认的 64K 的 block 大小，性能相差 40 + 倍。</p>
+<p>prefix_tree 针对数据完全有序的情况下，可以组织数据按照前缀树的方式进行存储，然后查询的时候按照需要加载到内存里，对于hbase场景里的大部分操作效果都更加突出的。</p>
+<p>而且在叶子节点上，数据也是有序存储的。基于 prefix_tree 编码的datablock也是按照这棵树的结构进行存储的。</p>
+<p>参考：</p>
+<p><a href="http://hbasefly.com/2016/07/02/hbase-pracise-cfsetting/" target="_blank" rel="noopener">HBase最佳实践－列族设计优化 &#8211; 有态度的HBase/Spark/BigData</a></p>
+<p><a href="https://www.iteye.com/blog/zjushch-1843793" target="_blank" rel="noopener">https://www.iteye.com/blog/zjushch-1843793</a></p>
+<h1 id="COMPACTION"><a href="#COMPACTION" class="headerlink" title="COMPACTION"></a>COMPACTION</h1><p>选择合适的文件进行合并是整个 compaction 的核心。</p>
+<p>因为合并文件的大小以及其当前承载的 IO 数直接决定了 compaction 的效果。最理想的情况是，这些文件承载了大量 IO 请求但是大小很小，这样 compaction 本身不会消耗太多 IO，而且合并完成之后对读的性能会有显著提升。</p>
+<p>选择合并文件的策略基本就是先排除不合并的，然后选择可以合并的。在可以合并的这些里，选出最高效的集合。</p>
+<p>HBase 实现中有一个专门的线程 CompactSplitThead 负责接收 compact 请求以及 split 请求，而且为了能够独立处理这些请求，这个线程内部构造了多个线程池：largeCompactions、smallCompactions 以及 splits 等，其中 splits 线程池负责处理所有的 split 请求，largeCompactions 和 smallCompaction 负责处理所有的 compaction 请求，其中前者用来处理大规模 compaction，后者处理小规模 compaction。</p>
+<p>待 compact 的文件总大小如果大于值 throttlePoint（可以通过参数 hbase.regionserver.thread.compaction.throttle 配置，默认为 2.5G），分配给 largeCompactions 处理，否则分配给 smallCompactions 处理。</p>
+<h2 id="执行-HFile-文件合并"><a href="#执行-HFile-文件合并" class="headerlink" title="执行 HFile 文件合并"></a>执行 HFile 文件合并</h2><ol>
+<li><p>分别读出待合并 hfile 文件的 KV，并顺序写到位于./tmp 目录下的临时文件中</p>
+</li>
+<li><p>将临时文件移动到对应 region 的数据目录</p>
+</li>
+<li><p>将 compaction 的输入文件路径和输出文件路径封装为 KV 写入 WAL 日志，并打上 compaction 标记，最后强制执行 sync</p>
+</li>
+<li><p>将对应 region 数据目录下的 compaction 输入文件全部删除</p>
+</li>
+</ol>
+<p>上述四个步骤看起来简单，但实际是很严谨的，具有很强的容错性和完美的幂等性：</p>
+<ol>
+<li><p>如果 RS 在步骤 2 之前发生异常，本次 compaction 会被认为失败，如果继续进行同样的 compaction，上次异常对接下来的 compaction 不会有任何影响，也不会对读写有任何影响。唯一的影响就是多了一份多余的数据。</p>
+</li>
+<li><p>如果 RS 在步骤 2 之后、步骤 3 之前发生异常，同样的，仅仅会多一份冗余数据。</p>
+</li>
+<li><p>如果在步骤 3 之后、步骤 4 之前发生异常，RS 在重新打开 region 之后首先会从 WAL 中看到标有 compaction 的日志，因为此时输入文件和输出文件已经持久化到 HDFS，因此只需要根据 WAL 移除掉 compaction 输入文件即可</p>
+</li>
+</ol>
+<h2 id="COMPACT策略"><a href="#COMPACT策略" class="headerlink" title="COMPACT策略"></a>COMPACT策略</h2><p>compact的主要痛点是会写放大，随着放大程度，IO消耗会越来越可观，对于系统的影响会越来越明显，也就造成数据的实际使用会有更多不稳定的因素在里边。</p>
+<p>compaction 到底选择什么样的策略需要根据不同的业务场景、不同数据集特征进行确定。</p>
+<p>compact优化的共性特征：</p>
+<ul>
+<li><p>减少参与 compaction 的文件数：这个很好理解，实现起来却比较麻烦，首先需要将文件根据 rowkey、version 或其他属性进行分割，再根据这些属性挑选部分重要的文件参与合并；另一方面，尽量不要合并那些大文件，减少参与合并的文件数。</p>
+</li>
+<li><p>不要合并那些不需要合并的文件：比如老数据就没必要合并</p>
+</li>
+<li><p>小 region 更有利于 compaction：小 region 只会生成少量文件，这些文件合并不会引起很大的 IO 放大</p>
+</li>
+</ul>
+<h3 id="FIFO-Compaction"><a href="#FIFO-Compaction" class="headerlink" title="FIFO Compaction"></a>FIFO Compaction</h3><p>FIFO Compaction 策略主要参考了 <a href="https://github.com/facebook/rocksdb/wiki/FIFO-compaction-style">rocksdb 的实现</a>，它会选择那些过期的数据文件，即该文件内所有数据都已经过期。因此，对应业务的列族必须设置 TTL，否则肯定不适合该策略。需要注意的是，该策略只做这么一件事情：收集所有已经过期的文件并删除。</p>
+<h3 id="Tier-Based-Compaction"><a href="#Tier-Based-Compaction" class="headerlink" title="Tier-Based Compaction"></a>Tier-Based Compaction</h3><p>这种方案会根据候选文件的新老程度将其分为多个不同的等级，每个等级都有对应等级的参数，比如参数 Compation Ratio，表示该等级文件选择时的选择几率，Ratio 越大，该等级的文件越有可能被选中参与 Compaction。而等级数、每个等级参数都可以通过 CF 属性在线更新。</p>
+<blockquote>
+<p>符合冷热数据区分明显的场景。</p>
+</blockquote>
+<h3 id="Level-Compaction"><a href="#Level-Compaction" class="headerlink" title="Level Compaction"></a>Level Compaction</h3><p>level compaction 设计思路是将 store 中的所有数据划分为很多层，每一层都会有一部分数据，如下图所示：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/07/3-1.png" alt=""></p>
+<ul>
+<li><p>数据按照keyrange划分</p>
+</li>
+<li><p>数据逐层触发下沉，先写第一层，第一层写满了，再往下合并。</p>
+</li>
+<li><p>keyRange不重合，区分明显，要设置合理，防止不均匀。</p>
+</li>
+</ul>
+<blockquote>
+<p>这种 compaction 因为 level 层数太多导致 compaction 的次数明显增多，经过测试，发现这种 compaction 并没有对 IO 利用率有任何提升。</p>
+</blockquote>
+<h3 id="Stripe-Compaction"><a href="#Stripe-Compaction" class="headerlink" title="Stripe Compaction"></a>Stripe Compaction</h3><p>stripe compaction 会将整个 store 中的文件按照 Key 划分为多个 Range，在这里称为 stripe，stripe 的数量可以通过参数设定，相邻的 stripe 之间 key 不会重合。实际上在概念上来看这个 stripe 类似于 sub-region 的概念，即将一个大 region 切分成了很多小的 sub-region。</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/07/4-1.png" alt=""></p>
+<p>下面是两种 stripe compaction 比较擅长的业务场景：</p>
+<ol>
+<li><p>大 Region。小 region 没有必要切分为 stripes，一旦切分，反而会带来额外的管理开销。一般默认如果 region 大小小于 2G，就不适合使用 stripe compaction。</p>
+</li>
+<li><p>RowKey 具有统一格式，stripe compaction 要求所有数据按照 Key 进行切分，切分为多个 stripe。如果 rowkey 不具有统一格式的话，无法进行切分。</p>
+</li>
+</ol>
+<h2 id="问题"><a href="#问题" class="headerlink" title="问题"></a>问题</h2><p>即使是这样，hbase的合并还是有问题。原因如下：</p>
+<ol>
+<li>正常请求下，compaction 尤其是 major compaction 会将大量数据文件合并为一个大 HFile，读出所有数据文件的 KVs，然后重新排序之后写入另一个新建的文件。如果待合并文件都在本地，那么读就是本地读，不会出现垮网络的情况。但是因为数据文件都是三副本，因此写的时候就会垮网络执行，必然会消耗带宽资源。</li>
+<li>原因 1 的前提是所有待合并文件都在本地的情况，那在有些场景下待合并文件有可能并不全在本地，即本地化率没有达到 100%，比如执行过 balance 之后就会有很多文件并不在本地。这种情况下读文件的时候就会垮网络读，如果是 major compaction，必然也会大量消耗带宽资源。</li>
+</ol>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/hbase/" rel="tag"># hbase</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/06/26/%E9%9B%B6%E6%8B%B7%E8%B4%9D/" rel="next" title="零拷贝">
+                <i class="fa fa-chevron-left"></i> 零拷贝
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/06/30/%E5%90%91%E9%87%8F%E5%8C%96%E6%89%A7%E8%A1%8C/" rel="prev" title="向量化执行">
+                向量化执行 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#hbase的gc"><span class="nav-number">1.</span> <span class="nav-text">hbase的gc</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#CMS-GC调优"><span class="nav-number">2.</span> <span class="nav-text">CMS GC调优</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#阶段一：默认推荐配置"><span class="nav-number">2.0.1.</span> <span class="nav-text">阶段一：默认推荐配置</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#阶段二：NewParSize-调优"><span class="nav-number">2.0.2.</span> <span class="nav-text">阶段二：NewParSize 调优</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#阶段三：增大-Survivor-区大小（减小-SurvivorRatio）-amp-增大-MaxTenuringThreshold"><span class="nav-number">2.0.3.</span> <span class="nav-text">阶段三：增大 Survivor 区大小（减小 SurvivorRatio） &amp; 增大 MaxTenuringThreshold</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#CMS-调优结论"><span class="nav-number">2.1.</span> <span class="nav-text">CMS 调优结论</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#客户端重试机制"><span class="nav-number">3.</span> <span class="nav-text">客户端重试机制</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#客户端超时机制"><span class="nav-number">4.</span> <span class="nav-text">客户端超时机制</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#列族设计优化"><span class="nav-number">5.</span> <span class="nav-text">列族设计优化</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#BLOCKSIZE-设置"><span class="nav-number">5.1.</span> <span class="nav-text">BLOCKSIZE 设置</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#COMPRESSION设置"><span class="nav-number">5.2.</span> <span class="nav-text">COMPRESSION设置</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Encode-Decode"><span class="nav-number">5.3.</span> <span class="nav-text">Encode&#x2F;Decode</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#COMPACTION"><span class="nav-number">6.</span> <span class="nav-text">COMPACTION</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#执行-HFile-文件合并"><span class="nav-number">6.1.</span> <span class="nav-text">执行 HFile 文件合并</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#COMPACT策略"><span class="nav-number">6.2.</span> <span class="nav-text">COMPACT策略</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#FIFO-Compaction"><span class="nav-number">6.2.1.</span> <span class="nav-text">FIFO Compaction</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Tier-Based-Compaction"><span class="nav-number">6.2.2.</span> <span class="nav-text">Tier-Based Compaction</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Level-Compaction"><span class="nav-number">6.2.3.</span> <span class="nav-text">Level Compaction</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Stripe-Compaction"><span class="nav-number">6.2.4.</span> <span class="nav-text">Stripe Compaction</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#问题"><span class="nav-number">6.3.</span> <span class="nav-text">问题</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

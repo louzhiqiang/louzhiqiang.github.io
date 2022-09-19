@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="yarn," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="yarn的原理和设计思想背景yarn 英文：Yet Another Resource Negotiator yarn是在mr v2才有的hadoop组成部分，之所以在v2才有，是因为在v1遇到了诸多问题无法解决或者解决起来成本很高，所以才在v2进行升级。 v1版本的mr架构如下：  主要流程如下： 当一个客户端向一个 Hadoop 集群发出一个请求时，此请求由 JobTracker 管理。JobT">
+<meta property="og:type" content="article">
+<meta property="og:title" content="yarn的原理和设计思想">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/24/yarn%E7%9A%84%E5%8E%9F%E7%90%86%E5%92%8C%E8%AE%BE%E8%AE%A1%E6%80%9D%E6%83%B3/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="yarn的原理和设计思想背景yarn 英文：Yet Another Resource Negotiator yarn是在mr v2才有的hadoop组成部分，之所以在v2才有，是因为在v1遇到了诸多问题无法解决或者解决起来成本很高，所以才在v2进行升级。 v1版本的mr架构如下：  主要流程如下： 当一个客户端向一个 Hadoop 集群发出一个请求时，此请求由 JobTracker 管理。JobT">
+<meta property="og:image" content="https://github.com/images/yarn_1.png">
+<meta property="og:image" content="https://github.com/images/yarn_2.png">
+<meta property="og:image" content="https://github.com/images/yarn_3.png">
+<meta property="og:image" content="https://github.com/images/yarn_4.png">
+<meta property="og:image" content="https://github.com/images/yarn_5.png">
+<meta property="og:image" content="https://github.com/images/yarn_6.png">
+<meta property="og:image" content="https://github.com/images/yarn_7.png">
+<meta property="article:published_time" content="2021-09-24T13:41:09.000Z">
+<meta property="article:modified_time" content="2022-05-13T03:52:20.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="yarn">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/yarn_1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/24/yarn的原理和设计思想/"/>
+
+
+
+
+
+  <title>yarn的原理和设计思想 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/24/yarn%E7%9A%84%E5%8E%9F%E7%90%86%E5%92%8C%E8%AE%BE%E8%AE%A1%E6%80%9D%E6%83%B3/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">yarn的原理和设计思想</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-09-24T21:41:09+08:00">
+                2021-09-24
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+                  ， 
+                
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/yarn/" itemprop="url" rel="index">
+                    <span itemprop="name">yarn</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="yarn的原理和设计思想"><a href="#yarn的原理和设计思想" class="headerlink" title="yarn的原理和设计思想"></a>yarn的原理和设计思想</h2><h4 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h4><p>yarn 英文：Yet Another Resource Negotiator</p>
+<p>yarn是在mr v2才有的hadoop组成部分，之所以在v2才有，是因为在v1遇到了诸多问题无法解决或者解决起来成本很高，所以才在v2进行升级。</p>
+<p>v1版本的mr架构如下：</p>
+<p><img src="/images/yarn_1.png" alt="mrv1的架构"></p>
+<p>主要流程如下：</p>
+<p>当一个客户端向一个 Hadoop 集群发出一个请求时，此请求由 JobTracker 管理。JobTracker 与 NameNode 联合将工作分发到离它所处理的数据尽可能近的位置。NameNode 是文件系统的主系统，提供元数据服务来执行数据分发和复制。JobTracker 将 Map 和 Reduce 任务安排到一个或多个 TaskTracker 上的可用插槽中。TaskTracker 与 DataNode（分布式文件系统）一起对来自 DataNode 的数据执行 Map 和 Reduce 任务。当 Map 和 Reduce 任务完成时，TaskTracker 会告知 JobTracker，后者确定所有任务何时完成并最终告知客户作业已完成。 </p>
+<p>分解表示如下：</p>
+<ul>
+<li>JobTracker 接收客户端提交的 job</li>
+<li>根据 job 提供的参数向 NameNode 请求获取这些文件数据存放的 DataNode 的列表地址，这意味着要和 HDFS Metadata Server通讯</li>
+<li>JobTracker 要确定 job 的执行计划：确定执行 job 的 Map Reduce 的 task 数量，并分配到离数据块最近的节点上，这就 JobTracker 要确定哪些机器是活的，资源还剩多少；另外根据他们和数据分布的情况作出分配策略</li>
+<li>JobTracker 提交所有 task 到每个 TaskTracker 节点，TaskTracker 会定时的向 JobTracker 发送心跳，若一定时间没有收到心跳，JobTracker 就默认这个 TaskTracker 节点挂了要做资源回收，并把这个节点上的 task 重新分配到其他节点上</li>
+<li>监听 task 的执行情况，执行完成，JobTracker 会更新 job 的状态为完成，若是一定数量的 task 执行失败，这个 job 就会被标记为失败</li>
+<li>JobTracker 将发送 job 的运行状态信息给 Client 端</li>
+</ul>
+<p>综合来说：JobTracker比较繁冗，活儿比较多，又是资源管理器，又是任务调度器。</p>
+<p>在v1版本中主要存在的问题如下：</p>
+<ul>
+<li>扩展性差：在MRv1中，JobTracker同时兼备了资源管理和作业控制两个功能，这成为系统的一个最大瓶颈，严重制约了 Hadoop 集群扩展性。</li>
+<li>可靠性差。MRv1 采用了 master/slave 结构，其中，master 存在单点故障问题，一旦它出现故障将导致整个集群不可用。</li>
+<li>资源利用率低。MRv1 采用了基于槽位的资源分配模型，槽位是一种粗粒度的资源划分单位，通常一个任务不会用完槽位对应的资源，且其他任务也无法使用这些空闲资源。此外，Hadoop 将槽位分为 Map Slot 和 Reduce Slot 两种，且不允许它们之间共享，常常会导致一种槽位资源紧张而另外一种闲置（比如一个作业刚刚提交时， 只会运行 Map Task，此时 Reduce Slot 闲置）。</li>
+<li>无法支持多种计算框架。随着互联网高速发展，MapReduce 这种基于磁盘的离线计算框架已经不能满足应用要求，从而出现了一些新的计算框架，包括内存计算框架、 流式计算框架和迭代式计算框架等，而 MRv1 不能支持多种计算框架并存。</li>
+</ul>
+<p>正是由于 MRv2 将资源管理功能抽象成了一个 独立的通用系统 YARN，直接导致下一代 MapReduce 的核心从单一的计算框架 MapReduce转移为通用的资源管理系统 YARN。</p>
+<p>而随着业务发展以及新技术的层出不穷，技术的浪潮是在不断变化的，数据密集型应用的计算框架不断出现，而且各种框架都有自己适用的场景，在互联网公司中，一般会选择多套框架并行，来支持复杂的业务处理。但是鉴于成本的考虑，比如资源共享、资源复用等因素，无法为每个框架去搭建一套集群，集群功能有很多都是通用的，比如资源调度等，那么目标就简单了，多个框架共用一个集群，对资源调度统一管理，同时采用某种资源隔离方案对各个任务进行隔离管理，这样就有了轻量级弹性计算框架的概念，而YARN就是其中的典型代表。</p>
+<p>共享集群的好处：</p>
+<ul>
+<li>资源利用率高。如果每个框架一个集群，见下图，则往往由于应用程序数量 和资源需求的不均衡性，使得在某段时间内，有些计算框架的集群资源紧张，而另 外一些集群资源空闲。共享集群模式则通过多种框架共享资源，使得集群中的资源 得到更加充分的利用；</li>
+<li>运维成本低。如果采用“一个框架一个集群”的模式，则可能需要多个管理员管理 这些集群，进而增加运维成本，而共享模式通常需要少数管理员即可完成多个框架 的统一管理。</li>
+<li>数据共享。随着数据量的暴增，跨集群间的数据移动不仅需花费更长的时间，且硬 件成本也会大大增加，而共享集群模式可让多种框架共享数据和硬件资源，将大大 减小数据移动带来的成本。</li>
+</ul>
+<h4 id="设计思想"><a href="#设计思想" class="headerlink" title="设计思想"></a>设计思想</h4><p> Hadoop2.x 框架的基本设计思想是将 JobTracker 的两个主要功能，即资源管理和作业控制（包括作业监控、容错等），分拆成两独立的进程。资源管理进 程与具体应用程序无关，它负责整个集群的资源（内存、CPU、磁盘等）管理，而作业控制进程则是直接与应用程序相关的模块，且每个作业控制进程只负责管理一个作业。这样， 通过将原有 JobTracker 中与应用程序相关和无关的模块分开，不仅减轻了 JobTracker 负载， 也使得 Hadoop 支持更多的计算框架。</p>
+<p><img src="/images/yarn_2.png" alt="yarn基本架构"></p>
+<p>从资源管理角度看，MRv2 框架实际上衍生出了一个资源统一管理平台 YARN，它使得 Hadoop 不再局限于仅支持 MapReduce 一种计算模型，而是可无限融入多 种计算框架，且对这些框架进行统一管理和调度。</p>
+<p><img src="/images/yarn_3.png" alt="yarn和v1的对比"></p>
+<blockquote>
+<p>这里要注意一个问题，hadoop生态中，资源调度是和数据文件分布息息相关的，也就是数据本地性计算优先实现，那么在算法上，就是有迹可循。在资源调度上，也是优先使用这个原则。</p>
+</blockquote>
+<h4 id="基本架构"><a href="#基本架构" class="headerlink" title="基本架构"></a>基本架构</h4><p>YARN 总体上仍然是 Master/Slave 结构，在整个资源管理框架中，ResourceManager 为 Master，NodeManager 为 Slave，ResourceManager 负责对各个 NodeManager 上的资源进行 统一管理和调度。当用户提交一个应用程序时，需要提供一个用以跟踪和管理这个程序的 ApplicationMaster，它负责向 ResourceManager 申请资源，并要求 NodeManger 启动可以占 用一定资源的任务。由于不同的 ApplicationMaster 被分布到不同的节点上，因此它们之间 不会相互影响。</p>
+<p>YARN 主要由 ResourceManager、NodeManager、 ApplicationMaster（图中给出了 MapReduce 和 MPI 两种计算框架的 ApplicationMaster，分 别为 MR AppMstr 和 MPI AppMstr）和 Container 等几个组件构成。</p>
+<p><img src="/images/yarn_4.png" alt="yarn任务运行"></p>
+<p>1、<strong>ResourceManager</strong></p>
+<p>RM 是一个全局的资源管理器，负责整个系统的资源管理和分配。它主要由两个组件 构成：调度器（Scheduler）和应用程序管理器（Applications Manager，AM）。</p>
+<ul>
+<li>调度器：调度器根据容量、队列等限制条件（如每个队列分配一定的资源，最多执行一定数量的作业等），将系统中的资源分配给各个正在运行的应用程序。</li>
+</ul>
+<p>​        该调度器是 一个 “纯调度器”，它不再从事任何与具体应用程序相关的工作，比如不负责监控或者跟踪 应用的执行状态等，也不负责重新启动因应用执行失败或者硬件故障而产生的失败任务， 这些均交由应用程序相关的 ApplicationMaster 完成。调度器仅根据各个应用程序的资源需求进行资源分配，而资源分配单位用一个抽象概念 “资源容器”（Resource Container，简称 Container）表示，Container 是一个动态资源分配单位，它将内存、CPU、磁盘、网络等资源封装在一起，从而限定每个任务使用的资源量。</p>
+<p>​        此外，该调度器是一个可插拔的组件， 用户可根据自己的需要设计新的调度器，YARN 提供了多种直接可用的调度器，比如 Fair Scheduler 和 Capacity Scheduler 等。</p>
+<ul>
+<li><p>应用程序管理器</p>
+<p>应用程序管理器负责管理整个系统中所有应用程序，包括应用程序提交、与调度器协商资源以启动 ApplicationMaster、监控 ApplicationMaster 运行状态并在失败时重新启动它等。</p>
+</li>
+</ul>
+<p>2、<strong>ApplicationMaster（AM）</strong></p>
+<p>用户提交的每个应用程序均包含一个 AM，主要功能包括：</p>
+<ul>
+<li>与 RM 调度器协商以获取资源（用 Container 表示）</li>
+<li>将得到的任务进一步分配给内部的任务；</li>
+<li>与 NM 通信以启动 / 停止任务；</li>
+<li>监控所有任务运行状态，并在任务运行失败时重新为任务申请资源以重启任务。</li>
+</ul>
+<p>3、<strong>NodeManager（NM）</strong></p>
+<p>NM 是每个节点上的资源和任务管理器，一方面，它会定时地向 RM 汇报本节点上的资源使用情况和各个 Container 的运行状态；另一方面，它接收并处理来自 AM 的 Container 启动 / 停止等各种请求。</p>
+<p>4、<strong>Container</strong></p>
+<p>Container 是 YARN 中的资源抽象，它封装了某个节点上的多维度资源，如内存、 CPU、磁盘、网络等，当 AM 向 RM 申请资源时，RM 为 AM 返回的资源便是用 Container 表示的。YARN 会为每个任务分配一个 Container，且该任务只能使用该 Container 中描述的资源。Container 是一个动态资源划分单位，是根据应用程序的需求动态生成的。</p>
+<p>目前 YARN 仅支持 CPU 和内存两种资源， 且使用了轻量级资源隔离机制 Cgroups 进行资源隔离。底层并没有使用docker这类容器，而是选择使用监控系统文件的方式来确认是否超限的问题。</p>
+<p>参考：关于资源隔离的问题</p>
+<p><a href="https://www.jianshu.com/p/ebb1f6075dc1" target="_blank" rel="noopener">https://www.jianshu.com/p/ebb1f6075dc1</a></p>
+<p><a href="https://www.aboutyun.com/thread-30391-1-1.html" target="_blank" rel="noopener">https://www.aboutyun.com/thread-30391-1-1.html</a></p>
+<h4 id="通信机制"><a href="#通信机制" class="headerlink" title="通信机制"></a>通信机制</h4><p>RPC 协议是连接各个组件的 “大动脉”，了解不同组件之间的 RPC 协议有助于我们更深入地学习 YARN 框架。在 YARN 中，任何两个需相互通信的组件之间仅有一个 RPC 协 议，而对于任何一个 RPC 协议，通信双方有一端是 Client，另一端为 Server，且 Client 总 是主动连接 Server 的，因此，YARN 实际上采用的是拉式（pull-based）通信模型。YARN 主要由以 下几个 RPC 协议组成：</p>
+<p><img src="/images/yarn_5.png" alt="yarn的通信机制"></p>
+<ul>
+<li><strong>obClient（作业提交客户端）与 RM 之间的协议 —ApplicationClientProtocol</strong> ： JobClient 通过该 RPC 协议提交应用程序、查询应用程序状态等。</li>
+<li><strong>Admin（管理员）与 RM 之间的通信协议—ResourceManagerAdministrationProtocol</strong>： Admin 通过该 RPC 协议更新系统配置文件，比如节点黑白名单、用户队列权限等。</li>
+<li>*<em>AM 与 RM 之间的协议—ApplicationMasterProtocol *</em>：AM 通过该 RPC 协议向 RM 注册和撤销自己，并为各个任务申请资源。</li>
+<li><strong>AM 与 NM 之 间 的 协 议 —ContainerManagementProtocol</strong> ：AM 通 过 该 RPC 要 求 NM 启动或者停止 Container，获取各个 Container 的使用状态等信息。</li>
+<li><strong>NM 与 RM 之间的协议—ResourceTracker</strong> ：NM 通过该 RPC 协议向 RM 注册，并 定时发送心跳信息汇报当前节点的资源使用情况和 Container 运行情况。</li>
+</ul>
+<h4 id="工作流程"><a href="#工作流程" class="headerlink" title="工作流程"></a>工作流程</h4><p>运行在 YARN 上的应用程序主要分为两类 ：短应用程序和长应用程序，其中，短应用程序是指一定时间内（可能是秒级、分钟级或小时级，尽管天级别或者更长时间的也存 在，但非常少）可运行完成并正常退出的应用程序。比如：MapReduce 作业。长应用程序是指不出意外，永不终止运行的 应用程序，通常是一些服务，比如 Storm Service（主要包括 Nimbus 和 Supervisor 两类服 务），HBase Service（包括 Hmaster 和 RegionServer 两类服务） 等。</p>
+<p>尽管这两类应用程序作用不同，一类直接运行数据处理程序，一类用于部署服务（服务之上再运行数据处理程序），但运行在 YARN 上的流程是相同的。</p>
+<p>当用户向 YARN 中提交一个应用程序后，YARN 将分两个阶段运行该应用程序 ：第一 个阶段是启动 ApplicationMaster ；第二个阶段是由 ApplicationMaster 创建应用程序，为它 申请资源，并监控它的整个运行过程，直到运行完成。</p>
+<p><img src="/images/yarn_6.png" alt="yarn运行流程"></p>
+<ul>
+<li><ol>
+<li>用户向 YARN 中提交应用程序， 其中包括 MRAppMaster 程序、 启动 MRAppMaster 的命令、用户程序等。(MRAppMstr 程序在客户端生成，这一步已经将应用程序先行程序提交到 RM 的 Application Manager 模块进行处理，但此时运行程序所需的 jar 包、环境变量、切片信息等提交到 HDFS 之上，需要等 MRAPPMstr 返回一个可用的 Container 的时候在节点提交执行。可以理解为惰性处理，减少资源占用，做到需要什么提交什么)</li>
+</ol>
+</li>
+<li><ol start="2">
+<li>ResourceManager 为该应用程序分配第一个 Container，并与对应的 Node-Manager 通信，要求它在这个 Container 中启动应用程序的 MRAppMaster。（APPMaster 就是先头兵，这时的操作是 RM 的 ApplicationManager 来进行处理）</li>
+</ol>
+</li>
+<li><ol start="3">
+<li>MRAppMaster 首先向 ResourceManager 注册， 这样用户可以直接通过 ResourceManage 查看应用程序的运行状态，然后它将为各个任务申请资源，并监控它的运行状态，直到整个应用运行结束。</li>
+</ol>
+</li>
+<li><ol start="4">
+<li>MRAppMaster 采用轮询的方式通过 RPC 协议向 ResourceManager 申请和领取资源。</li>
+</ol>
+</li>
+<li><ol start="5">
+<li>一旦 MRAppMaster 申请到资源后，便与对应的 NodeManager 通信，要求它启动任务。(理解集群中不同节点的资源动态变动，可用 Container 以及不同的 Task 可以在不同的节点运行)</li>
+</ol>
+</li>
+<li><ol start="6">
+<li>NodeManager 为任务设置好运行环境（包括环境变量、JAR 包、二进制程序 等）后，将任务启动命令写到一个脚本中，并通过运行该脚本启动任务。（此时，客户端才真正上传具体 Task 需要的 Jar 包等等运行资源，同时 NodeManager 通过调用资源运行对应的 Task 任务）；</li>
+</ol>
+</li>
+<li><ol start="7">
+<li>各个任务通过某个 RPC 协议向 MRAppMaster 汇报自己的状态和进度，以让 MRApplicationMaster 随时掌握各个任务的运行状态，从而可以在任务失败时重新启动任务。 在应用程序运行过程中，用户可随时通过 RPC 向 MRAppMaster 查询应用程序的当前运行状态。</li>
+</ol>
+</li>
+<li><strong>步骤 4~7 是重复执行的</strong></li>
+<li><ol start="8">
+<li>应用程序运行完成后，MRAppMaster 向 ResourceManager 注销并关闭自己。</li>
+</ol>
+</li>
+</ul>
+<p>可将 YARN 看做一个架构在hdfs上的云操作系统，它负责为应用程序启 动 ApplicationMaster（相当于主线程），然后再由 ApplicationMaster 负责数据切分、任务分配、 启动和监控等工作，而由 ApplicationMaster 启动的各个 Task（相当于子线程）仅负责自己的计算任务。当所有任务计算完成后，ApplicationMaster 认为应用程序运行完成，然后退出。</p>
+<p>根据实例描述：</p>
+<p><img src="/images/yarn_7.png" alt="yarn运行实例"></p>
+<ul>
+<li>step1: 客户端程序提交任务到自身所在的节点；</li>
+<li>step2: 客户端获取一个 YARNRunner 向 ResourceManager（以下简称 RM）申请一个 Application</li>
+<li>step3：RM 将该应用程序的资源路径返回给 YARNRunner；</li>
+<li>step4：客户端程序将运行所需的资源提交到 YARN 上，提交的内容包括：MRAppMaster 程序（MRAppMaster 运行程序）、MRAppMaster 启动脚本程序、用户程序 (真正的 MapReduce 处理程序) 等。RM 内部分别管理 ApplicationManager 和 ResourceManager 管理对象，分别负责和 MRAppMaster 交互与 Resource 资源的管理。</li>
+<li>step5：资源提交完毕，并将应用程序作为一个 Task 放置在调度器中。RM 为提交的程序选择一个空闲的 NodeManager(以下简称 NM) 分配第一个 Container，并与对应的 NM 通信，要求 NM 在当前容器中运行 MRAppMaster。（MRAppMaster 负责这个程序的运行状态及进度监控调度等等）。</li>
+<li>step6：MRAppMaster 启动之后先向 RM 注册自己。</li>
+<li>step7：然后通过轮询方式通过 RPC 协议向 RM 为自己内部的任务申请资源和领取资源，通过 HDFS 复制一份 Job 需要的相关信息，并依据信息向 RM 申请运行任务的资源。</li>
+<li>step8：MRAppMaster 向 RM 申请 MapTask 需要的资源，RM 分配对应的 NM 信息给 MRAppMaster，MRAppMaster 与对应的 NM 通信，将对应的程序脚本发送给 NM。（NM 会为任务设置好对应的运行环境，包括环境变量、JAR 包、二进制程序等）。NM 接受此脚本并开始启动对应的任务。开启对应的 MapTask 任务，MapTask 会对数据进行分区排序。</li>
+<li>step9：MRAppMaster 在所有 MapTask 任务结束，MRAppMaster 向 RM 申请资源并运行 ReduceTask，ReduceTask 会从 Maptask 获取运行数据，执行 ReduceTask。</li>
+<li>step10 程序运行结束，MRAppmaster 向 RM 注销并关闭自己。</li>
+</ul>
+<h4 id="多角度看yarn"><a href="#多角度看yarn" class="headerlink" title="多角度看yarn"></a>多角度看yarn</h4><h5 id="并行计算"><a href="#并行计算" class="headerlink" title="并行计算"></a>并行计算</h5><p>将 YARN 看做一个云操作系统，它负责为应用程序启 动 ApplicationMaster（相当于主线程），然后再由 ApplicationMaster 负责数据切分、任务分配、 启动和监控等工作，而由 ApplicationMaster 启动的各个 Task（相当于子线程）仅负责自己的计 算任务。当所有任务计算完成后，ApplicationMaster 认为应用程序运行完成，然后退出。</p>
+<h5 id="资源管理系统"><a href="#资源管理系统" class="headerlink" title="资源管理系统"></a>资源管理系统</h5><p>资源管理系统的主要功能是对集群中各类资源进行抽象，并根据各种应用程序或者服 务的要求，按照一定的调度策略，将资源分配给它们使用，同时需采用一定的资源隔离机制防止应用程序或者服务之间因资源抢占而相互干扰。YARN 正是一个资源管理系统，它的出现弱化了计算框架之争，引入 YARN 这一层后，各种计算框架可各自发挥自己的优势， 并由 YARN 进行统一管理，进而运行在一个大集群上。</p>
+<h5 id="云计算"><a href="#云计算" class="headerlink" title="云计算"></a>云计算</h5><p>云计算包括以下几个层次的服务 ：IaaS、PaaS 和 SaaS。</p>
+<p>IaaS(Infrastructure-as-a-Service) ：基础设施即服务。消费者通过 Internet 可以从完善的计算机基础设施获得服务。Iaas 通过网络向用户提供计算机（物理机和虚拟机）、存储空间、 网络连接、负载均衡和防火墙等基本计算资源 ；用户在此基础上部署和运行各种软件，包括操作系统和应用程序等。如阿里云、华为云等云平台。</p>
+<p>PaaS(Platform-as-a-Service) ：平台即服务。PaaS 是将软件研发的平台作为一种服务， 以 SaaS 的模式提交给用户。平台通常包括操作系统、编程语言的运行环境、数据库和 Web 服务器等，用户可以在平台上部署和运行自己的应用。通常而言，用户不能管理和控制底 层的基础设施，只能控制自己部署的应用。</p>
+<p>SaaS(Software-as-a-Service)：软件即服务。它是一种通过 Internet 提供软件的模式，用 户无需购买软件，而是向提供商租用基于 Web 的软件，来管理企业经营活动。云提供商在 云端安装和运行应用软件，云用户通过云客户端（比如 Web 浏览器）使用软件。</p>
+<p>从云计算分层概念上讲，YARN 可看做 PAAS 层，它能够为不同类型的应用程序提供统一的管理和调度。</p>
+<p>在yarn的现有架构中，当集群支持的节点在万个节点以上的时候，随着需求复杂度的提升，整体的瓶颈会越来越明显，比如调度策略、资源分配策略等，基本上只要是单点的服务或者模块，都会有瓶颈，这个时候基本就是一个java并发模型的优化的问题了。一般的解决方式都是分而治之，因为他支持的粒度基本就是app-&gt;job-&gt;task 这样一个级别，所以优化方向都会明确很多，但是这个优化一般来说各个大公司也都是百花齐放，都是针对自己的场景有自己的优化手段和方向，这些技术实现方式都是通用的，值得借鉴和学习。</p>
+<blockquote>
+<p>为什么说mr和yarn是框架：实现MapReduce编程接口、遵循MapReduce编程规范就可以被MapReduce框架调用，在分布式集群中计算大规模数据；实现了Yarn的接口规范，比如Hadoop 2的MapReduce，就可以被Yarn调度管理，统一安排服务器资源。所以说，MapReduce和Yarn都是框架。</p>
+<p>HDFS就不是框架，使用HDFS就是直接调用HDFS提供的API接口，HDFS作为底层模块被直接依赖。</p>
+</blockquote>
+<p>引自：<a href="https://www.cnblogs.com/liangzilx/p/14837562.html" target="_blank" rel="noopener">https://www.cnblogs.com/liangzilx/p/14837562.html</a></p>
+<p>参考：</p>
+<p><a href="https://www.infoq.cn/article/mzjllz7k41ukpdfykdej" target="_blank" rel="noopener">YARN 在字节跳动的优化与实践</a></p>
+<p><a href="https://tech.meituan.com/2019/08/01/hadoop-yarn-scheduling-performance-optimization-practice.html" target="_blank" rel="noopener">Hadoop YARN：调度性能优化实践</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/yarn/" rel="tag"># yarn</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/09/24/spark%E5%B9%BF%E6%92%AD%E7%9A%84%E8%AE%BE%E8%AE%A1%E4%BA%8E%E5%AE%9E%E7%8E%B0/" rel="next" title="spark广播的设计于实现">
+                <i class="fa fa-chevron-left"></i> spark广播的设计于实现
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/09/25/%E5%A6%82%E4%BD%95%E6%8E%A7%E5%88%B6%E8%87%AA%E5%B7%B1%E7%9A%84%E4%B8%80%E9%83%A8%E5%88%86%E7%BB%8F%E9%AA%8C%EF%BC%88%E5%B7%A5%E4%BD%9C%EF%BC%89/" rel="prev" title="如何控制自己的一部分经验（工作）">
+                如何控制自己的一部分经验（工作） <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#yarn的原理和设计思想"><span class="nav-number">1.</span> <span class="nav-text">yarn的原理和设计思想</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#背景"><span class="nav-number">1.0.1.</span> <span class="nav-text">背景</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#设计思想"><span class="nav-number">1.0.2.</span> <span class="nav-text">设计思想</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#基本架构"><span class="nav-number">1.0.3.</span> <span class="nav-text">基本架构</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#通信机制"><span class="nav-number">1.0.4.</span> <span class="nav-text">通信机制</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#工作流程"><span class="nav-number">1.0.5.</span> <span class="nav-text">工作流程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#多角度看yarn"><span class="nav-number">1.0.6.</span> <span class="nav-text">多角度看yarn</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#并行计算"><span class="nav-number">1.0.6.1.</span> <span class="nav-text">并行计算</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#资源管理系统"><span class="nav-number">1.0.6.2.</span> <span class="nav-text">资源管理系统</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#云计算"><span class="nav-number">1.0.6.3.</span> <span class="nav-text">云计算</span></a></li></ol></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="hbase," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="RITRegion-In-Trasition 机制Region-In-Transition 说的是 Region 变迁机制，实际上是指在一次特定操作行为中 Region 状态的变迁。 问题：Region 存在多少种状态？HBase 有哪些操作会触发 Region 状态变迁？一次正常操作过程中 Region 状态变迁的完整流程是怎么样的？如果 Region 状态在变迁的过程中出现异常又会怎么样？ R">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hbase原理 第三篇">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/01/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E4%B8%89%E7%AF%87/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="RITRegion-In-Trasition 机制Region-In-Transition 说的是 Region 变迁机制，实际上是指在一次特定操作行为中 Region 状态的变迁。 问题：Region 存在多少种状态？HBase 有哪些操作会触发 Region 状态变迁？一次正常操作过程中 Region 状态变迁的完整流程是怎么样的？如果 Region 状态在变迁的过程中出现异常又会怎么样？ R">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/09/r1.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/09/%E8%AE%A9.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/09/r3.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/12/795841.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/12/818160.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/12/99091.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/12/544501.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/06/56.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/06/57.png">
+<meta property="article:published_time" content="2022-07-01T10:50:32.000Z">
+<meta property="article:modified_time" content="2022-07-04T02:32:12.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="hbase">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://hbasefly.com/wp-content/uploads/2016/09/r1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/01/hbase原理-第三篇/"/>
+
+
+
+
+
+  <title>hbase原理 第三篇 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/01/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E4%B8%89%E7%AF%87/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">hbase原理 第三篇</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-07-01T18:50:32+08:00">
+                2022-07-01
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="RIT"><a href="#RIT" class="headerlink" title="RIT"></a>RIT</h1><h2 id="Region-In-Trasition-机制"><a href="#Region-In-Trasition-机制" class="headerlink" title="Region-In-Trasition 机制"></a>Region-In-Trasition 机制</h2><p>Region-In-Transition 说的是 Region 变迁机制，实际上是指在一次特定操作行为中 Region 状态的变迁。</p>
+<p>问题：Region 存在多少种状态？HBase 有哪些操作会触发 Region 状态变迁？一次正常操作过程中 Region 状态变迁的完整流程是怎么样的？如果 Region 状态在变迁的过程中出现异常又会怎么样？</p>
+<h4 id="Region-存在多少种状态？有哪些操作会触发状态变迁？"><a href="#Region-存在多少种状态？有哪些操作会触发状态变迁？" class="headerlink" title="Region 存在多少种状态？有哪些操作会触发状态变迁？"></a>Region 存在多少种状态？有哪些操作会触发状态变迁？</h4><p><img src="http://hbasefly.com/wp-content/uploads/2016/09/r1.png" alt=""></p>
+<h4 id="Region-状态迁移"><a href="#Region-状态迁移" class="headerlink" title="Region 状态迁移"></a>Region 状态迁移</h4><p>这个过程有点类似于状态机，也是通过事件驱动的。和 Region 状态一样，HBase 还定义了很多事件（具体见 EventType 类）。此处以 unassign 过程为例说明事件是如何驱动状态变迁的，见下图：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/09/%E8%AE%A9.png" alt=""></p>
+<p>Region 是一个有限状态机。</p>
+<p>上图中红色字体就是事件。</p>
+<h4 id="一次正常操作过程中-Region-状态变迁的完整流程是怎么样的？"><a href="#一次正常操作过程中-Region-状态变迁的完整流程是怎么样的？" class="headerlink" title="一次正常操作过程中 Region 状态变迁的完整流程是怎么样的？"></a>一次正常操作过程中 Region 状态变迁的完整流程是怎么样的？</h4><p>接下来本节以 unassign 操作为例对这个流程进行解析：</p>
+<p>整个 unassign 操作是一个比较复杂的过程，涉及 HMaster、RegionServer 和 Zookeeper 三个组件：</p>
+<ul>
+<li><p>HMaster 负责维护 Region 在整个操作过程中的状态变化，起到一个枢纽的作用。它有两个重要的 HashMap 数据结构，分别为 regionStates 和 regionsInTransition，前者用来存储整个集群中所有 Region 及其当时状态，而后者主要存储在变迁过程中的 Region 及其状态，后者是前者的一个子集，不包含 OPEN 状态的 Regions；</p>
+</li>
+<li><p>RegionServer 负责接收 HMaster 的指令执行具体 unassign 操作，实际上就是关闭 region 操作；</p>
+</li>
+<li><p>Zookeeper 负责存储操作过程中的事件，它有一个路径为 / hbase/region-in-transition 的节点。一旦一个 Region 发生 unssign 操作，就会在这个节点下生成一个子节点，子节点的内容是一个 “事件” 经过序列化的字符串，并且 Master 会监听在这个子节点上，一旦发生任何事件，Master 就会监听到并更新 Region 的状态。</p>
+</li>
+</ul>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/09/r3.png" alt=""></p>
+<ol>
+<li><p>HMaster 先执行事件 M_ZK_REGION_CLOSING 并更新 RegionStates，将该 Region 的状态改为 PENDING_CLOSE，并在 regionsInTransition 中插入一条记录；</p>
+</li>
+<li><p>发送一条 RPC 命令给拥有该 Region 的 RegionServer，责令其关闭该 Region;</p>
+</li>
+<li><p>RegionServer 接收到 HMaster 发送过来的命令之后，首先生成一个 RS_ZK_REGION_CLOSING 事件，更新到 Zookeeper，Master 监听到 ZK 节点变动之后更新 regionStates，将该 Region 的状态改为 CLOSING;</p>
+</li>
+<li><p>RegionServer 执行真正的 Region 关闭操作：如果该 Region 正在执行 flush 或者 compaction，等待操作完成；否则将该 Region 下的所有 Memstore 强制 flush;</p>
+</li>
+<li><p>完成之后生成事件 RS_ZK_REGION_CLOSED，更新到 Zookeeper，Master 监听到 ZK 节点变动之后更新 regionStates，将该 Region 的状态改为 CLOSED;</p>
+</li>
+</ol>
+<h4 id="如果-Region-状态在变迁的过程中出现异常会怎么样？"><a href="#如果-Region-状态在变迁的过程中出现异常会怎么样？" class="headerlink" title="如果 Region 状态在变迁的过程中出现异常会怎么样？"></a>如果 Region 状态在变迁的过程中出现异常会怎么样？</h4><ol>
+<li>Master 宕机重启：Master 在宕机之后会丢失所有内存中的信息，也包括 RIT 信息以及 Region 状态信息，因此在重启之后会第一时间重建这些信息。重启之后会遍历 Zookeeper 上 / hbase/regions-in-transition 节点下的所有子节点，解析所有子节点对应的最后一个‘事件’，解析完成之后一方面借此重建全局的 Region 状态，另一方面根据状态机转移图对处于 RIT 状态的 Region 进行处理。比如如果发现当前 Region 的状态是 PENDING_CLOSE，Master 就会再次据此向 RegionServer 发送’关闭 Region’的 RPC 命令。</li>
+<li>其他异常宕机：HBase 会在后台开启一个线程定期检查内存中处于 RIT 中的 Region，一旦这些 Region 处于 RIT 状态的时长超过一定的阈值（由参数 <strong>hbase.master.assignment.timeoutmonitor.timeout</strong> 定义，默认 600000ms）就会重新执行 unassign 或者 assign 操作。比如如果当前 Region 的状态是 PENDING_CLOSE，而且处于该状态的时间超过了 600000ms，Master 就会重新执行 unassign 操作，向 RegionServer 再次发送’关闭 Region’的 RPC 命令。</li>
+</ol>
+<h4 id="永久-RIT-状态"><a href="#永久-RIT-状态" class="headerlink" title="永久 RIT 状态"></a>永久 RIT 状态</h4><p>由于超时机制，RIT很少会走入一个永久状态的阶段，但是如果连是否超时这个检查都无法触发的话，那就有可能走进永久RIT状态。</p>
+<p>集群卡住常见原因无非两个，<strong>一是 Memstore 总消耗内存大小超过了上限进而触发 RegionServer 级别 flush，此时系统会阻塞集群执行长时间 flush 操作；二是 storefile 数量过多超过设定的上限阈值（参见：hbase.hstore.blockingStoreFiles），此时系统会阻塞所有 flush 请求而执行 compaction</strong>。</p>
+<p>一般出现RIT的原因一定是由于其他某个阻塞性任务导致整体系统不稳定，进而导致Rigion的状态变更也阻塞了。一般在写数据上 还有 compact上。</p>
+<blockquote>
+<p>一旦掉入永久性 RIT 状态，说明一定有根本性的问题原因，只有定位出这些问题才能彻底解决问题。</p>
+<p>如果 Region 长时间处于 PENDING_CLOSE 或者 CLOSING 状态，一般是因为 RegionServer 在关闭 Region 的时候遇到了长时间 Compaction 任务或 Flush 任务，所以如果 Region 在做类似于 Major_Compact 的操作时尽量不要执行 unassign 操作，比如 move 操作、disable 操作等；而如果 Region 长时间处于 FAILED_OPEN 状态，一般是因为 HDFS 文件出现异常所致，可以通过 RegionServer 日志以及 hbck 定位出来。</p>
+</blockquote>
+<p>参考：</p>
+<p><a href="http://hbasefly.com/2016/09/08/hbase-rit/" target="_blank" rel="noopener">HBase运维实践－聊聊RIT的那点事 &#8211; 有态度的HBase/Spark/BigData</a></p>
+<h1 id="hbase读取流程"><a href="#hbase读取流程" class="headerlink" title="hbase读取流程"></a>hbase读取流程</h1><p><img src="http://hbasefly.com/wp-content/uploads/2016/12/795841.png" alt=""></p>
+<ol>
+<li>客户端首先会根据配置文件中 zookeeper 地址连接 zookeeper，并读取 /<hbase-rootdir>/meta-region-server 节点信息，该节点信息存储 HBase 元数据（hbase:meta）表所在的 RegionServer 地址以及访问端口等信息。用户可以通过 zookeeper 命令 (get /<hbase-rootdir>/meta-region-server) 查看该节点信息。</li>
+<li>根据 hbase:meta 所在 RegionServer 的访问信息，客户端会将该元数据表加载到本地并进行缓存。然后在表中确定待检索 rowkey 所在的 RegionServer 信息。</li>
+<li>根据数据所在 RegionServer 的访问信息，客户端会向该 RegionServer 发送真正的数据读取请求。服务器端接收到该请求之后需要进行复杂的处理，具体的处理流程将会是这个专题的重点。</li>
+</ol>
+<blockquote>
+<ol>
+<li><p>客户端首先交互的是zookeeper就可以。</p>
+</li>
+<li><p>客户端会将 hbase:meta 元数据表缓存在本地，因此上述步骤中前两步只会在客户端第一次请求的时候发生，之后所有请求都直接从缓存中加载元数据。如果集群发生某些变化导致 hbase:meta 元数据更改，客户端再根据本地元数据表请求的时候就会发生异常，此时客户端需要重新加载一份最新的元数据表到本地。</p>
+</li>
+</ol>
+</blockquote>
+<p>RegionServer 接收到客户端的 get/scan 请求之后，先后做了两件事情：构建 scanner 体系（实际上就是做一些 scan 前的准备工作），在此体系基础上一行一行检索。</p>
+<h2 id="构建scanner体系"><a href="#构建scanner体系" class="headerlink" title="构建scanner体系"></a>构建scanner体系</h2><p>scanner 体系的核心在于三层 scanner：RegionScanner、StoreScanner 以及 StoreFileScanner。三者是层级的关系，一个 RegionScanner 由多个 StoreScanner 构成，一张表由多个列族组成，就有多少个 StoreScanner 负责该列族的数据扫描。一个 StoreScanner 又是由多个 StoreFileScanner 组成。每个 Store 的数据由内存中的 MemStore 和磁盘上的 StoreFile 文件组成，相对应的，StoreScanner 对象会雇佣一个 MemStoreScanner 和 N 个 StoreFileScanner 来进行实际的数据读取，每个 StoreFile 文件对应一个 StoreFileScanner，注意：StoreFileScanner 和 MemstoreScanner 是整个 scan 的最终执行者。</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/12/818160.png" alt=""></p>
+<ol>
+<li><p>RegionScanner 会根据列族构建 StoreScanner，有多少列族就构建多少 StoreScanner，用于负责该列族的数据检索</p>
+<ol>
+<li><p>构建 StoreFileScanner：每个 StoreScanner 会为当前该 Store 中每个 HFile 构造一个 StoreFileScanner，用于实际执行对应文件的检索。同时会为对应 Memstore 构造一个 MemstoreScanner，用于执行该 Store 中 Memstore 的数据检索。该步骤对应于监工在人才市场招募建楼所需的各种类型工匠。</p>
+</li>
+<li><p>过滤淘汰 StoreFileScanner：根据 Time Range 以及 RowKey Range 对 StoreFileScanner 以及 MemstoreScanner 进行过滤，淘汰肯定不存在待检索结果的 Scanner。上图中 StoreFile3 因为检查 RowKeyRange 不存在待检索 Rowkey 所以被淘汰。该步骤针对具体的建楼方案，裁撤掉部分不需要的工匠，比如这栋楼不需要地暖安装，对应的工匠就可以撤掉。</p>
+</li>
+<li><p>Seek rowkey：所有 StoreFileScanner 开始做准备工作，在负责的 HFile 中定位到满足条件的起始 Row。工匠也开始准备自己的建造工具，建造材料，找到自己的工作地点，等待一声命下。就像所有重要项目的准备工作都很核心一样，Seek 过程（此处略过 Lazy Seek 优化）也是一个很核心的步骤，它主要包含下面三步：</p>
+<ul>
+<li><p>定位 Block Offset：在 Blockcache 中读取该 HFile 的索引树结构，根据索引树检索对应 RowKey 所在的 Block Offset 和 Block Size</p>
+</li>
+<li><p>Load Block：根据 BlockOffset 首先在 BlockCache 中查找 Data Block，如果不在缓存，再在 HFile 中加载</p>
+</li>
+<li><p>Seek Key：在 Data Block 内部通过二分查找的方式定位具体的 RowKey</p>
+</li>
+</ul>
+</li>
+<li><p>StoreFileScanner 合并构建最小堆：将该 Store 中所有 StoreFileScanner 和 MemstoreScanner 合并形成一个 heap（最小堆），所谓 heap 是一个优先级队列，队列中元素是所有 scanner，排序规则按照 scanner seek 到的 keyvalue 大小由小到大进行排序。这里需要重点关注三个问题，首先为什么这些 Scanner 需要由小到大排序，其次 keyvalue 是什么样的结构，最后，keyvalue 谁大谁小是如何确定的：</p>
+<ol>
+<li><p>为什么这些 Scanner 需要由小到大排序：第一，hbase数据是多版本的，相同key的数据放到一起之后，就可以直接根据排序取最新的数据进行返回就可以。</p>
+</li>
+<li><p>hbase中的keyvalue是什么样的结构？</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/12/99091.png" alt=""></p>
+<p>HBase 中更新删除操作并不直接操作原数据，而是生成一个新纪录，那问题来了，如何知道一条记录到底是插入操作还是更新操作亦或是删除操作呢？这正是 KeyType 和 Timestamp 的用武之地。上文中提到 KeyType 取值为分别为 Put/Delete/Delete Column/Delete Family 四种，如果 KeyType 取值为 Put，表示该条记录为插入或者更新操作，而无论是插入或者更新，都可以使用版本号（Timestamp）对记录进行选择；如果 KeyType 为 Delete，表示该条记录为整行删除操作；相应的 KeyType 为 Delete Column 和 Delete Family 分别表示删除某行某列以及某行某列族操作；</p>
+</li>
+<li><p>不同的keyvalue之间如何进行大小比较：上文提到 KeyValue 中 Key 由 RowKey，ColumnFamily，Qualifier ，TimeStamp，KeyType 等 5 部分组成，HBase 设定 Key 大小首先比较 RowKey，RowKey 越小 Key 就越小；RowKey 如果相同就看 CF，CF 越小 Key 越小；CF 如果相同看 Qualifier，Qualifier 越小 Key 越小；Qualifier 如果相同再看 Timestamp，Timestamp 越大表示时间越新，对应的 Key 越小。如果 Timestamp 还相同，就看 KeyType，KeyType 按照 DeleteFamily -&gt; DeleteColumn -&gt; Delete -&gt; Put 顺序依次对应的 Key 越来越大。</p>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+<li><p>StoreScanner 合并构建最小堆：上文讨论的是一个监工如何构建自己的工匠师团队以及工匠师如何做准备工作、排序工作。实际上，监工也需要进行排序，比如一单元的监工排前面，二单元的监工排之后… StoreScanner 一样，列族小的 StoreScanner 排前面，列族大的 StoreScanner 排后面。</p>
+</li>
+</ol>
+<h2 id="SCANNER查询"><a href="#SCANNER查询" class="headerlink" title="SCANNER查询"></a>SCANNER查询</h2><p><img src="http://hbasefly.com/wp-content/uploads/2016/12/544501.png" alt=""></p>
+<p>这三个 Scanner 组成的 heap 为 &lt;MemstoreScanner，StoreFileScanner2, StoreFileScanner1&gt;，Scanner 由小到大排列。查询的时候首先 pop 出 heap 的堆顶元素，即 MemstoreScanner，得到 keyvalue = r2:cf1:name:v3:name23 的数据，拿到这个 keyvalue 之后，需要进行如下判定：</p>
+<ol>
+<li>检查该 KeyValue 的 KeyType 是否是 Deleted/DeletedCol 等，如果是就直接忽略该列所有其他版本，跳到下列（列族）</li>
+<li>检查该 KeyValue 的 Timestamp 是否在用户设定的 Timestamp Range 范围，如果不在该范围，忽略</li>
+<li>检查该 KeyValue 是否满足用户设置的各种 filter 过滤器，如果不满足，忽略</li>
+<li>检查该 KeyValue 是否满足用户查询中设定的版本数，比如用户只查询最新版本，则忽略该 cell 的其他版本；反正如果用户查询所有版本，则还需要查询该 cell 的其他版本。</li>
+</ol>
+<p>现在假设用户查询所有版本而且该 keyvalue 检查通过，此时当前的堆顶元素需要执行 next 方法去检索下一个值，并重新组织最小堆。即图中 MemstoreScanner 将会指向 r4，重新组织最小堆之后最小堆将会变为 &lt;StoreFileScanner2, StoreFileScanner1, MemstoreScanner&gt;，堆顶元素变为 StoreFileScanner2，得到 keyvalue＝r2:cf1:name:v2:name22，进行一系列判定，再 next，再重新组织最小堆…</p>
+<p>不断重复这个过程，直至一行数据全部被检索得到。继续下一行…</p>
+<blockquote>
+<p>hbase的读取是一个比较复杂的过程，因为hbase偏向于写优化比较多。而多的过程牵扯的操作就会比较多一些。</p>
+</blockquote>
+<p><img src="http://hbasefly.com/wp-content/uploads/2017/06/56.png" alt=""></p>
+<p>bloomblock信息会随着datablock存储，原因是随着数据写入的增大，bloom的信息也会越来越大，达到一定程度，RS也不会一次性加载所有的bloom信息，所以就可以基于bloom index，用到哪块的数据，就把对应的bloom数据加载到内存中。</p>
+<p>Bloom Index 也是一颗 B + 树，Bloom Index Block 结构如下图所示：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2017/06/57.png" alt=""></p>
+<p>上图需要重点关注 Bloom Block 的 Block Key：Block 中第一个原始 KV 的 RowKey。这样给定一个待检索的 rowkey，就可以很容易地通过 Bloom Index 定位到具体的 Bloom Block，将 Block 加载到内存进行过滤。通常情况下，热点 Bloom Block 会常驻内存的！</p>
+<p>scan 之前使用 BF 进行过滤只针对 get 查询以及 scan 单条数据的场景，scan 多条数据并不会执行实际的 BF 过滤，而是在实际 seek 到新一行的时候才会启用 BF 根据新一行 rowkey 对所有 StoreFile 过滤。</p>
+<p>在数据scan的过程中，是一个cell一个cell进行比对的，根据堆结构，因为都是有序数据入堆的，出堆的时候，也会把当前这一个rowkey的数据都可以很容易获取到，然后在逐个cell获取数据进行过滤之后，会返回一个match mode，这个 Code 可不简单，它会告诉 scanner 是继续 seek 下一个 cell，还是直接跳过部分 cell 直接 seek 到下一列（对应 INCLUDE_AND_SEEK_NEXT_COL 或 SEEK_NEXT_COL），抑或是直接 seek 到下一行 (对应 INCLUDE_AND_SEEK_NEXT_ROW 或 SEEK_NEXT_ROW)。比如发现这个是cell是最后一列，就会变成INCLUDE_AND_SEEK_NEXT_ROW，如果发现是需要取下一个cell，mode就是INCLUDE_AND_SEEK_NEXT_COL。</p>
+<p>参考：</p>
+<p><a href="http://hbasefly.com/2016/12/21/hbase-getorscan/" target="_blank" rel="noopener">HBase原理－数据读取流程解析 &#8211; 有态度的HBase/Spark/BigData</a></p>
+<p><a href="http://hbasefly.com/2017/06/11/hbase-scan-2/" target="_blank" rel="noopener">HBase原理－迟到的‘数据读取流程’部分细节 &#8211; 有态度的HBase/Spark/BigData</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/hbase/" rel="tag"># hbase</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/06/30/%E5%90%91%E9%87%8F%E5%8C%96%E6%89%A7%E8%A1%8C/" rel="next" title="向量化执行">
+                <i class="fa fa-chevron-left"></i> 向量化执行
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/07/03/hdfs%E7%9A%84Short-Circuit-Local-Read%E5%8E%9F%E7%90%86/" rel="prev" title="hdfs的Short Circuit Local Read原理">
+                hdfs的Short Circuit Local Read原理 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#RIT"><span class="nav-number">1.</span> <span class="nav-text">RIT</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Region-In-Trasition-机制"><span class="nav-number">1.1.</span> <span class="nav-text">Region-In-Trasition 机制</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Region-存在多少种状态？有哪些操作会触发状态变迁？"><span class="nav-number">1.1.0.1.</span> <span class="nav-text">Region 存在多少种状态？有哪些操作会触发状态变迁？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Region-状态迁移"><span class="nav-number">1.1.0.2.</span> <span class="nav-text">Region 状态迁移</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#一次正常操作过程中-Region-状态变迁的完整流程是怎么样的？"><span class="nav-number">1.1.0.3.</span> <span class="nav-text">一次正常操作过程中 Region 状态变迁的完整流程是怎么样的？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#如果-Region-状态在变迁的过程中出现异常会怎么样？"><span class="nav-number">1.1.0.4.</span> <span class="nav-text">如果 Region 状态在变迁的过程中出现异常会怎么样？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#永久-RIT-状态"><span class="nav-number">1.1.0.5.</span> <span class="nav-text">永久 RIT 状态</span></a></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#hbase读取流程"><span class="nav-number">2.</span> <span class="nav-text">hbase读取流程</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#构建scanner体系"><span class="nav-number">2.1.</span> <span class="nav-text">构建scanner体系</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#SCANNER查询"><span class="nav-number">2.2.</span> <span class="nav-text">SCANNER查询</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

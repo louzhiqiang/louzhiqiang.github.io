@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="pyspark," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="pyspark中jvm和python的交互原理PySpark 的多进程架构PySpark 采用了 Python、JVM 进程分离的多进程架构，在 Driver、Executor 端均会同时有 Python、JVM 两个进程。当通过 spark-submit 提交一个 PySpark 的 Python 脚本时，Driver 端会直接运行这个 Python 脚本，并从 Python 中启动 JVM；而">
+<meta property="og:type" content="article">
+<meta property="og:title" content="pyspark中jvm和python的交互原理">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/27/pyspark%E4%B8%ADjvm%E5%92%8Cpython%E7%9A%84%E4%BA%A4%E4%BA%92%E5%8E%9F%E7%90%86/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="pyspark中jvm和python的交互原理PySpark 的多进程架构PySpark 采用了 Python、JVM 进程分离的多进程架构，在 Driver、Executor 端均会同时有 Python、JVM 两个进程。当通过 spark-submit 提交一个 PySpark 的 Python 脚本时，Driver 端会直接运行这个 Python 脚本，并从 Python 中启动 JVM；而">
+<meta property="og:image" content="https://github.com/images/pyspark_1.png">
+<meta property="og:image" content="https://github.com/images/pyspark_2.png">
+<meta property="og:image" content="https://github.com/images/pyspark_3.png">
+<meta property="og:image" content="https://github.com/images/pyspark_4.png">
+<meta property="og:image" content="https://github.com/images/pyspark_5.png">
+<meta property="og:image" content="https://github.com/images/pyspark_6.png">
+<meta property="og:image" content="https://github.com/images/pyspark_7.png">
+<meta property="og:image" content="https://github.com/images/pyspark_8.png">
+<meta property="og:image" content="https://github.com/images/pyspark_9.png">
+<meta property="og:image" content="https://github.com/images/pyspark_10.png">
+<meta property="og:image" content="https://github.com/images/pyspark_11.png">
+<meta property="og:image" content="https://github.com/images/pyspark_12.png">
+<meta property="og:image" content="https://github.com/images/pyspark_13.png">
+<meta property="og:image" content="https://github.com/images/pyspark_14.png">
+<meta property="og:image" content="https://github.com/images/pyspark_15.png">
+<meta property="og:image" content="https://github.com/images/pyspark_16.png">
+<meta property="og:image" content="https://github.com/images/pyspark_17.png">
+<meta property="og:image" content="https://github.com/images/pyspark_18.png">
+<meta property="og:image" content="https://github.com/images/pyspark_19.png">
+<meta property="og:image" content="https://github.com/images/pyspark_20.png">
+<meta property="article:published_time" content="2021-09-27T00:44:42.000Z">
+<meta property="article:modified_time" content="2022-05-13T03:51:18.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="pyspark">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/pyspark_1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/27/pyspark中jvm和python的交互原理/"/>
+
+
+
+
+
+  <title>pyspark中jvm和python的交互原理 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/27/pyspark%E4%B8%ADjvm%E5%92%8Cpython%E7%9A%84%E4%BA%A4%E4%BA%92%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">pyspark中jvm和python的交互原理</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-09-27T08:44:42+08:00">
+                2021-09-27
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+                  ， 
+                
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/spark/" itemprop="url" rel="index">
+                    <span itemprop="name">spark</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="pyspark中jvm和python的交互原理"><a href="#pyspark中jvm和python的交互原理" class="headerlink" title="pyspark中jvm和python的交互原理"></a>pyspark中jvm和python的交互原理</h2><h3 id="PySpark-的多进程架构"><a href="#PySpark-的多进程架构" class="headerlink" title="PySpark 的多进程架构"></a><strong>PySpark 的多进程架构</strong></h3><p>PySpark 采用了 Python、JVM 进程分离的多进程架构，在 Driver、Executor 端均会同时有 Python、JVM 两个进程。当通过 spark-submit 提交一个 PySpark 的 Python 脚本时，Driver 端会直接运行这个 Python 脚本，并从 Python 中启动 JVM；而在 Python 中调用的 RDD 或者 DataFrame 的操作，会通过 Py4j 调用到 Java 的接口。在 Executor 端恰好是反过来，首先由 Driver 启动了 JVM 的 Executor 进程，然后在 JVM 中去启动 Python 的子进程，用以执行 Python 的 UDF，这其中是使用了 socket 来做进程间通信。总体的架构图如下所示：</p>
+<p><img src="/images/pyspark_1.png" alt="pyspark的多线程架构"></p>
+<h3 id="driver端-python是如何调用java的"><a href="#driver端-python是如何调用java的" class="headerlink" title="driver端 python是如何调用java的"></a>driver端 python是如何调用java的</h3><p>通过 spark-submit 提交 PySpark 作业后，Driver 端首先是运行用户提交的 Python 脚本，然而 Spark 提供的大多数 API 都是 Scala 或者 Java 的，那么就需要能够在 Python 中去调用 Java 接口。这里 PySpark 使用了 Py4j 这个开源库。当创建 Python 端的 SparkContext 对象时，实际会启动 JVM，并创建一个 Scala 端的 SparkContext 对象。代码实现在 python/pyspark/context.py:</p>
+<p><img src="/images/pyspark_2.png" alt="pyspark"></p>
+<p>在 launch_gateway (python/pyspark/java_gateway.py)中，首先启动JVM 进程：</p>
+<p><img src="/images/pyspark_3.png" alt="pyspark"></p>
+<p>然后创建 JavaGateway 并 import 一些关键的 class：</p>
+<p><img src="/images/pyspark_4.png" alt="pyspark"></p>
+<p>拿到 JavaGateway 对象，即可以通过它的 jvm 属性，去调用 Java 的类了，例如：</p>
+<p><img src="/images/pyspark_5.png" alt="pyspark"></p>
+<p>然后会继续创建 JVM 中的 SparkContext 对象：</p>
+<p><img src="/images/pyspark_6.png" alt="pyspark"></p>
+<h3 id="Python-Driver-端的-RDD、SQL-接口"><a href="#Python-Driver-端的-RDD、SQL-接口" class="headerlink" title="Python Driver 端的 RDD、SQL 接口"></a><strong>Python Driver 端的 RDD、SQL 接口</strong></h3><p>在 PySpark 中，继续初始化一些 Python 和 JVM 的环境后，Python 端的 SparkContext 对象就创建好了，它实际是对 JVM 端接口的一层封装。和 Scala API 类似，SparkContext 对象也提供了各类创建 RDD 的接口，和 Scala API 基本一一对应，我们来看一些例子。</p>
+<p><img src="/images/pyspark_7.png" alt="pyspark"></p>
+<p>可以看到，这里 Python 端基本就是直接调用了 Java/Scala接口。而 PythonRDD (core/src/main/scala/org/apache/spark/api/python/PythonRDD.scala)，则是一个 Scala 中封装的伴生对象，提供了常用的 RDD IO 相关的接口。另外一些接口会通过 self._jsc 对象去创建 RDD。其中 self._jsc 就是 JVM 中的 SparkContext 对象。拿到 RDD 对象之后，可以像 Scala、Java API 一样，对 RDD 进行各类操作，这些大部分都封装在 python/pyspark/rdd.py 中。</p>
+<p>这里的代码中出现了 jrdd 这样一个对象，这实际上是 Scala 为提供 Java 互操作的 RDD 的一个封装，用来提供 Java 的 RDD 接口，具体实现在 core/src/main/scala/org/apache/spark/api/java/JavaRDD.scala 中。可以看到每个 Python 的 RDD 对象需要用一个 JavaRDD 对象去创建。</p>
+<p>对于 DataFrame 接口，Python 层也同样提供了 SparkSession、DataFrame 对象，它们也都是对 Java 层接口的封装，这里不一一赘述。</p>
+<h3 id="Executor-端进程间通信和序列化"><a href="#Executor-端进程间通信和序列化" class="headerlink" title="Executor 端进程间通信和序列化"></a><strong>Executor 端进程间通信和序列化</strong></h3><p>对于 Spark 内置的算子，在 Python 中调用 RDD、DataFrame 的接口后，从上文可以看出会通过 JVM 去调用到 Scala 的接口，最后执行和直接使用 Scala 并无区别。而对于需要使用 UDF 的情形，在 Executor 端就需要启动一个 Python worker 子进程，然后执行 UDF 的逻辑。那么 Spark 是怎样判断需要启动子进程的呢？</p>
+<p>在 Spark 编译用户的 DAG 的时候，Catalyst Optimizer 会创建 BatchEvalPython 或者 ArrowEvalPython 这样的 Logical Operator，随后会被转换成 PythonEvals 这个 Physical Operator。在 PythonEvals（sql/core/src/main/scala/org/apache/spark/sql/execution/SparkStrategies.scala）中：</p>
+<p><img src="/images/pyspark_8.png" alt="pyspark"></p>
+<p>创建了 ArrowEvalPythonExec 或者 BatchEvalPythonExec，而这二者内部会创建 ArrowPythonRunner、PythonUDFRunner 等类的对象实例，并调用了它们的 compute 方法。由于它们都继承了 BasePythonRunner，基类的 compute 方法中会去启动 Python 子进程：</p>
+<p><img src="/images/pyspark_9.png" alt="pyspark"></p>
+<p>这里 env.createPythonWorker 会通过 PythonWorkerFactory （core/src/main/scala/org/apache/spark/api/python/PythonWorkerFactory.scala）去启动 Python 进程。Executor 端启动 Python 子进程后，会创建一个 socket 与 Python 建立连接。所有 RDD 的数据都要序列化后，通过 socket 发送，而结果数据需要同样的方式序列化传回 JVM。</p>
+<p>对于直接使用 RDD 的计算，或者没有开启 spark.sql.execution.arrow.enabled 的 DataFrame，是将输入数据按行发送给 Python，可想而知，这样效率极低。</p>
+<p>在 Spark 2.2 后提供了基于 Arrow 的序列化、反序列化的机制（从 3.0 起是默认开启），从 JVM 发送数据到 Python 进程的代码在 sql/core/src/main/scala/org/apache/spark/sql/execution/python/ArrowPythonRunner.scala。这个类主要是重写了 newWriterThread 这个方法，使用了 ArrowWriter 向 socket 发送数据：</p>
+<p><img src="/images/pyspark_10.png" alt="pyspark"></p>
+<p>可以看到， 每次取出一个batch，填充给 ArrowWriter，实际数据会保存在 root 对象中，然后由 ArrowStreamWriter 将 root 对象中的整个 batch 的数据写入到 socket 的 DataOutputStream 中去。ArrowStreamWriter 会调用 writeBatch 方法去序列化消息并写数据，代码参考 ArrowWriter.java#L131。</p>
+<p><img src="/images/pyspark_11.png" alt="pyspark"></p>
+<p>在 MessageSerializer 中，使用了 flatbuffer 来序列化数据。flatbuffer 是一种比较高效的序列化协议，它的主要优点是反序列化的时候，不需要解码，可以直接通过裸 buffer 来读取字段，可以认为反序列化的开销为零。我们来看看 Python 进程收到消息后是如何反序列化的。</p>
+<p>Python 子进程实际上是执行了 worker.py 的 main 函数 (python/pyspark/worker.py)：</p>
+<p><img src="/images/pyspark_12.png" alt="pyspark"></p>
+<p>这里会去向 JVM 建立连接，并从 socket 中读取指令和数据。对于如何进行序列化、反序列化，是通过 UDF 的类型来区分：</p>
+<p><img src="/images/pyspark_13.png" alt="pyspark"></p>
+<p>在 read_udfs 中，如果是 PANDAS 类的 UDF，会创建 ArrowStreamPandasUDFSerializer，其余的 UDF 类型创建 BatchedSerializer。我们来看看 ArrowStreamPandasUDFSerializer(python/pyspark/serializers.py)：</p>
+<p><img src="/images/pyspark_14.png" alt="pyspark"></p>
+<p>可以看到，这里双向的序列化、反序列化，都是调用了 PyArrow 的 ipc 的方法，和前面看到的 Scala 端是正好对应的，也是按 batch 来读写数据。对于 Pandas 的 UDF，读到一个 batch 后，会将 Arrow 的 batch 转换成 Pandas Series。</p>
+<p><img src="/images/pyspark_15.png" alt="pyspark"></p>
+<h3 id="Pandas-UDF"><a href="#Pandas-UDF" class="headerlink" title="Pandas UDF"></a><strong>Pandas UDF</strong></h3><p>前面我们已经看到，PySpark 提供了基于 Arrow 的进程间通信来提高效率，那么对于用户在 Python 层的 UDF，是不是也能直接使用到这种高效的内存格式呢？答案是肯定的，这就是 PySpark 推出的 Pandas UDF。区别于以往以行为单位的 UDF，Pandas UDF 是以一个 Pandas Series 为单位，batch 的大小可以由 spark.sql.execution.arrow.maxRecordsPerBatch 这个参数来控制。这是一个来自官方文档的示例：</p>
+<p><img src="/images/pyspark_16.png" alt="pyspark"></p>
+<p>上文已经解析过，PySpark 会将 DataFrame 以 Arrow 的方式传递给 Python 进程，Python 中会转换为 Pandas Series，传递给用户的 UDF。在 Pandas UDF 中，可以使用 Pandas 的 API 来完成计算，在易用性和性能上都得到了很大的提升。</p>
+<h3 id="针对上边的总结"><a href="#针对上边的总结" class="headerlink" title="针对上边的总结"></a>针对上边的总结</h3><p>PySpark 为用户提供了 Python 层对 RDD、DataFrame 的操作接口，同时也支持了 UDF，通过 Arrow、Pandas 向量化的执行，对提升大规模数据处理的吞吐是非常重要的，一方面可以让数据以向量的形式进行计算，提升 cache 命中率，降低函数调用的开销，另一方面对于一些 IO 的操作，也可以降低网络延迟对性能的影响。</p>
+<p>然而 PySpark 仍然存在着一些不足，主要有：</p>
+<p>1、进程间通信消耗额外的 CPU 资源；</p>
+<p>2、编程接口仍然需要理解 Spark 的分布式计算原理；</p>
+<p>3、Pandas UDF 对返回值有一定的限制，返回多列数据不太方便；</p>
+<p>Databricks 提出了新的 Koalas 接口来使得用户可以以接近单机版 Pandas 的形式来编写分布式的 Spark 计算作业，对数据科学家会更加友好。而 Vectorized Execution 的推进，有望在 Spark 内部一切数据都是用 Arrow 的格式来存放，对跨语言支持将会更加友好。同时也能看到，在这里仍然有很大的性能、易用性的优化空间。</p>
+<p>以上印自：<a href="https://www.mobvista.com/cn/blog/2019-12-27-2/" target="_blank" rel="noopener">https://www.mobvista.com/cn/blog/2019-12-27-2/</a></p>
+<h2 id="jvm和python的通信"><a href="#jvm和python的通信" class="headerlink" title="jvm和python的通信"></a>jvm和python的通信</h2><p>上边内容有一些空白的地方，就是针对于jvm和python之间的通信，下边就来捋一下：</p>
+<p>在实际运行过程中，JVM并不会直接和Python进行交互，JVM只负责启停Python脚本，而不会向Python发送任何特殊指令。启动脚本同执行外部任意进程的方法是一样的，就是调用Runtime.exec(command)生成python子进程。停止Python进行就是调用Process.destroy()和Process.destroyForcibly()杀死子进程，destroy方法使用SIGTERM信号通知Python进程主动退出，如果Python一段时间不响应，就会使用destroyForcibly方法发送SIGKIL信号强制杀死Python进程。</p>
+<p>Pyspark玄妙的地方在于Python在运行的过程中需要调用Spark的API，这些API的实现在JVM虚拟机里面，也就是说python脚本运行的进程同Spark的API实现不在一个进程里，当我们在Python里面调用SparkAPI的时候，实际的动作执行确是在JVM里面，这是如何做到的？</p>
+<p>答案就是远程过程调用，也就是我们经常听到的<strong>RPC</strong>。</p>
+<p>在Pyspark中，Python作为RPC的客户端，JVM作为RPC的服务端。JVM会开启一个Socket端口提供RPC服务，Python需要调用Spark API时，它会作为客户端将调用指令序列化成字节流发送到Socket服务端口，JVM接受字节流后解包成对应的指令，然后找到目标对象和代码进行执行，然后将执行结果序列化成字节流通过Socket返回给客户端，客户端收到字节流后再解包成Python对象，于是Python客户端就成功拿到了远程调用的结果。</p>
+<p>客户端的这些序列化过程不是很复杂，当然也不会太简单，不管怎样，作为pyspark的使用者来说并不需要关心内部实现的细节，这一切pyspark库已经帮我们封装好了。对于JVM提供的所有RPC API，pyspark都已经包装成了一个python方法，对于使用者来说，他只需要调用相应的Python方法，就好像不存在远程过程调用一样，假装所有的这些过程都发生在python进程内部而没有任何感知。</p>
+<p><img src="/images/pyspark_17.png" alt="pyspark"></p>
+<p>仅仅在程序出现异常而在日志里面打印了复杂的堆栈信息的时候，我们才可以从中发现端倪。</p>
+<p>pyspark的异常信息里面一般包含两部分堆栈信息，前一部分是Python堆栈，后一部分是JVM堆栈信息，原因是当JVM端执行代码出现异常的时候，会将错误信息包括堆栈信息通过RPC返回给客户端，Python客户端在输出错误日志时除了输出自己的堆栈信息之外还会将JVM返回回来的堆栈错误信息一同展现出来，方便开发者定位错误的发生原因。</p>
+<p>Spark的开发者们并没有自己撸一个RPC库，他们使用了开源的Py4j库。Py4j是一个非常有趣的RPC库，我们接下来详细介绍这个库的使用和原理。</p>
+<p>Py4j在JVM进程开辟一个ServerSocket监听客户端的链接，来一个链接开辟一个新线程处理这个链接上的消息，对于共享对象的状态，在JVM端实现API时需要考虑多线程并发问题。</p>
+<p>Py4j在Python客户端会启动一个连接池连接到JVM，所有的远程调用都被封装成了消息指令，随机地从连接中挑选一个连接将消息指令序列化发送到JVM远程执行。</p>
+<p>jvm端的server启动示例如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> py4j.GatewayServer;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Py4jTest</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">fib</span><span class="params">(<span class="keyword">int</span> n)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">if</span> (n &lt; <span class="number">2</span>) &#123;</span><br><span class="line">            <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> fib(n - <span class="number">1</span>) + fib(n - <span class="number">2</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> </span>&#123;</span><br><span class="line">        Py4jTest app = <span class="keyword">new</span> Py4jTest();</span><br><span class="line">        GatewayServer server = <span class="keyword">new</span> GatewayServer(app, <span class="number">8000</span>);</span><br><span class="line">        server.start();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>上面是JVM Server端，GatewayServer需要提供一个entry_point入口点，入口点是服务对外暴露的直接引用，客户端通过这个引用来访问RPC服务。GatewayServer默认端口25333，可以通过参数进行修改。</p>
+<p>python调用的代码如下：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># pip install py4j</span></span><br><span class="line"><span class="keyword">from</span> py4j.java_gateway <span class="keyword">import</span> GatewayClient, JavaGateway</span><br><span class="line"></span><br><span class="line">client = GatewayClient(address=<span class="string">"127.0.0.1"</span>, port=<span class="number">8000</span>)</span><br><span class="line">gw = JavaGateway(client)</span><br><span class="line">app = gw.entry_point</span><br><span class="line"><span class="keyword">print</span> app.fib(<span class="number">10</span>)</span><br></pre></td></tr></table></figure>
+
+<p>我们首先指定远端地址构造一个GatewayClient，再拿到入口点引用，然后就可以直接调用RPC服务了。如果有多个JVM Server，我们就可以指定不同的地址构造多个GatewayClient分别进行调用，GatewayClient已经封装了连接池的逻辑。</p>
+<p>除了使用entry_point属性暴露入口对象引用外，Gateway提供了默认的jvm对象引用，有了这个引用，你就可以远程导入任意的Java类，创建任意Java对象，自由地使用python语法操作Java的数据。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">from</span> py4j.java_gateway <span class="keyword">import</span> JavaGateway</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>gateway = JavaGateway() <span class="comment"># 使用默认地址                   </span></span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>random = gateway.jvm.java.util.Random()   </span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">print</span> random.nextInt(<span class="number">10</span>)</span><br></pre></td></tr></table></figure>
+
+<p>Py4j对JVM中常用的集合对象List、Set、Map做了快捷处理，使得Python常用的集合操作方法可以直接应用于JVM远程对象。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&gt;&gt;&gt; </span>m = gateway.jvm.java.util.HashMap()</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>m[<span class="string">"a"</span>] = <span class="number">0</span></span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>m.put(<span class="string">"b"</span>,<span class="number">1</span>)</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>m</span><br><span class="line">&#123;<span class="string">u'a'</span>: <span class="number">0</span>, <span class="string">u'b'</span>: <span class="number">1</span>&#125;</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="string">u"b"</span> <span class="keyword">in</span> m</span><br><span class="line"><span class="literal">True</span></span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">del</span>(m[<span class="string">"a"</span>])</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>m</span><br><span class="line">&#123;<span class="string">u'b'</span>: <span class="number">1</span>&#125;</span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span>m[<span class="string">"c"</span>] = <span class="number">2</span></span><br><span class="line"><span class="meta">&gt;&gt;&gt; </span><span class="keyword">for</span> key <span class="keyword">in</span> m:</span><br><span class="line"><span class="meta">... </span>    print(<span class="string">"%s:%i"</span> % (key,m[key]))</span><br><span class="line">...</span><br><span class="line">b:<span class="number">1</span></span><br><span class="line">c:<span class="number">2</span></span><br></pre></td></tr></table></figure>
+
+<p>客户端表面上是在对本地一个字典对象进行操作，但是每一个操作背后都涉及到网络IO。Python使用操作符重载实现了这个转换。</p>
+<p>Gateway Server创建的任意对象都会携带由服务端生成的唯一的对象id，服务端会将生成的所有对象装在一个Map结构里。当Python客户端需要操纵远程对象时，会将对象id和操纵指令以及参数一起传递到服务端，服务端根据对象id找到对应的对象，然后使用反射方法执行指令。</p>
+<p><img src="/images/pyspark_18.png" alt="pyspark"></p>
+<p>Py4j除了可以让Python自由操纵Java外，还可以通过Java直接操纵Python代码，实现了Python和JVM之间的双向交互。只不过逆向操作没有正向的自由，因为Java语言不是一个动态的语言，任何方法的调用都必须预先定义。所以对于Python服务的入口类，需要映射到Java端定义的一个相对应的接口类，Java通过接口函数来调用Python代码。</p>
+<p>Py4j考虑了<strong>垃圾回收</strong>问题。通过Py4j客户端在JVM内部生成的对象都会集中统一放到一个<strong>map</strong>中，通过这个map来保持住对象的引用。python客户端这边会使用<strong>weakref</strong>跟踪对象的引用状态，当weakref挂接的对象被回收了说明对象变成了垃圾，Py4j就会向JVM发送一个携带对象的id的回收对象的指令，这样JVM就可以从map中移除掉这个对象，使得对象的引用技术变成零，于是就可以被JVM GC回收掉。</p>
+<p>同样对于逆向调用，JVM会通过<strong>finalize</strong>方法来跟踪对象是否变成了垃圾。当finalize被执行时，说明指向Python对象的引用已经消失了，就会向Python VM发送一个回收对象的指令。于是Python VM也可以避免了内存泄露问题。</p>
+<p>当你开发一个工具软件时，将需要性能和高并发的逻辑放进JVM中，而那些配置型的不需要高性能的部分逻辑使用Python来实现，再将两者使用Py4j连接到一起就可以做到一个既可以满足性能又可以满足易用性的软件来。</p>
+<p>这同使用Golang内嵌Lua脚本语言来开发工具一样，虽然机制上差距极大，却可以达成相似的目标，即同时满足软件的性能和易用性。</p>
+<p>以上引自：<a href="https://juejin.cn/post/6844903560283602958" target="_blank" rel="noopener">https://juejin.cn/post/6844903560283602958</a></p>
+<blockquote>
+<p>这里看到优化到极致的一些想法，都是呈现在底层的细节上，而这些优化手段，往往是可以应用在很多其他相关领域，成为我们自己场景中的优化手段。</p>
+</blockquote>
+<p><img src="/images/pyspark_19.png" alt="pyspark总的架构图"></p>
+<p><img src="/images/pyspark_20.png" alt="pyspark通信图"></p>
+<blockquote>
+<p>pyspark的优化  在 pyflink 中一定有可以引用的地方。后续再研究一下pyflink的实现，看看两者的实现优劣。</p>
+</blockquote>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/pyspark/" rel="tag"># pyspark</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/09/25/%E5%A6%82%E4%BD%95%E6%8E%A7%E5%88%B6%E8%87%AA%E5%B7%B1%E7%9A%84%E4%B8%80%E9%83%A8%E5%88%86%E7%BB%8F%E9%AA%8C%EF%BC%88%E5%B7%A5%E4%BD%9C%EF%BC%89/" rel="next" title="如何控制自己的一部分经验（工作）">
+                <i class="fa fa-chevron-left"></i> 如何控制自己的一部分经验（工作）
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/09/28/spark%E5%8E%9F%E7%90%86-rdd/" rel="prev" title="spark原理--rdd">
+                spark原理--rdd <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#pyspark中jvm和python的交互原理"><span class="nav-number">1.</span> <span class="nav-text">pyspark中jvm和python的交互原理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#PySpark-的多进程架构"><span class="nav-number">1.1.</span> <span class="nav-text">PySpark 的多进程架构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#driver端-python是如何调用java的"><span class="nav-number">1.2.</span> <span class="nav-text">driver端 python是如何调用java的</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Python-Driver-端的-RDD、SQL-接口"><span class="nav-number">1.3.</span> <span class="nav-text">Python Driver 端的 RDD、SQL 接口</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Executor-端进程间通信和序列化"><span class="nav-number">1.4.</span> <span class="nav-text">Executor 端进程间通信和序列化</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Pandas-UDF"><span class="nav-number">1.5.</span> <span class="nav-text">Pandas UDF</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#针对上边的总结"><span class="nav-number">1.6.</span> <span class="nav-text">针对上边的总结</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#jvm和python的通信"><span class="nav-number">2.</span> <span class="nav-text">jvm和python的通信</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

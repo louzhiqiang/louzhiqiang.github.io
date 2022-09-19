@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="flink," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="flink是如何实现EXACTLY_ONCE的？提到flink的EXACTLY_ONCE，这是flink在实时计算上的一块招牌。而这里如果提到flink就不得了解一下checkpoint、state、barrier这三个概念。这三个概念也是flink框架里的关键信息。 CheckPointFlink Checkpoint 是一种容错恢复机制。这种机制保证了实时程序运行时，即使突然遇到异常或者机器问">
+<meta property="og:type" content="article">
+<meta property="og:title" content="flink原理--如何实现EXACTLY_ONCE">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/15/flink%E5%8E%9F%E7%90%86-%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0EXACTLY-ONCE/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="flink是如何实现EXACTLY_ONCE的？提到flink的EXACTLY_ONCE，这是flink在实时计算上的一块招牌。而这里如果提到flink就不得了解一下checkpoint、state、barrier这三个概念。这三个概念也是flink框架里的关键信息。 CheckPointFlink Checkpoint 是一种容错恢复机制。这种机制保证了实时程序运行时，即使突然遇到异常或者机器问">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/0ffb5018462d4ea18b4d4b6b24bf2fa2.png?x-oss-process=image/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBA5a-S5rOJSHE=,size_20,color_FFFFFF,t_70,g_se,x_16">
+<meta property="og:image" content="https://www.ververica.com/hs-fs/hubfs/Imported_Blog_Media/eo-post-graphic-2-1.png?width=600&name=eo-post-graphic-2-1.png">
+<meta property="og:image" content="https://www.ververica.com/hs-fs/hubfs/Imported_Blog_Media/eo-post-graphic-3-1.png?width=600&name=eo-post-graphic-3-1.png">
+<meta property="og:image" content="https://www.ververica.com/hs-fs/hubfs/Imported_Blog_Media/eo-post-graphic-4-1.png?width=600&name=eo-post-graphic-4-1.png">
+<meta property="og:image" content="https://www.ververica.com/hs-fs/hubfs/Imported_Blog_Media/eo-post-graphic-6-1.png?width=600&name=eo-post-graphic-6-1.png">
+<meta property="article:published_time" content="2022-04-15T10:03:50.000Z">
+<meta property="article:modified_time" content="2022-05-12T06:47:32.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="flink">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://img-blog.csdnimg.cn/0ffb5018462d4ea18b4d4b6b24bf2fa2.png?x-oss-process=image/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBA5a-S5rOJSHE=,size_20,color_FFFFFF,t_70,g_se,x_16">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/15/flink原理-如何实现EXACTLY-ONCE/"/>
+
+
+
+
+
+  <title>flink原理--如何实现EXACTLY_ONCE | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/15/flink%E5%8E%9F%E7%90%86-%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0EXACTLY-ONCE/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">flink原理--如何实现EXACTLY_ONCE</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-04-15T18:03:50+08:00">
+                2022-04-15
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="flink是如何实现EXACTLY-ONCE的？"><a href="#flink是如何实现EXACTLY-ONCE的？" class="headerlink" title="flink是如何实现EXACTLY_ONCE的？"></a>flink是如何实现EXACTLY_ONCE的？</h2><p>提到flink的EXACTLY_ONCE，这是flink在实时计算上的一块招牌。而这里如果提到flink就不得了解一下checkpoint、state、barrier这三个概念。这三个概念也是flink框架里的关键信息。</p>
+<h3 id="CheckPoint"><a href="#CheckPoint" class="headerlink" title="CheckPoint"></a>CheckPoint</h3><p>Flink Checkpoint 是一种容错恢复机制。这种机制保证了实时程序运行时，即使突然遇到异常或者机器问题时也能够进行自我恢复。</p>
+<blockquote>
+<p>一个计算系统的容错机制，提供的功能越多，容错机制一般也会越复杂。</p>
+</blockquote>
+<p>Flink 作为一个运行在成百上千台机器上的分布式计算引擎，当初被设计的初衷，就是<strong>人们想办法利用一大票便宜的 PC 机，通过一顿猛如虎的数学操作，来自己构建一个宏观上更强性能、更高计算能力的计算机，去替换掉昂贵的小型机、大型机</strong>。</p>
+<p>正如众多分布式系统的共同点那样，<mark><strong>组件失效 / 机器故障应该被视为常态，而不是意外事件</strong></mark>。成百上千的廉价机器构成的节点相互访问、交换数据，无论从数量还是质量上，都很难保证时刻的正常运转，所以需要一种机制，让它们可以自动从失败状态恢复过来。因此，持续备份，容错，以及自动恢复这些特性，必须集成到这个计算引擎当中。</p>
+<p>实际上，早在 MapReduce 模型被提出的时候，就已经设计了它自己的容错机制，后来随着数据特点的变化（批 / 流），以及理论和技术的不断发展，到了 Flink 时期，它在现有容错机制的基础上进行改进，提出了 checkpoint 机制以及一些针对不同场景的优化版本（取决于你选择 at least once 还是 exactly once 语义）。</p>
+<p><strong>通过在不同时点以快照的形式保存当前的状态，来方便故障时的快速恢复，避免了全量的重新计算带来的巨大成本。</strong></p>
+<p>这也是批处理和流处理差异比较大的一点，实时任务因为会一直运行的特性，如果在从头开始计算，成本会很大，尤其是对于那种运行时间很久的实时任务来说。</p>
+<p>实时任务开启 Checkpoint 功能，也能够减少容错恢复的时间。因为每次都是从最新的 Chekpoint 点位开始状态恢复，而不是从程序启动的状态开始恢复。</p>
+<h3 id="state"><a href="#state" class="headerlink" title="state"></a>state</h3><p>Flink 任务状态可以理解为实时任务计算过程中，中间产生的数据结果，同时这些计算结果会在后续实时任务处理时，能够继续进行使用。实时任务的状态可以是一个聚合结果值，比如 WordCount 统计的每个单词的数量，也可以是消息流中的明细数据。</p>
+<blockquote>
+<p>关于状态更明确的操作，在之前的文章中有专门说过，不过状态本身的概念实际应该更广泛一些地考虑，这样对于流式数据系统的思考会更有扩展性。</p>
+<p>在《数据密集型计算》那本书里，有专门说过，数据库中的数据实际也是一种状态的，数据就是状态，存储本身是属于一种映像。</p>
+<p>现在也有很多公司在专门开发流式系统的数据库，概念不约而同。</p>
+</blockquote>
+<p>state本身的由来也是比较早的，只是flink开了先河，把state集成到框架本身，这样对于开发人员来说就方便了很多，而如果开发人员自己来维护状态的话，成本就不一了，因为随着业务更新模式的复杂性，状态被牵扯的成本是指数级扩张的，尤其是在考虑了高可用的一些异常处理的情况下，复杂性难以衡量。</p>
+<h3 id="Barrier"><a href="#Barrier" class="headerlink" title="Barrier"></a>Barrier</h3><p>flink在checkpoint的时候会触发state的快照存储，为的是方便任务异常重启的时候可以从快照中进行恢复。</p>
+<p>flink进行快照的机制是异步障碍快照（ Asynchronous Barrier Snapshotting）。Barrier是注入进输入流的控制记录，它对应逻辑时间，然后逻辑上区分两个部分：影响到当前快照的一部分流和其他部分。</p>
+<p>一个算子从上游数据接收到 barrier，然后先执行一次 alignment，确保所有输入到 barrier 的数据都被接收到。接下来，算子将它的状态（滑动窗口的内容 / 自定义的数据结构）到持久化存储（可以是一个外部系统，如 HDFS）。状态备份好了之后，算子则继续将 barrier 转发到下游。最终，所有的算子都会注册它们的状态快照，这样，一个全部的快照则完成了。</p>
+<blockquote>
+<p>问题：为什么 要进行 barrier 对齐。思考一下，下边会说。</p>
+</blockquote>
+<p><strong>我们知道，Flink 无法保证数据之间的顺序。那么有没有可能在 barrier 之前的数据，在传输的过程中，由于顺序被打乱，来到了 barrier 之后？例如，<code>1 2 3 barrier a b c</code> 在传输的过程中，会不会变成 <code>1 2 3 a barrier b c</code>？这种情况下，barrier 不就无法正确地确定 checkpoint 的时机了吗？</strong></p>
+<p>上边的问题是一个博主的问题，我也没想到这个点，看来自己对于细节的把握还是不够细致。</p>
+<h3 id="在-FLINK-中，数据数据乱序的原因是什么？"><a href="#在-FLINK-中，数据数据乱序的原因是什么？" class="headerlink" title="在 FLINK 中，数据数据乱序的原因是什么？"></a>在 FLINK 中，数据数据乱序的原因是什么？</h3><h4 id="首先，数据为什么会乱序？"><a href="#首先，数据为什么会乱序？" class="headerlink" title="首先，数据为什么会乱序？"></a>首先，数据为什么会乱序？</h4><p>所谓数据的乱序，是对业务上来说的。在业务开发人员看来，在一个算子中，会出现这样一种现象：用户的上车记录先于用户的下车记录到达。这个结果看起来使人疑惑，但如果了解背景的话就可以很快想到，这是由 <strong>kafka 的多 partition</strong> 以及 <strong>Flink 的多 parallelism</strong> 带来的。</p>
+<blockquote>
+<p>有并发、有分区  就会产生这个点。</p>
+</blockquote>
+<h4 id="其次，如何定义这种乱序。"><a href="#其次，如何定义这种乱序。" class="headerlink" title="其次，如何定义这种乱序。"></a>其次，如何定义这种乱序。</h4><blockquote>
+<p>定义好了这种乱序，也就能够明确一个解决方案。</p>
+</blockquote>
+<p><strong>实际上，在很多情况下，我们并不是想给数据做一个严格的 “排序”——数据顺序不是最终目的，而是达成目的的方式。既然是方式，就不具有唯一性。我们想要保证顺序，是因为顺序隐含了因果（causual）关系，而因果关系才是我们想要的</strong>。因此，为了保证顺序，我们引入了 timestamp 的概念，所以有了所谓的 Flink 的三种时间（发生时间、到达时间、摄入时间），开发人员可以通过这些时间戳，来推理出事件之间的真正因果关系。</p>
+<p>也就是局部有序就解决了很大一部分问题，而如何定义这个局部就跟业务有比较密切的相关性。</p>
+<h3 id="FLINK中-barrier-和-checkpoint-的关系是什么呢？"><a href="#FLINK中-barrier-和-checkpoint-的关系是什么呢？" class="headerlink" title="FLINK中 barrier 和 checkpoint 的关系是什么呢？"></a>FLINK中 barrier 和 checkpoint 的关系是什么呢？</h3><p>在 barrier 场景下，我们<strong>没有必要去花费大力气来得到具有严格顺序的数据</strong>。因为每一个 barrier 的作用，仅仅是把数据流切分为两部分：<strong>barrier 之前、barrier 之后。</strong></p>
+<h4 id="barrier的运行机制"><a href="#barrier的运行机制" class="headerlink" title="barrier的运行机制"></a>barrier的运行机制</h4><p>参考论文 <a href="https://www.semanticscholar.org/paper/State-Management-in-Apache-Flink%C2%AE%3A-Consistent-Carbone-Ewen/6fa0917417d3c213b0e130ae01b7b440b1868dde" target="_blank" rel="noopener">State Management in Apache Flink®: Consistent Stateful Distributed Stream Processing</a></p>
+<p>首先，这个算法有一系列的假设，其中很重要的一条是 <strong>data channel 的 FIFO 特性</strong>：数据是先进先出，不会乱序。但是这个是节点之间的数据传输。</p>
+<p>其次，接受了上边的假设，那么我们知道数据的乱序其实是因为多节点并行运行引起的。那么很简单，我们只需要收集好所有的上游数据就可以了，然后自己做个排序就把乱序解决了。这里不可能是无限收集上游所有的数据再排序，肯定是有限度的，而这个限度就是barrier标识。</p>
+<p>当收到一种类型的 barrier 时，会等待所有上游数据源的 barrier 都到达自己，相当于进行了一个同步的过程，之后才进行持久化存储 state，然后将 barrier 发送给下游。</p>
+<p><img src="https://img-blog.csdnimg.cn/0ffb5018462d4ea18b4d4b6b24bf2fa2.png?x-oss-process=image/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBA5a-S5rOJSHE=,size_20,color_FFFFFF,t_70,g_se,x_16" alt=""></p>
+<p>而alignment机制，就是指下游任务要集齐他的上游任务的所有barrier，才能把当前的数据下放。他在自己的节点会缓存对应的数据。数据到齐之后，就会处于一个完整的state，就可以进行checkpoint。</p>
+<p>由于存在 FIFO 的保证，barrier 之前的数据不会在传输的过程中跑到 barrier 之后去；而由多输入源带来的数据的乱序，因为有 alignment 机制的保证，并不会影响通过 barrier 实现的 checkpoint 的准确性。</p>
+<p>如果要实现EXACTLY_ONCE，那就一定要进行barrier对齐。这是什么原因呢？</p>
+<h4 id="barrier对齐啥意思？"><a href="#barrier对齐啥意思？" class="headerlink" title="barrier对齐啥意思？"></a>barrier对齐啥意思？</h4><p>一旦算子接受到CheckPoint barrier n，它就不能处理理来⾃该流的任何数据记录，直到它从其他所有输入接收到barrier n为止。也就是会<mark>阻塞</mark>某个输入流到当前算子的流动。当前算子在接受数据之后，会放到缓存区，直到barrier n的数据到齐，然后才会把缓冲区里的数据下放出去。</p>
+<blockquote>
+<p>问题：算子在这个时候是如何解决输入流的数据 缓冲区里的数据 以及他实际需要执行的计算任务呢？</p>
+</blockquote>
+<h4 id="barrier不对齐"><a href="#barrier不对齐" class="headerlink" title="barrier不对齐"></a>barrier不对齐</h4><p>barrier不对齐就是指当还有其他流的barrier还没到达时，为了不影响性能，也不⽤理会，直接处理barrier之后的数据。等到所有流的barrier的都到达后，就可以对该Operator做CheckPoint了了。</p>
+<h4 id="为什么要进行barrier对齐？不对齐到底⾏不行？"><a href="#为什么要进行barrier对齐？不对齐到底⾏不行？" class="headerlink" title="为什么要进行barrier对齐？不对齐到底⾏不行？"></a>为什么要进行barrier对齐？不对齐到底⾏不行？</h4><p>Exactly Once时必须barrier对⻬，如果barrier不对⻬就变成了At Least Once。<br>CheckPoint的⽬的就是为了保存快照，如果不对齐，那么在chk-100快照之前，已经处理了⼀些chk-100 对应的offset之后的数据，当程序从chk-100恢复任务时，chk-100对应的offset之后的数据还会被处理一次所以就出现了重复消费。</p>
+<h3 id="EXACTLY-ONCE的实现"><a href="#EXACTLY-ONCE的实现" class="headerlink" title="EXACTLY_ONCE的实现"></a>EXACTLY_ONCE的实现</h3><p>Flink 中 Exactly_Once 和 At_Least_Once 具体是针对 Flink 任务状态而言的，并不是 Flink 程序对消息记录只处理一次。</p>
+<p>当我们说“精确一次语义”时，我们的意思是每个传入的事件精确一次地影响最终结果。即使在机器或软件故障的情况下，也没有重复的数据，也没有未经处理的数据。</p>
+<p>目前可以实现 exactly_once 的源不多：</p>
+<ul>
+<li><p>source 中有 kafkaSource</p>
+</li>
+<li><p>sink 中有 KafkaSink，StreamingFileSink</p>
+</li>
+</ul>
+<p>都要开启 checkPoint，并且要保证 Source 是 Exactly_once 的，这样才能实现 Sink 是 Exactly_Once。</p>
+<p>flink中，checkpoint是flink提供一次性语义的核心。</p>
+<p>在 Flink 1.4.0之前，Exactly_Once的语义被限制在 Flink 应用程序的范围之内，这导致数据的产出如果出现问题，还是可能会导致Exactly_Once退化为at least once的语义。为了生态的完整性，flink也开始涉及了完整的Exactly_Once语义实现，但是这时候就需要外部系统必须提供一种提交或回滚写入的方法，与 flink 的检查点相协调。而这部分只是就回到了计算机基础那部分的思考。</p>
+<p>在这里flink是利用两阶段提交来实现的，而sink的时候，只需要实现TwoPhaseCommitSinkFunction接口，就可以完成这个交互。</p>
+<p>为了让数据接收器提供精确的一次性保证，它必须将事务范围内的所有数据写入外部数据源。一个提交包括了两个检查点之间所有的写操作。这确保在出现故障时可以回滚写操作。</p>
+<p>然而，在具有多个并发运行的sink任务的分布式系统中，简单的提交或回滚是不够的，因为所有组件必须在提交或回滚上“一致”，以确保一致的结果。Flink使用两阶段提交协议及其预提交阶段来解决这个问题。</p>
+<p><img src="https://www.ververica.com/hs-fs/hubfs/Imported_Blog_Media/eo-post-graphic-2-1.png?width=600&name=eo-post-graphic-2-1.png" alt="A sample Flink application starts the pre-commit phase"></p>
+<p>检查点的开始表示两阶段提交协议的“预提交”阶段。当检查点启动时，Flink JobManager会向数据流中注入一个barrier(它将数据流中的记录分离到当前检查点的集合中，而不是下一个检查点的集合中)。</p>
+<p><img src="https://www.ververica.com/hs-fs/hubfs/Imported_Blog_Media/eo-post-graphic-3-1.png?width=600&name=eo-post-graphic-3-1.png" alt="Sample Flink application carries out pre-commit without external state"></p>
+<p>barrier从一个算子到另一个算子，经过每一个算子的时候，barrier都会触发对应的state backend 进行以此快照备份操作。</p>
+<p>源头算子，也就是source operator，state中一般会存储比如kafka的offset之类的。</p>
+<p>以上的处理过程，在只有内部state相关处理的情况下，也就是没有外部交互的情况下，整个处理过程flink都可以处理的很好。但是如果有外部系统的话，这个外部系统必须为与两阶段提交协议集成的事务提供支持。Flink 负责在检查点成功的情况下正确提交这些写入，或者在失败的情况下中止它们。</p>
+<p>data sink的端基本就是外部系统，在预提交阶段，data sink算子除了写入快照之外，还要对这个外部系统进行预提交。</p>
+<p><img src="https://www.ververica.com/hs-fs/hubfs/Imported_Blog_Media/eo-post-graphic-4-1.png?width=600&name=eo-post-graphic-4-1.png" alt="Apache Flink sample application completes pre-commit with external state"></p>
+<p>当 barrier 通过所有算子并且触发的快照回调成功完成时，预提交阶段结束。所有触发的状态快照都被视为该次checkpoint的一部分。检查点是整个应用程序状态的快照，包括预先提交的外部状态。如果发生故障，我们可以回滚到上次成功完成快照的时间点。</p>
+<p>下一步是通知所有算子checkpoint已成功。这是两阶段提交协议的提交阶段，JobManager 为应用程序中的每个operator发出checkpoint完成的回调。</p>
+<p>数据源和窗口算子没有外部状态，因此在提交阶段，这些算子不必采取任何行动。但是，数据接收器确实具有外部状态，此时应该提交外部事务：</p>
+<p><img src="https://www.ververica.com/hs-fs/hubfs/Imported_Blog_Media/eo-post-graphic-6-1.png?width=600&name=eo-post-graphic-6-1.png" alt="Apache Flink application commits external transaction for exactly-once guarantees"></p>
+<p>整个过程看起来是这样的：</p>
+<ul>
+<li><p>一旦所有的算子完成了预提交，也就是完成了快照，它们就发出一个提交。</p>
+</li>
+<li><p>如果有一个预提交失败，则所有其他提交都将中止，并且我们将回滚到前一个成功完成的检查点。</p>
+</li>
+<li><p>在成功的预提交之后，必须保证提交最终成功——算子和外部系统都需要这种保证。如果提交失败(例如，由于间歇性网络问题) ，整个 Flink 应用程序将失败，应用程序将根据用户的重新启动策略重新启动，并且还有另一次提交尝试。这个过程非常关键，因为如果提交最终不成功，就会发生数据丢失。</p>
+</li>
+</ul>
+<p>因此，我们可以确定，所有算子都同意检查点的最终结果: 所有算子都同意数据已提交，或者提交已中止并回滚。这是一个基本前提。</p>
+<p>整个过程其实还是有些复杂的，这里如果把网络、超时、节点丢失、甚至节点叛徒这些问题思考进来，都是无限复杂的。所以，Flink 提取二阶段提交的公共逻辑到抽象的 TwoPhaseCommitSinkFunction 类中。</p>
+<p>现在看一下如何在一个基于文件的简单示例上扩展“ TwoPhaseCommitSinkFunction”。我们只需要实现四个函数，并为一个一次性的文件接收器提供它们的实现:</p>
+<ul>
+<li><p>beginTransaction ——为了开始事务，我们在目标文件系统上的临时目录中创建一个临时文件。随后，我们可以在处理该文件时将数据写入该文件。</p>
+</li>
+<li><p>preCommit —— 在预提交时，我们刷新文件，关闭它，然后再也不写入它。我们还将为属于下一个检查点的任何后续写操作启动一个新事务。</p>
+</li>
+<li><p>commit —— 在提交阶段，我们原子地将预提交的文件移动到实际的目标目录。请注意，这会增加输出数据可见性的延迟。</p>
+</li>
+<li><p>abort —— 取消，我们删除临时文件。</p>
+</li>
+</ul>
+<p>如我们所知，如果出现任何故障，Flink 会将应用程序的状态恢复到最近成功的检查点。一种可能的情况是，在成功的预提交之后，但在通知(提交)到达算子之前发生故障，这种情况很少见。在这种情况下，Flink 将我们的操作符恢复到已经提交但尚未提交的状态。<br>我们必须在检查点状态下保存足够的关于预提交事务的信息，以便在重新启动后能够中止或提交事务。在我们的示例中，这将是临时文件和目标目录的路径。</p>
+<p>TwoPhaseCommitSinkFunction 考虑了这种情况，并且在从检查点恢复状态时总是发出一个抢先提交。我们有责任用幂等的方式实现一个提交。一般来说，这不应该是个问题。在我们的示例中，我们可以识别这样一种情况: 临时文件不在临时目录中，但已经被移动到目标目录中。  还有一些其他的边缘情况，‘ TwoPhaseCommitSinkFunction’也考虑在内。</p>
+<h3 id="总结："><a href="#总结：" class="headerlink" title="总结："></a>总结：</h3><ul>
+<li><p>Flink 的检查点系统作为 flink 的基础，用于支持二阶段提交语义和提供一次性的端到端语义。</p>
+</li>
+<li><p>这种方法的一个优点是，flink 不像其他系统那样在传输过程中物化数据，比如落盘 —- 不需要像大多数批处理那样将计算的每个阶段都写到磁盘上。</p>
+</li>
+<li><p>flink 的 TwoPhaseCommitSinkFunction 提取了二阶段提交的通用逻辑，使得使用 Flink 和支持事务的外部系统构建端到端的一次性应用成为可能。</p>
+</li>
+<li><p>从 Flink 1.4.0开始，Pravega 和 Kafka 0.11的制作人提供了一次性的语义，Kafka 第一次在 Kafka 引入了事务，这使得 Kafka EXACTLY_ONCE 的生产者 在 Flink 生态中 成为可能。</p>
+</li>
+<li><p>Kafka 0.11生产者是在“TwoPhaseCommitSinkFunction”的基础上实现的，与 at-least-once 的 Kafka 生产者相比，它提供的开销非常低。</p>
+</li>
+</ul>
+<blockquote>
+<p>这里的细节要多捋几次，会更加清晰。</p>
+</blockquote>
+<p>补充记录：</p>
+<p>checkpoint失败的常见原因：</p>
+<ol>
+<li>用户代码逻辑没有对于异常处理，让其直接在运行中抛出。比如解析 Json 异常，没有捕获，导致 Checkpoint 失败，或者调用 Dubbo 超时异常等等。</li>
+<li>依赖外部存储系统，在进行数据交互时，出错，异常没有处理。比如输出数据到 Kafka、Redis、HBase 等，客户端抛出了超时异常，没有进行捕获，Flink 任务容错机制会再次重启。</li>
+<li>内存不足，频繁 GC，超出了 GC 负载的限制。比如 OOM 异常</li>
+<li>网络问题、机器不可用问题等等。</li>
+</ol>
+<p>Flink Checkpoint 异常觉大多数还是用户代码逻辑的问题，对于程序异常没有正确的处理导致。所以在编写 Flink 实时任务时，一定要注意处理程序可能出现的各种异常。这样，也会让实时任务的逻辑更加的健壮。</p>
+<p>参考：</p>
+<p><a href="http://asterios.katsifodimos.com/assets/publications/flink-deb.pdf" target="_blank" rel="noopener">http://asterios.katsifodimos.com/assets/publications/flink-deb.pdf</a></p>
+<p><a href="https://www.semanticscholar.org/paper/State-Management-in-Apache-Flink%C2%AE%3A-Consistent-Carbone-Ewen/6fa0917417d3c213b0e130ae01b7b440b1868dde" target="_blank" rel="noopener">https://www.semanticscholar.org/paper/State-Management-in-Apache-Flink%C2%AE%3A-Consistent-Carbone-Ewen/6fa0917417d3c213b0e130ae01b7b440b1868dde</a></p>
+<p><a href="https://blog.csdn.net/sinat_42483341/article/details/122385711" target="_blank" rel="noopener">Flink Checkpoint 机制：如何保证 barrier 和数据之间不乱序？_寒泉Hq的博客-CSDN博客</a></p>
+<p><a href="https://blog.csdn.net/u010271601/article/details/104933021" target="_blank" rel="noopener">Flink的是如何实现exactly_once的？（CheckPoint详解）_IT但丁的博客-CSDN博客</a></p>
+<p><a href="https://www.ververica.com/blog/end-to-end-exactly-once-processing-apache-flink-apache-kafka" target="_blank" rel="noopener">An Overview of End-to-End Exactly-Once Processing in Apache Flink® (with Apache Kafka, too!)</a></p>
+<p><a href="https://blog.csdn.net/hellojoy/article/details/103363640" target="_blank" rel="noopener">https://blog.csdn.net/hellojoy/article/details/103363640</a></p>
+<h3 id=""><a href="#" class="headerlink" title=""></a></h3>
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/flink/" rel="tag"># flink</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/04/15/decimal%EF%BC%8Cfloat%E5%92%8Cdouble%E7%9A%84%E5%8C%BA%E5%88%AB%E6%98%AF%E4%BB%80%E4%B9%88%EF%BC%9F/" rel="next" title="decimal，float和double的区别是什么？">
+                <i class="fa fa-chevron-left"></i> decimal，float和double的区别是什么？
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/04/18/hudi%E6%8E%A2%E7%B4%A2-compact%E5%8E%9F%E7%90%86/" rel="prev" title="hudi探索--compact原理">
+                hudi探索--compact原理 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#flink是如何实现EXACTLY-ONCE的？"><span class="nav-number">1.</span> <span class="nav-text">flink是如何实现EXACTLY_ONCE的？</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#CheckPoint"><span class="nav-number">1.1.</span> <span class="nav-text">CheckPoint</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#state"><span class="nav-number">1.2.</span> <span class="nav-text">state</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Barrier"><span class="nav-number">1.3.</span> <span class="nav-text">Barrier</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#在-FLINK-中，数据数据乱序的原因是什么？"><span class="nav-number">1.4.</span> <span class="nav-text">在 FLINK 中，数据数据乱序的原因是什么？</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#首先，数据为什么会乱序？"><span class="nav-number">1.4.1.</span> <span class="nav-text">首先，数据为什么会乱序？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#其次，如何定义这种乱序。"><span class="nav-number">1.4.2.</span> <span class="nav-text">其次，如何定义这种乱序。</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#FLINK中-barrier-和-checkpoint-的关系是什么呢？"><span class="nav-number">1.5.</span> <span class="nav-text">FLINK中 barrier 和 checkpoint 的关系是什么呢？</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#barrier的运行机制"><span class="nav-number">1.5.1.</span> <span class="nav-text">barrier的运行机制</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#barrier对齐啥意思？"><span class="nav-number">1.5.2.</span> <span class="nav-text">barrier对齐啥意思？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#barrier不对齐"><span class="nav-number">1.5.3.</span> <span class="nav-text">barrier不对齐</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#为什么要进行barrier对齐？不对齐到底⾏不行？"><span class="nav-number">1.5.4.</span> <span class="nav-text">为什么要进行barrier对齐？不对齐到底⾏不行？</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#EXACTLY-ONCE的实现"><span class="nav-number">1.6.</span> <span class="nav-text">EXACTLY_ONCE的实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#总结："><span class="nav-number">1.7.</span> <span class="nav-text">总结：</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#"><span class="nav-number">1.8.</span> <span class="nav-text"></span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

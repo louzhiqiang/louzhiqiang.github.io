@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="hudi," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="hudi探索–clean原理hudi是提供了多版本的，不管是任何表类型，都支持多版本。那么如果你的业务不是要求所有历史版本都存在的话，那么就有必要进行清理，否则历史版本的存储就是极大的浪费。 而这项清理历史版本的服务就是cleaner服务。 难点在数据湖架构中，读取端和写入端同时访问同一张表是非常常见的场景。由于 Hudi 清理服务会定期回收较旧的文件版本，因此可能会出现长时间运行的查询访问到被清">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hudi探索--clean原理">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/18/hudi%E6%8E%A2%E7%B4%A2-clean%E5%8E%9F%E7%90%86/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="hudi探索–clean原理hudi是提供了多版本的，不管是任何表类型，都支持多版本。那么如果你的业务不是要求所有历史版本都存在的话，那么就有必要进行清理，否则历史版本的存储就是极大的浪费。 而这项清理历史版本的服务就是cleaner服务。 难点在数据湖架构中，读取端和写入端同时访问同一张表是非常常见的场景。由于 Hudi 清理服务会定期回收较旧的文件版本，因此可能会出现长时间运行的查询访问到被清">
+<meta property="article:published_time" content="2022-04-18T02:51:09.000Z">
+<meta property="article:modified_time" content="2022-04-21T10:49:08.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="hudi">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/18/hudi探索-clean原理/"/>
+
+
+
+
+
+  <title>hudi探索--clean原理 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/18/hudi%E6%8E%A2%E7%B4%A2-clean%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">hudi探索--clean原理</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-04-18T10:51:09+08:00">
+                2022-04-18
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="hudi探索–clean原理"><a href="#hudi探索–clean原理" class="headerlink" title="hudi探索–clean原理"></a>hudi探索–clean原理</h2><p>hudi是提供了多版本的，不管是任何表类型，都支持多版本。那么如果你的业务不是要求所有历史版本都存在的话，那么就有必要进行清理，否则历史版本的存储就是极大的浪费。</p>
+<p>而这项清理历史版本的服务就是cleaner服务。</p>
+<h3 id="难点"><a href="#难点" class="headerlink" title="难点"></a>难点</h3><p>在数据湖架构中，读取端和写入端同时访问同一张表是非常常见的场景。由于 Hudi 清理服务会定期回收较旧的文件版本，因此可能会出现长时间运行的查询访问到被清理服务回收的文件版本的情况，因此需要使用正确的配置来确保查询不会失败。</p>
+<p>这里最大的问题就是如何确认查询会覆盖哪个版本。</p>
+<h3 id="clean服务"><a href="#clean服务" class="headerlink" title="clean服务"></a>clean服务</h3><p>基本概念：</p>
+<ul>
+<li><p><strong>Hudi 基础文件（HoodieBaseFile）</strong>：由压缩后的最终数据组成的列式文件，基本文件的名称遵循以下命名约定：<code>&lt;fileId&gt;_&lt;writeToken&gt;_&lt;instantTime&gt;.parquet</code>。在此文件的后续写入中文件 ID 保持不变，并且提交时间会更新以显示最新版本。这也意味着记录的任何特定版本，给定其分区路径，都可以使用<mark>文件 ID 和 instantTime</mark> 进行唯一定位。</p>
+</li>
+<li><p><strong>文件切片 (FileSlice)</strong>：在 MERGE_ON_READ 表类型的情况下，文件切片由基本文件和由多个增量日志文件组成。每个切片都是一个基础文件+当前基础文件的增量文件。</p>
+</li>
+<li><p><strong>Hudi 文件组 (FileGroup)</strong>：Hudi 中的任何文件组都由分区路径和文件 ID 唯一标识，该组中的文件作为其名称的一部分。文件组由特定分区路径中的所有文件片组成。此外任何分区路径都可以有多个文件组。</p>
+</li>
+</ul>
+<p>Hudi 提供了异步或同步清理两种方式，这个在每个引擎都可以进行配置。至于是使用异步还是同步需要明确clean服务的成本和影响，这样比较容易区分不同场景下应该如何使用。</p>
+<h3 id="clean策略"><a href="#clean策略" class="headerlink" title="clean策略"></a>clean策略</h3><ul>
+<li><p><strong>KEEP_LATEST_COMMITS</strong>：这是默认策略。该清理策略可确保回溯前 X 次提交中发生的所有更改。假设每 30 分钟将数据摄取到 Hudi 数据集，并且最长的运行查询可能需要 5 小时才能完成，那么用户应该至少保留最后 10 次提交。通过这样的配置，我们确保文件的最旧版本在磁盘上保留至少 5 小时，从而防止运行时间最长的查询在任何时间点失败，使用此策略也可以进行增量清理。</p>
+</li>
+<li><p><strong>KEEP_LATEST_FILE_VERSIONS</strong>：此策略具有保持 N 个文件版本而不受时间限制的效果。当知道在任何给定时间想要保留多少个 MAX 版本的文件时，此策略很有用，为了实现与以前相同的防止长时间运行的查询失败的行为，应该根据数据模式进行计算，或者如果用户只想维护文件的 1 个最新版本，此策略也很有用。</p>
+</li>
+</ul>
+<h3 id="源码分析"><a href="#源码分析" class="headerlink" title="源码分析"></a>源码分析</h3><p>在HudiTableSink里，有这么定义：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// compaction</span></span><br><span class="line"> <span class="keyword">if</span> (StreamerUtil.needsAsyncCompaction(conf)) &#123;</span><br><span class="line">   <span class="keyword">return</span> Pipelines.compact(conf, pipeline);</span><br><span class="line"> &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">   <span class="keyword">return</span> Pipelines.clean(conf, pipeline);</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
+
+<p>needsAsyncCompaction的逻辑是 需要mor表类型 且 配置 compaction.schedule.enabled 为真，这个配置的默认值是 true ，但是出于流上的性能考虑，需要把这个值设置为 false，然后用异步的方式进行compact。所以这个时候就要走 else中的逻辑。</p>
+<p>else中的逻辑，最终会调用 CleanFunction，我们来看一下这个类的主要逻辑。</p>
+<p>CleanFunction 注释：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Sink function that cleans the old commits.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * &lt;p&gt;It starts a cleaning task on new checkpoints, there is only one cleaning task</span></span><br><span class="line"><span class="comment"> * at a time, a new task can not be scheduled until the last task finished(fails or normally succeed).</span></span><br><span class="line"><span class="comment"> * The cleaning task never expects to throw but only log.</span></span><br><span class="line"><span class="comment"> */</span></span><br></pre></td></tr></table></figure>
+
+<p>clean任务是一次只能运行一个，而且不会有重叠。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">open</span><span class="params">(Configuration parameters)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    <span class="keyword">super</span>.open(parameters);</span><br><span class="line">    <span class="keyword">if</span> (conf.getBoolean(FlinkOptions.CLEAN_ASYNC_ENABLED)) &#123;</span><br><span class="line">      <span class="comment">// do not use the remote filesystem view because the async cleaning service</span></span><br><span class="line">      <span class="comment">// local timeline is very probably to fall behind with the remote one.</span></span><br><span class="line">      <span class="keyword">this</span>.writeClient = StreamerUtil.createWriteClient(conf, getRuntimeContext());</span><br><span class="line">      <span class="keyword">this</span>.executor = NonThrownExecutor.builder(LOG).build();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>读取了配置 clean.async.enabled  默认是true  注释：Whether to cleanup the old commits immediately on new commits, enabled by default。</p>
+</blockquote>
+<p>这是open方法，初始化的过程。这个 NonThrownExecutor 是指不抛异常的一个工具类。所有的异常都在日志里，这样clean的运行不会影响任务运行。</p>
+<p>按照顺序他第二个运行的方法是：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">snapshotState</span><span class="params">(FunctionSnapshotContext context)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (conf.getBoolean(FlinkOptions.CLEAN_ASYNC_ENABLED) &amp;&amp; !isCleaning) &#123;</span><br><span class="line">      <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">this</span>.writeClient.startAsyncCleaning();</span><br><span class="line">        <span class="keyword">this</span>.isCleaning = <span class="keyword">true</span>;</span><br><span class="line">      &#125; <span class="keyword">catch</span> (Throwable throwable) &#123;</span><br><span class="line">        <span class="comment">// catch the exception to not affect the normal checkpointing</span></span><br><span class="line">        LOG.warn(<span class="string">"Error while start async cleaning"</span>, throwable);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个是在checkpoint的时候会触发的。里边有个判断就是开启异步 而且 没有正在运行的clean进程。</p>
+<p>然后第三个方法就是：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">notifyCheckpointComplete</span><span class="params">(<span class="keyword">long</span> l)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (conf.getBoolean(FlinkOptions.CLEAN_ASYNC_ENABLED) &amp;&amp; isCleaning) &#123;</span><br><span class="line">      executor.execute(() -&gt; &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">          <span class="keyword">this</span>.writeClient.waitForCleaningFinish();</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">          <span class="comment">// ensure to switch the isCleaning flag</span></span><br><span class="line">          <span class="keyword">this</span>.isCleaning = <span class="keyword">false</span>;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;, <span class="string">"wait for cleaning finish"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里是所有checkpoint完成的时候，通知算子进行的通知回调，一般会用来处理二阶段中的提交。然而这里是为了转换这个 isCleaning 的开关。</p>
+<p>好了，主题流程是这三个，然后我们看一下clean的具体实现。</p>
+<p>AsyncCleanerService 是 异步clean服务的主要类。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> AsyncCleanerService <span class="title">startAsyncCleaningIfEnabled</span><span class="params">(AbstractHoodieWriteClient writeClient)</span> </span>&#123;</span><br><span class="line">    AsyncCleanerService asyncCleanerService = <span class="keyword">null</span>;</span><br><span class="line">    <span class="keyword">if</span> (writeClient.getConfig().isAutoClean() &amp;&amp; writeClient.getConfig().isAsyncClean()) &#123;</span><br><span class="line">      String instantTime = HoodieActiveTimeline.createNewInstantTime();</span><br><span class="line">      LOG.info(<span class="string">"Auto cleaning is enabled. Running cleaner async to write operation at instant time "</span> + instantTime);</span><br><span class="line">      asyncCleanerService = <span class="keyword">new</span> AsyncCleanerService(writeClient, instantTime);</span><br><span class="line">      asyncCleanerService.start(<span class="keyword">null</span>);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      LOG.info(<span class="string">"Async auto cleaning is not enabled. Not running cleaner now"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> asyncCleanerService;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>上边if中用到了如下的配置：</p>
+<ul>
+<li><p>hoodie.clean.automatic  默认值 true  注释：When enabled, the cleaner table service is invoked immediately after each commit, to delete older file slices.It’s recommended to enable this, to ensure metadata and data storage growth is bounded.</p>
+</li>
+<li><p>hoodie.clean.async 默认值 false 注释：Only applies when hoodie.clean.automatic 配置是 true的时候，When turned on runs cleaner async with writing, which can speed up overall write performance.</p>
+</li>
+</ul>
+<p>以上两个配置都是true的情况下，才会开始运行一个clean。</p>
+<blockquote>
+<p>目前看  如果compact是异步运行的，那么以上涉及的三个配置都开启了，才会运行一个clean。否则clean是不会运行的。所以要关注一下默认的配置。</p>
+</blockquote>
+<p>clean服务运行启动，就是在start方法里。</p>
+<p>看完这个start方法，感觉hudi的这段代码写的很好，所以特意拿来记录学习一下哈，哈哈哈。</p>
+<p>start()方法主要是在 类 HoodieAsyncService 中，他的注释如下：</p>
+<p>Base Class for running clean/delta-sync/compaction/clustering in separate thread and controlling their life-cycle.</p>
+<p>他的属性信息如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Flag to track if the service is started.</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">boolean</span> started;</span><br><span class="line">  <span class="comment">// Flag indicating shutdown is externally requested</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">boolean</span> shutdownRequested;</span><br><span class="line">  <span class="comment">// Flag indicating the service is shutdown</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">volatile</span> <span class="keyword">boolean</span> shutdown;</span><br><span class="line">  <span class="comment">// Executor Service for running delta-sync/compaction</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">transient</span> ExecutorService executor;</span><br><span class="line">  <span class="comment">// Future tracking delta-sync/compaction</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">transient</span> CompletableFuture future;</span><br><span class="line">  <span class="comment">// Run in daemon mode</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">boolean</span> runInDaemonMode;</span><br><span class="line">  <span class="comment">// Queue to hold pending compaction/clustering instants</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">transient</span> BlockingQueue&lt;HoodieInstant&gt; pendingInstants = <span class="keyword">new</span> LinkedBlockingQueue&lt;&gt;();</span><br><span class="line">  <span class="comment">// Mutex lock for synchronized access to pendingInstants queue</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">transient</span> ReentrantLock queueLock = <span class="keyword">new</span> ReentrantLock();</span><br><span class="line">  <span class="comment">// Condition instance to use with the queueLock</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">transient</span> Condition consumed = queueLock.newCondition();</span><br></pre></td></tr></table></figure>
+
+<p>runInDaemonMode 如果不指定默认就是false。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Start the service. Runs the service in a different thread and returns. Also starts a monitor thread to</span></span><br><span class="line"><span class="comment">   * run-callbacks in case of shutdown</span></span><br><span class="line"><span class="comment">   * </span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> onShutdownCallback</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">start</span><span class="params">(Function&lt;Boolean, Boolean&gt; onShutdownCallback)</span> </span>&#123;</span><br><span class="line">    Pair&lt;CompletableFuture, ExecutorService&gt; res = startService();</span><br><span class="line">    future = res.getKey();</span><br><span class="line">    executor = res.getValue();</span><br><span class="line">    started = <span class="keyword">true</span>;</span><br><span class="line">    monitorThreads(onShutdownCallback);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这段start方法，就是开启一个服务。</p>
+<p>startService 是针对不同的服务有自己的实现逻辑。clean的逻辑如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">protected</span> Pair&lt;CompletableFuture, ExecutorService&gt; <span class="title">startService</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> Pair.of(CompletableFuture.supplyAsync(() -&gt; &#123;</span><br><span class="line">      writeClient.clean(cleanInstantTime);</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">    &#125;), executor);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>在这个代码里，用到了异步大拿  CompletableFuture，executor 声明如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">transient</span> ExecutorService executor = Executors.newSingleThreadExecutor();</span><br></pre></td></tr></table></figure>
+
+<p>在 startService 用户实现了自己的逻辑，在这里是clean。</p>
+<p>而monitor的代码是在 HoodieAsyncService 中。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">   * A monitor thread is started which would trigger a callback if the service is shutdown.</span></span><br><span class="line"><span class="comment">   * </span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> onShutdownCallback</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">monitorThreads</span><span class="params">(Function&lt;Boolean, Boolean&gt; onShutdownCallback)</span> </span>&#123;</span><br><span class="line">    LOG.info(<span class="string">"Submitting monitor thread !!"</span>);</span><br><span class="line">    Executors.newSingleThreadExecutor(r -&gt; &#123;</span><br><span class="line">      Thread t = <span class="keyword">new</span> Thread(r, <span class="string">"Monitor Thread"</span>);</span><br><span class="line">      t.setDaemon(isRunInDaemonMode());</span><br><span class="line">      <span class="keyword">return</span> t;</span><br><span class="line">    &#125;).submit(() -&gt; &#123;</span><br><span class="line">      <span class="keyword">boolean</span> error = <span class="keyword">false</span>;</span><br><span class="line">      <span class="keyword">try</span> &#123;</span><br><span class="line">        LOG.info(<span class="string">"Monitoring thread(s) !!"</span>);</span><br><span class="line">        future.get();</span><br><span class="line">      &#125; <span class="keyword">catch</span> (ExecutionException ex) &#123;</span><br><span class="line">        LOG.error(<span class="string">"Monitor noticed one or more threads failed. Requesting graceful shutdown of other threads"</span>, ex);</span><br><span class="line">        error = <span class="keyword">true</span>;</span><br><span class="line">      &#125; <span class="keyword">catch</span> (InterruptedException ie) &#123;</span><br><span class="line">        LOG.error(<span class="string">"Got interrupted Monitoring threads"</span>, ie);</span><br><span class="line">        error = <span class="keyword">true</span>;</span><br><span class="line">      &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        <span class="comment">// Mark as shutdown</span></span><br><span class="line">        shutdown = <span class="keyword">true</span>;</span><br><span class="line">        <span class="keyword">if</span> (<span class="keyword">null</span> != onShutdownCallback) &#123;</span><br><span class="line">          onShutdownCallback.apply(error);</span><br><span class="line">        &#125;</span><br><span class="line">        shutdown(<span class="keyword">false</span>);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+
+
+<p>也就是会单独启动一个监控线程，这里可以看一下如何处理对应的异常以及如何进行冒泡，避免错误被淹没。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Request shutdown either forcefully or gracefully. Graceful shutdown allows the service to finish up the current</span></span><br><span class="line"><span class="comment">   * round of work and shutdown. For graceful shutdown, it waits till the service is shutdown</span></span><br><span class="line"><span class="comment">   * </span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> force Forcefully shutdown</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">shutdown</span><span class="params">(<span class="keyword">boolean</span> force)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (!shutdownRequested || force) &#123;</span><br><span class="line">      shutdownRequested = <span class="keyword">true</span>;</span><br><span class="line">      <span class="keyword">if</span> (executor != <span class="keyword">null</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (force) &#123;</span><br><span class="line">          executor.shutdownNow();</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">          executor.shutdown();</span><br><span class="line">          <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">// Wait for some max time after requesting shutdown</span></span><br><span class="line">            executor.awaitTermination(<span class="number">24</span>, TimeUnit.HOURS);</span><br><span class="line">          &#125; <span class="keyword">catch</span> (InterruptedException ie) &#123;</span><br><span class="line">            LOG.error(<span class="string">"Interrupted while waiting for shutdown"</span>, ie);</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这段代码对于处理线程终止还是比较模板的，里边的很多逻辑我们都可以扩展。可见java本身的并发框架提供的逻辑是很完整的。</p>
+<hr>
+<p>clean的代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Clean up any stale/old files/data lying around (either on file storage or index storage) based on the</span></span><br><span class="line"><span class="comment">   * configurations and CleaningPolicy used. (typically files that no longer can be used by a running query can be</span></span><br><span class="line"><span class="comment">   * cleaned). This API provides the flexibility to schedule clean instant asynchronously via</span></span><br><span class="line"><span class="comment">   * &#123;<span class="doctag">@link</span> AbstractHoodieWriteClient#scheduleTableService(String, Option, TableServiceType)&#125; and disable inline scheduling</span></span><br><span class="line"><span class="comment">   * of clean.</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> cleanInstantTime instant time for clean.</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> scheduleInline true if needs to be scheduled inline. false otherwise.</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> skipLocking if this is triggered by another parent transaction, locking can be skipped.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> HoodieCleanMetadata <span class="title">clean</span><span class="params">(String cleanInstantTime, <span class="keyword">boolean</span> scheduleInline, <span class="keyword">boolean</span> skipLocking)</span> <span class="keyword">throws</span> HoodieIOException </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (scheduleInline) &#123;</span><br><span class="line">      scheduleTableServiceInternal(cleanInstantTime, Option.empty(), TableServiceType.CLEAN);</span><br><span class="line">    &#125;</span><br><span class="line">    LOG.info(<span class="string">"Cleaner started"</span>);</span><br><span class="line">    <span class="keyword">final</span> Timer.Context timerContext = metrics.getCleanCtx();</span><br><span class="line">    LOG.info(<span class="string">"Cleaned failed attempts if any"</span>);</span><br><span class="line">    CleanerUtils.rollbackFailedWrites(config.getFailedWritesCleanPolicy(),</span><br><span class="line">        HoodieTimeline.CLEAN_ACTION, () -&gt; rollbackFailedWrites(skipLocking));</span><br><span class="line">    HoodieCleanMetadata metadata = createTable(config, hadoopConf).clean(context, cleanInstantTime, skipLocking);</span><br><span class="line">    <span class="keyword">if</span> (timerContext != <span class="keyword">null</span> &amp;&amp; metadata != <span class="keyword">null</span>) &#123;</span><br><span class="line">      <span class="keyword">long</span> durationMs = metrics.getDurationInMs(timerContext.stop());</span><br><span class="line">      metrics.updateCleanMetrics(durationMs, metadata.getTotalFilesDeleted());</span><br><span class="line">      LOG.info(<span class="string">"Cleaned "</span> + metadata.getTotalFilesDeleted() + <span class="string">" files"</span></span><br><span class="line">          + <span class="string">" Earliest Retained Instant :"</span> + metadata.getEarliestCommitToRetain()</span><br><span class="line">          + <span class="string">" cleanerElapsedMs"</span> + durationMs);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> metadata;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>代码逻辑是在 AbstractHoodieWriteClient里，在这里实际经过最上边的异步任务，调用的是：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Clean up any stale/old files/data lying around (either on file storage or index storage) based on the</span></span><br><span class="line"><span class="comment">   * configurations and CleaningPolicy used. (typically files that no longer can be used by a running query can be</span></span><br><span class="line"><span class="comment">   * cleaned)</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> HoodieCleanMetadata <span class="title">clean</span><span class="params">(String cleanInstantTime)</span> <span class="keyword">throws</span> HoodieIOException </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> clean(cleanInstantTime, <span class="keyword">true</span>, <span class="keyword">false</span>);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>然后才是上边的子方法。</p>
+<p>上边 scheduleInline 就是true，他的含义是 符合当前hudi的时间线的规则的一个执行逻辑。其实就是按照instantTime生成了一个cleanPlan。这个调度逻辑的生成只是在FlinkCopyOnWriteTable里有对应的逻辑。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> context HoodieEngineContext</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> instantTime Instant Time for scheduling cleaning</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> extraMetadata additional metadata to write into plan</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@return</span></span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> Option&lt;HoodieCleanerPlan&gt; <span class="title">scheduleCleaning</span><span class="params">(HoodieEngineContext context, String instantTime, Option&lt;Map&lt;String, String&gt;&gt; extraMetadata)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> CleanPlanActionExecutor(context, config, <span class="keyword">this</span>, instantTime, extraMetadata).execute();</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>CleanPlanActionExecutor 就是跟之前的compact的逻辑模式比较像了，都是集成自 CleanPlanActionExecutor。</p>
+<p>生成计划的代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Creates a Cleaner plan if there are files to be cleaned and stores them in instant file.</span></span><br><span class="line"><span class="comment">   * Cleaner Plan contains absolute file paths.</span></span><br><span class="line"><span class="comment">   *</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> startCleanTime Cleaner Instant Time</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@return</span> Cleaner Plan if generated</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">protected</span> Option&lt;HoodieCleanerPlan&gt; <span class="title">requestClean</span><span class="params">(String startCleanTime)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> HoodieCleanerPlan cleanerPlan = requestClean(context);</span><br><span class="line">    <span class="keyword">if</span> ((cleanerPlan.getFilePathsToBeDeletedPerPartition() != <span class="keyword">null</span>)</span><br><span class="line">        &amp;&amp; !cleanerPlan.getFilePathsToBeDeletedPerPartition().isEmpty()</span><br><span class="line">        &amp;&amp; cleanerPlan.getFilePathsToBeDeletedPerPartition().values().stream().mapToInt(List::size).sum() &gt; <span class="number">0</span>) &#123;</span><br><span class="line">      <span class="comment">// Only create cleaner plan which does some work</span></span><br><span class="line">      <span class="keyword">final</span> HoodieInstant cleanInstant = <span class="keyword">new</span> HoodieInstant(HoodieInstant.State.REQUESTED, HoodieTimeline.CLEAN_ACTION, startCleanTime);</span><br><span class="line">      <span class="comment">// Save to both aux and timeline folder</span></span><br><span class="line">      <span class="keyword">try</span> &#123;</span><br><span class="line">        table.getActiveTimeline().saveToCleanRequested(cleanInstant, TimelineMetadataUtils.serializeCleanerPlan(cleanerPlan));</span><br><span class="line">        LOG.info(<span class="string">"Requesting Cleaning with instant time "</span> + cleanInstant);</span><br><span class="line">      &#125; <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">        LOG.error(<span class="string">"Got exception when saving cleaner requested file"</span>, e);</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> HoodieIOException(e.getMessage(), e);</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">return</span> Option.of(cleanerPlan);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> Option.empty();</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>其中第一行代码是生成cleanPlan的，代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Generates List of files to be cleaned.</span></span><br><span class="line"><span class="comment">   *</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> context HoodieEngineContext</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@return</span> Cleaner Plan</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function">HoodieCleanerPlan <span class="title">requestClean</span><span class="params">(HoodieEngineContext context)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      CleanPlanner&lt;T, I, K, O&gt; planner = <span class="keyword">new</span> CleanPlanner&lt;&gt;(context, table, config);</span><br><span class="line">      Option&lt;HoodieInstant&gt; earliestInstant = planner.getEarliestCommitToRetain();</span><br><span class="line">      List&lt;String&gt; partitionsToClean = planner.getPartitionPathsToClean(earliestInstant);</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (partitionsToClean.isEmpty()) &#123;</span><br><span class="line">        LOG.info(<span class="string">"Nothing to clean here. It is already clean"</span>);</span><br><span class="line">        <span class="keyword">return</span> HoodieCleanerPlan.newBuilder().setPolicy(HoodieCleaningPolicy.KEEP_LATEST_COMMITS.name()).build();</span><br><span class="line">      &#125;</span><br><span class="line">      LOG.info(<span class="string">"Total Partitions to clean : "</span> + partitionsToClean.size() + <span class="string">", with policy "</span> + config.getCleanerPolicy());</span><br><span class="line">      <span class="keyword">int</span> cleanerParallelism = Math.min(partitionsToClean.size(), config.getCleanerParallelism());</span><br><span class="line">      LOG.info(<span class="string">"Using cleanerParallelism: "</span> + cleanerParallelism);</span><br><span class="line"></span><br><span class="line">      context.setJobStatus(<span class="keyword">this</span>.getClass().getSimpleName(), <span class="string">"Generates list of file slices to be cleaned"</span>);</span><br><span class="line"></span><br><span class="line">      Map&lt;String, List&lt;HoodieCleanFileInfo&gt;&gt; cleanOps = context</span><br><span class="line">          .map(partitionsToClean, partitionPathToClean -&gt; Pair.of(partitionPathToClean, planner.getDeletePaths(partitionPathToClean)), cleanerParallelism)</span><br><span class="line">          .stream()</span><br><span class="line">          .collect(Collectors.toMap(Pair::getKey, y -&gt; CleanerUtils.convertToHoodieCleanFileInfoList(y.getValue())));</span><br><span class="line"></span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">new</span> HoodieCleanerPlan(earliestInstant</span><br><span class="line">          .map(x -&gt; <span class="keyword">new</span> HoodieActionInstant(x.getTimestamp(), x.getAction(), x.getState().name())).orElse(<span class="keyword">null</span>),</span><br><span class="line">          config.getCleanerPolicy().name(), CollectionUtils.createImmutableMap(),</span><br><span class="line">          CleanPlanner.LATEST_CLEAN_PLAN_VERSION, cleanOps);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> HoodieIOException(<span class="string">"Failed to schedule clean operation"</span>, e);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里 getEarliestCommitToRetain  就是按照配置策略 ，如果策略是 KEEP_LATEST_COMMITS 且 completed状态的instant数量大于  配置  hoodie.cleaner.commits.retained ，那么就把 当前时间线上 在这个数量之前的最晚instant返回，这样小于这个 earliestCommitToRetain 的所有commit都要进行clean。</p>
+<p>下边就是按照partition去找可以进行clean的partition。</p>
+<p>getPartitionPathsToClean 中用到了一个配置 ： hoodie.cleaner.incremental.mode ， 默认值 true， 注释： When enabled, the plans for each cleaner service run is computed incrementally off the events in the timeline, since the last cleaner run. This is much more efficient than obtaining listings for the full table for each planning (even with a metadata table).  启用时，自上次清理程序运行以来，每次清理程序服务运行的计划都是根据时间轴上的事件以增量方式计算的。这比为每个计划获取完整表的清单(即使有元数据表)要有效率得多。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Use Incremental Mode for finding partition paths.</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> cleanMetadata</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> newInstantToRetain</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@return</span></span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">private</span> List&lt;String&gt; <span class="title">getPartitionPathsForIncrementalCleaning</span><span class="params">(HoodieCleanMetadata cleanMetadata,</span></span></span><br><span class="line"><span class="function"><span class="params">      Option&lt;HoodieInstant&gt; newInstantToRetain)</span> </span>&#123;</span><br><span class="line">    LOG.info(<span class="string">"Incremental Cleaning mode is enabled. Looking up partition-paths that have since changed "</span></span><br><span class="line">        + <span class="string">"since last cleaned at "</span> + cleanMetadata.getEarliestCommitToRetain()</span><br><span class="line">        + <span class="string">". New Instant to retain : "</span> + newInstantToRetain);</span><br><span class="line">    <span class="keyword">return</span> hoodieTable.getCompletedCommitsTimeline().getInstants().filter(</span><br><span class="line">        instant -&gt; HoodieTimeline.compareTimestamps(instant.getTimestamp(), HoodieTimeline.GREATER_THAN_OR_EQUALS,</span><br><span class="line">            cleanMetadata.getEarliestCommitToRetain()) &amp;&amp; HoodieTimeline.compareTimestamps(instant.getTimestamp(),</span><br><span class="line">            HoodieTimeline.LESSER_THAN, newInstantToRetain.get().getTimestamp())).flatMap(instant -&gt; &#123;</span><br><span class="line">              <span class="keyword">try</span> &#123;</span><br><span class="line">                <span class="keyword">if</span> (HoodieTimeline.REPLACE_COMMIT_ACTION.equals(instant.getAction())) &#123;</span><br><span class="line">                  HoodieReplaceCommitMetadata replaceCommitMetadata = HoodieReplaceCommitMetadata.fromBytes(</span><br><span class="line">                      hoodieTable.getActiveTimeline().getInstantDetails(instant).get(), HoodieReplaceCommitMetadata<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line">                  <span class="keyword">return</span> Stream.concat(replaceCommitMetadata.getPartitionToReplaceFileIds().keySet().stream(), replaceCommitMetadata.getPartitionToWriteStats().keySet().stream());</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                  HoodieCommitMetadata commitMetadata = HoodieCommitMetadata</span><br><span class="line">                      .fromBytes(hoodieTable.getActiveTimeline().getInstantDetails(instant).get(),</span><br><span class="line">                          HoodieCommitMetadata<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line">                  <span class="keyword">return</span> commitMetadata.getPartitionToWriteStats().keySet().stream();</span><br><span class="line">                &#125;</span><br><span class="line">              &#125; <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> HoodieIOException(e.getMessage(), e);</span><br><span class="line">              &#125;</span><br><span class="line">            &#125;).distinct().collect(Collectors.toList());</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>获取上次clean任务保留的最早的completed commit instant 到 这次计算出来的  completed commit instant ，这两个时间范围内的，大于等于前者 ，小于后者。然后从存储的元数据中获取所有按照分区统计的数据中的key，最后再去重就可以了。</p>
+<p>接着回到  CleanPlanActionExecutor ， 找到需要clean的分区之后，然后回去了一个clean的并行度。用到了 配置 hoodie.cleaner.parallelism ，默认值 200， 注释：Parallelism for the cleaning operation. Increase this if cleaning becomes slow.  <mark>最终的并行度代码是来自 分区数量 和 这个配置的最小值</mark>。</p>
+<p>然后返回每个分区下的需要合并的文件。</p>
+<p>这里返回是一个 List<CleanFileInfo> 这里的CleanFileInfo 就是一个文件一个当前对象。</p>
+<p>文件匹配也是以 timeline为主线过滤，然后获取全部的fileGroup，在获取里边的FileSlice逐个进行匹配。</p>
+<p>最终会返回一个 HoodieCleanerPlan 。包含了上边生成的所有信息。</p>
+<p>requestClean(String startCleanTime) 经过校验之后，会把这个执行计划写入timeline。状态为 Requested 状态。</p>
+<p>计划写入完成之后，我们回到 AbstractHoodieWriteClient 中的clean方法中， 接下来处理失败写入的数据的处理。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">CleanerUtils.rollbackFailedWrites(config.getFailedWritesCleanPolicy(),</span><br><span class="line">        HoodieTimeline.CLEAN_ACTION, () -&gt; rollbackFailedWrites(skipLocking));</span><br></pre></td></tr></table></figure>
+
+<p>这块主要是根据配置策略  hoodie.cleaner.policy.failed.writes 来处理失败数据。三种策略如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// performs cleaning of failed writes inline every write operation</span></span><br><span class="line">  EAGER,</span><br><span class="line">  <span class="comment">// performs cleaning of failed writes lazily during clean</span></span><br><span class="line">  LAZY,</span><br><span class="line">  <span class="comment">// Does not clean failed writes</span></span><br><span class="line">  NEVER</span><br></pre></td></tr></table></figure>
+
+<p>默认是 EAGER， 也就是每次写入失败就直接清理了。</p>
+<p>配置的注释： Cleaning policy for failed writes to be used. Hudi will delete any files written by failed writes to re-claim space. Choose to perform this rollback of failed writes eagerly before every writer starts (only supported for single writer) or lazily by the cleaner (required for multi-writers)。</p>
+<p>如果是 EAGER ，在当前任务里就什么都不做了。</p>
+<p>如果是 LAZY， 就会调用一个rollback。</p>
+<p>rollback的逻辑太复杂，暂时就先略过，后续再补充。</p>
+<p>在上边的代码之后就是执行具体的计划，所有的相关代码都是在CleanActionExecutor的execute方法里。模式上跟之前compact的比较相像，代码基本都集中在这个类中。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/hudi/" rel="tag"># hudi</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/04/18/hudi%E6%8E%A2%E7%B4%A2-compact%E5%8E%9F%E7%90%86/" rel="next" title="hudi探索--compact原理">
+                <i class="fa fa-chevron-left"></i> hudi探索--compact原理
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/04/22/hudi%E6%8E%A2%E7%B4%A2-Rollback%E5%8E%9F%E7%90%86/" rel="prev" title="hudi探索--Rollback原理">
+                hudi探索--Rollback原理 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#hudi探索–clean原理"><span class="nav-number">1.</span> <span class="nav-text">hudi探索–clean原理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#难点"><span class="nav-number">1.1.</span> <span class="nav-text">难点</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#clean服务"><span class="nav-number">1.2.</span> <span class="nav-text">clean服务</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#clean策略"><span class="nav-number">1.3.</span> <span class="nav-text">clean策略</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#源码分析"><span class="nav-number">1.4.</span> <span class="nav-text">源码分析</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="spark," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="spark原理-rdd首先，RDD 作为 Spark 对于分布式数据模型的抽象，是构建 Spark 分布式内存计算引擎的基石。很多 Spark 核心概念与核心组件，如 DAG 和调度系统都衍生自 RDD。因此，深入理解 RDD 有利于你更全面、系统地学习 Spark 的工作原理。  基础概念弄懂，且如果能够知道基础概念的演化，那么对于很多底层原理的洞悉会越来越明确。 更重要的是可以掌握其思维。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="spark原理--rdd">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/28/spark%E5%8E%9F%E7%90%86-rdd/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="spark原理-rdd首先，RDD 作为 Spark 对于分布式数据模型的抽象，是构建 Spark 分布式内存计算引擎的基石。很多 Spark 核心概念与核心组件，如 DAG 和调度系统都衍生自 RDD。因此，深入理解 RDD 有利于你更全面、系统地学习 Spark 的工作原理。  基础概念弄懂，且如果能够知道基础概念的演化，那么对于很多底层原理的洞悉会越来越明确。 更重要的是可以掌握其思维。">
+<meta property="og:image" content="https://github.com/images/rdd_1.png">
+<meta property="article:published_time" content="2021-09-28T05:25:12.000Z">
+<meta property="article:modified_time" content="2022-05-13T03:51:40.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="spark">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/rdd_1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/28/spark原理-rdd/"/>
+
+
+
+
+
+  <title>spark原理--rdd | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/28/spark%E5%8E%9F%E7%90%86-rdd/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">spark原理--rdd</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-09-28T13:25:12+08:00">
+                2021-09-28
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+                  ， 
+                
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/spark/" itemprop="url" rel="index">
+                    <span itemprop="name">spark</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="spark原理-rdd"><a href="#spark原理-rdd" class="headerlink" title="spark原理-rdd"></a>spark原理-rdd</h2><p>首先，RDD 作为 Spark 对于分布式数据模型的抽象，是构建 Spark 分布式内存计算引擎的基石。很多 Spark 核心概念与核心组件，如 DAG 和调度系统都衍生自 RDD。因此，深入理解 RDD 有利于你更全面、系统地学习 Spark 的工作原理。</p>
+<blockquote>
+<p>基础概念弄懂，且如果能够知道基础概念的演化，那么对于很多底层原理的洞悉会越来越明确。</p>
+<p>更重要的是可以掌握其思维。</p>
+</blockquote>
+<p>其次，rdd如果理解的比较好，那么基于其上的一些工具或者概念，都会很容易理解，很多优化手段会变得通用，对于问题的fix思路，会有举一反三的作用。</p>
+<p>RDD，全称 Resilient Distributed Datasets，翻译过来就是弹性分布式数据集。本质上，它是对于数据模型的抽象，用于囊括所有内存中和磁盘中的分布式数据实体。</p>
+<p>这里重要的点我认为有以下几个：</p>
+<ul>
+<li>数据集，也就是他首先是一个数据的集合。</li>
+<li>分布式，也就是他是分布在多台机器上的，交互的系统可能是分布式新文件系统，也可能是本地文件系统。而分布式数据集，就代表着数据分散在多处，也就有了分而治之的先天条件，但是failover的机制也就变得相对复杂了。但是对于大数据中早期的mr思想而言，这是顺势而为的过程，可以很好契合。</li>
+<li>弹性，这个点就意味着要对整体数据集合的扩展性有很高的要求，且这个弹性不只是对于数据本身的存储是弹性的，对于弹性计算，也是支持的，这样的弹性的优势才能迸发的更有价值，集合本身更有弹性可能只是应对了存储的概念，如果加上计算，会更容易形成生态。</li>
+</ul>
+<p>RDD本身是用于spark的计算，而spark中把计算是按照算子分类的，整体是按照DAG在执行，每一个数据集合之间是根据算子关联出来的。那么我们就可以先看一下rdd的核心特性和属性：</p>
+<ul>
+<li><p>partitions：在分布式运行环境中，RDD 封装的数据在物理上散落在不同计算节点的内存或是磁盘中，这些散落的数据被称“数据分片”，RDD 的分区规则决定了哪些数据分片应该散落到哪些节点中去。RDD 的 partitions 属性对应着 RDD 分布式数据实体中所有的数据分片。</p>
+</li>
+<li><p>partitioner</p>
+<p>partitioner 属性则定义了划分数据分片的分区规则，如按哈希取模或是按区间划分等。</p>
+<blockquote>
+<p>partitions 和 partitioner 属性刻画的是 RDD 在跨节点方向上的横向扩展，所以我们把它们叫做 RDD 的“横向属性”。</p>
+</blockquote>
+</li>
+<li><p>dependencies</p>
+<p>在 Spark 中，任何一个 RDD 都不是凭空产生的，每个 RDD 都是基于某种计算逻辑从某个“数据源”转换而来。RDD 的 dependencies 属性记录了生成 RDD 所需的“数据源”，术语叫做父依赖（或父 RDD）。</p>
+</li>
+<li><p>compute</p>
+<p>compute 方法则封装了从父 RDD 到当前 RDD 转换的计算逻辑。</p>
+<blockquote>
+<p>基于数据源和转换逻辑，无论 RDD 有什么差池（如节点宕机造成部分数据分片丢失），在 dependencies 属性记录的父 RDD 之上，都可以通过执行 compute 封装的计算逻辑再次得到当前的 RDD。</p>
+</blockquote>
+<p>由 dependencies 和 compute 属性提供的容错能力，为 Spark 分布式内存计算的稳定性打下了坚实的基础，这也正是 RDD 命名中 Resilient 的由来。接着观察上图，我们不难发现，不同的 RDD 通过 dependencies 和 compute 属性链接在一起，逐渐向纵深延展，构建了一张越来越深的有向无环图，也就是我们常说的 DAG。</p>
+<p>由此可见，dependencies 属性和 compute 属性负责 RDD 在纵深方向上的延展，因此我们不妨把这两个属性称为“纵向属性”。</p>
+<p><img src="/images/rdd_1.png" alt="rdd"></p>
+</li>
+</ul>
+<blockquote>
+<p>任何动作都是围绕着已有属性来操作的，所以rdd在spark流程中，需要承载哪些部分逻辑，也基本都是由属性衍生出来的。</p>
+<p>以上rdd的四个属性是互相配合的，通过互相的实现满足spark复杂的机制，所以理解的时候切记不可以片面地理解。</p>
+</blockquote>
+<p>除了以上四个重要的属性之外，我们可以再看一下别的属性，如下：</p>
+<ul>
+<li>_sc：即SparkContext。_sc由@transient修饰，所以此属性不会被序列化。</li>
+<li>deps：构造器参数之一，是Dependency的序列，用于存储当前RDD的依赖。RDD的子类在实现时不一定会传递此参数。由于deps由@transient修饰，所以此属性不会被序列化。</li>
+<li>partitioner：当前RDD的分区计算器。partitioner由@transient修饰，所以此属性不会被序列化。</li>
+<li>id：当前RDD的唯一身份标识。此属性通过调用SparkContext的nextRddId属性生成。</li>
+<li>name：RDD的名称。name由@transient修饰，所以此属性不会被序列化。</li>
+<li>dependencies_：与deps相同，但是可以被序列化。_</li>
+<li>_partitions_：存储当前RDD的所有分区的数组。partitions_由@transient修饰，所以此属性不会被序列化。</li>
+<li>storageLevel：当前RDD的存储级别。</li>
+<li>creationSite：创建当前RDD的用户代码。creationSite由@transient修饰，所以此属性不会被序列化。</li>
+<li>scope：当前RDD的操作作用域。scope由@transient修饰，所以此属性不会被序列化。</li>
+<li>checkpointData：当前RDD的检查点数据。</li>
+<li>checkpointAllMarkedAncestors：是否对所有标记了需要保存检查点的祖先保存检查点。</li>
+<li>doCheckpointCalled：是否已经调用了doCheckpoint方法设置检查点。此属性可以阻止对RDD多次设置检查点。</li>
+</ul>
+<p>RDD采用了模板方法模式的设计，抽象类RDD中定义了模板方法以及一些未实现的接口，这些接口将需要RDD的各个子类分别实现。</p>
+<blockquote>
+<p>RDD的抽象思路是一个值得学习的地方，因为他应对的场景已经足够复杂，里边的设计模式之类的都是值得借鉴学习的。</p>
+</blockquote>
+<p>RDD衍生出来的，还有一个RDDinfo信息，主要存的也是rdd相关属性，但是主要是宏观上属性信息，也就是旁观者角度的属性，内部细节属性不会涉及。</p>
+<p>rdd的partition和dependency信息，就可以断定宽窄依赖的问题。这些都反映了rdd里的一些涉及。</p>
+<p>后边也会有文章来说明dag的基本原理，都会跟这部分有呼应，可以来回翻看地学习理解。</p>
+<p>参考：<a href="https://time.geekbang.org/column/article/353297" target="_blank" rel="noopener">https://time.geekbang.org/column/article/353297</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/spark/" rel="tag"># spark</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/09/27/pyspark%E4%B8%ADjvm%E5%92%8Cpython%E7%9A%84%E4%BA%A4%E4%BA%92%E5%8E%9F%E7%90%86/" rel="next" title="pyspark中jvm和python的交互原理">
+                <i class="fa fa-chevron-left"></i> pyspark中jvm和python的交互原理
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/09/29/spark%E5%8E%9F%E7%90%86-DAG/" rel="prev" title="spark原理--DAG">
+                spark原理--DAG <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#spark原理-rdd"><span class="nav-number">1.</span> <span class="nav-text">spark原理-rdd</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

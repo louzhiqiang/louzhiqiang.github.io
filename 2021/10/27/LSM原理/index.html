@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="方案," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="LSM原理Log Structured Merge Trees(LSM)  LSM更好的说法应该叫  文件组织方式 。 LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐量，通过消去随机的本地更新操作来达到这个目标。  原则就是避免随机写，增加顺序写。  而针对顺序写，最简单的方式就是追加。但是这里的细节是追加的方式，这个点会成为追求极致的细节点。 因为简单和高效，基于日志的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="LSM原理">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/27/LSM%E5%8E%9F%E7%90%86/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="LSM原理Log Structured Merge Trees(LSM)  LSM更好的说法应该叫  文件组织方式 。 LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐量，通过消去随机的本地更新操作来达到这个目标。  原则就是避免随机写，增加顺序写。  而针对顺序写，最简单的方式就是追加。但是这里的细节是追加的方式，这个点会成为追求极致的细节点。 因为简单和高效，基于日志的">
+<meta property="article:published_time" content="2021-10-27T01:19:10.000Z">
+<meta property="article:modified_time" content="2022-06-24T03:16:20.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="方案">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/27/LSM原理/"/>
+
+
+
+
+
+  <title>LSM原理 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/27/LSM%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">LSM原理</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-27T09:19:10+08:00">
+                2021-10-27
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="LSM原理"><a href="#LSM原理" class="headerlink" title="LSM原理"></a>LSM原理</h2><p>Log Structured Merge Trees(LSM) </p>
+<p>LSM更好的说法应该叫  文件组织方式 。</p>
+<p>LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐量，通过消去随机的本地更新操作来达到这个目标。</p>
+<blockquote>
+<p>原则就是避免随机写，增加顺序写。</p>
+</blockquote>
+<p>而针对顺序写，最简单的方式就是追加。但是这里的细节是追加的方式，这个点会成为追求极致的细节点。</p>
+<p>因为简单和高效，基于日志的策略在大数据之间越来越流行，同时他们也有一些缺点，从日志文件中读一些数据将会比写操作需要更多的时间，需要倒序扫描，直接找到所需的内容。</p>
+<p>这说明日志仅仅适用于一些简单的场景：1. 数据是被整体访问，像大部分数据库的 WAL(write-ahead log) 2. 知道明确的 offset，比如在 Kafka 中。</p>
+<blockquote>
+<p>在读场景，追加文件中的结构设计以及cache、索引的使用就成为重点。</p>
+</blockquote>
+<blockquote>
+<p>索引这一类设计，一般如果跟原始数据进行统筹的话，就会涉及更新问题，这都会对写数据造成影响。</p>
+</blockquote>
+<p>很多树结构可以不用 update-in-place，最流行就是 append-only Btree。</p>
+<blockquote>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">http:&#x2F;&#x2F;www.bzero.se&#x2F;ldapd&#x2F;btree.html</span><br></pre></td></tr></table></figure>
+</blockquote>
+<p>也称为 Copy-On-Write Tree。他们通过顺序的在文件末尾重复写对结构来实现写操作，之前的树结构的相关部分，包括最顶层结点都会变成孤结点。尽管通过这种方法避免了本地更新，但是因为每个写操作都要重写树结构，放大了写操作，降低了写性能。</p>
+<blockquote>
+<p>所以看一个数据结构是否通用或者是否合适，要综合考虑边界条件和放大之后的读写操作。</p>
+</blockquote>
+<h3 id="基础原理"><a href="#基础原理" class="headerlink" title="基础原理"></a>基础原理</h3><p>三个关键字：顺序、追加、不可修改、合并</p>
+<h4 id="顺序"><a href="#顺序" class="headerlink" title="顺序"></a>顺序</h4><p>顾名思义，所有的写都是顺序追加的，而这个顺序，在memtable、sstable都是保证的，不止在于文件内部的内容，在整体的block上也是一样的。</p>
+<h4 id="追加"><a href="#追加" class="headerlink" title="追加"></a>追加</h4><p>数据会追加到memtable中，然后沉淀成sstable，会追加到存储系统中。同时数据在写入memtable中之前，会追加到WAL，保证高可用。所以几乎所有的写入环节都是追加操作，为的就是写高效。</p>
+<h4 id="不可修改"><a href="#不可修改" class="headerlink" title="不可修改"></a>不可修改</h4><p>这一点主要是后续更新的数据是不会更改之前沉淀的数据的，而是针对当前这条数据进行的冗余。后边会有merge机制来修复超过限度的冗余数据。</p>
+<h4 id="合并"><a href="#合并" class="headerlink" title="合并"></a>合并</h4><p>这一点，主要是由于不可修改的特性，会有冗余数据的产生，为了提高读性能，进行数据合并，减少文件个数，提高读效率。</p>
+<h3 id="优化"><a href="#优化" class="headerlink" title="优化"></a>优化</h3><h4 id="缓存"><a href="#缓存" class="headerlink" title="缓存"></a>缓存</h4><p>主要是两级缓存，都是使用的计算机本身的一些优化，比如最基本的的方法就是页缓存，就近数据缓存。第二个就是文件级别的缓存，主要是sstable文件块的缓存。</p>
+<h4 id="索引"><a href="#索引" class="headerlink" title="索引"></a>索引</h4><p>布隆过滤器。在sstable文件中，会有专门的一个地方存储当前数据块的每个字段的布隆值，这样在数据读取的时候，可以通过只载入这一块数据来进行filter，从而减少整个数据块的载入。</p>
+<h4 id="数据合并策略"><a href="#数据合并策略" class="headerlink" title="数据合并策略"></a>数据合并策略</h4><p>两重常见的合并策略：基于文件大小合并，这种情况属于扁平式策略，也即使不区分业务使用，只按照文件大小合并，但是这样的合并对于读操作是有影响。因为要不同创建更大的文件，而随着文件数量增加，查询需要访问的文件数量会越来越大。</p>
+<p>另外一种策略就是Levelled Compaction，分层合并。这个分层主要是按照垂直角度进行切分。这个方法可以减少在最坏情况下需要检索的文件个数，同时也减少了一次合并操作的影响。</p>
+<ol>
+<li>每一层可以维护指定的文件个数，同时保证不让 key 重叠。也就是说把 key 分区到不同的文件。因此在一层查找一个 key，只用查找一个文件。第一层是特殊情况，不满足上述条件，key 可以分布在多个文件中。</li>
+<li>每次，文件只会被合并到上一层的一个文件。当一层的文件数满足特定个数时，一个文件会被选出并合并到上一层。这明显不同与另一种合并方式：一些相近大小的文件被合并为一个大文件。</li>
+</ol>
+<p>这些改变表明按层合并的策略减小了合并操作的影响，同时减少了空间需求。除此之外，它也有更好的读性能。</p>
+<p>推荐细致看一下levelDB的实现：<a href="https://leveldb-handbook.readthedocs.io/zh/latest/basic.html#id2" target="_blank" rel="noopener">https://leveldb-handbook.readthedocs.io/zh/latest/basic.html#id2</a></p>
+<p>参考：</p>
+<p><a href="https://www.zhihu.com/question/19887265" target="_blank" rel="noopener">https://www.zhihu.com/question/19887265</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/%E6%96%B9%E6%A1%88/" rel="tag"># 方案</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/10/25/%E5%88%86%E5%B8%83%E5%BC%8F%E5%8D%8F%E8%AE%AE%E7%9A%84%E7%90%86%E8%AE%BA%E7%9F%A5%E8%AF%86%E9%93%BA%E5%9E%AB/" rel="next" title="分布式协议的理论知识铺垫">
+                <i class="fa fa-chevron-left"></i> 分布式协议的理论知识铺垫
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/10/30/%E3%80%8A%E5%85%B3%E4%BA%8ESQL%E8%A7%A3%E6%9E%90%E4%BB%A5%E5%8F%8ASQL%E5%9C%A8spark%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8%E3%80%8B%E5%88%86%E4%BA%AB/" rel="prev" title="《关于SQL解析以及SQL在spark中的应用》分享">
+                《关于SQL解析以及SQL在spark中的应用》分享 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#LSM原理"><span class="nav-number">1.</span> <span class="nav-text">LSM原理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#基础原理"><span class="nav-number">1.1.</span> <span class="nav-text">基础原理</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#顺序"><span class="nav-number">1.1.1.</span> <span class="nav-text">顺序</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#追加"><span class="nav-number">1.1.2.</span> <span class="nav-text">追加</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#不可修改"><span class="nav-number">1.1.3.</span> <span class="nav-text">不可修改</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#合并"><span class="nav-number">1.1.4.</span> <span class="nav-text">合并</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#优化"><span class="nav-number">1.2.</span> <span class="nav-text">优化</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#缓存"><span class="nav-number">1.2.1.</span> <span class="nav-text">缓存</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#索引"><span class="nav-number">1.2.2.</span> <span class="nav-text">索引</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#数据合并策略"><span class="nav-number">1.2.3.</span> <span class="nav-text">数据合并策略</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

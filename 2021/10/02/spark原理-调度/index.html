@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="spark," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="spark原理–调度调度，老生常谈，但是我们往往还是有不断的黑盒，原因不是没有看过相关原理，而是我们变得冷血了，对于一些调优变得很无视。 今天以白话方式总结一下，后续会不断回溯这些基本原理，让自己的思考多一些角度。 Spark 调度系统的核心职责是，先将用户构建的 DAG 转化为分布式任务，结合分布式集群资源的可用性，基于调度规则依序把分布式任务分发到执行器。 事实上，Spark 调度系统的工作流">
+<meta property="og:type" content="article">
+<meta property="og:title" content="spark原理-调度">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/02/spark%E5%8E%9F%E7%90%86-%E8%B0%83%E5%BA%A6/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="spark原理–调度调度，老生常谈，但是我们往往还是有不断的黑盒，原因不是没有看过相关原理，而是我们变得冷血了，对于一些调优变得很无视。 今天以白话方式总结一下，后续会不断回溯这些基本原理，让自己的思考多一些角度。 Spark 调度系统的核心职责是，先将用户构建的 DAG 转化为分布式任务，结合分布式集群资源的可用性，基于调度规则依序把分布式任务分发到执行器。 事实上，Spark 调度系统的工作流">
+<meta property="og:image" content="https://github.com/images/scheduler_1.png">
+<meta property="og:image" content="https://github.com/images/scheduler_2.png">
+<meta property="og:image" content="https://github.com/images/scheduler_3.png">
+<meta property="og:image" content="https://github.com/images/scheduler_4.png">
+<meta property="og:image" content="https://github.com/images/schduler_5.png">
+<meta property="article:published_time" content="2021-10-02T00:56:22.000Z">
+<meta property="article:modified_time" content="2022-07-19T07:15:02.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="spark">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/scheduler_1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/02/spark原理-调度/"/>
+
+
+
+
+
+  <title>spark原理-调度 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/02/spark%E5%8E%9F%E7%90%86-%E8%B0%83%E5%BA%A6/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">spark原理-调度</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-02T08:56:22+08:00">
+                2021-10-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+                  ， 
+                
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/spark/" itemprop="url" rel="index">
+                    <span itemprop="name">spark</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="spark原理–调度"><a href="#spark原理–调度" class="headerlink" title="spark原理–调度"></a>spark原理–调度</h2><p>调度，老生常谈，但是我们往往还是有不断的黑盒，原因不是没有看过相关原理，而是我们变得冷血了，对于一些调优变得很无视。</p>
+<p>今天以白话方式总结一下，后续会不断回溯这些基本原理，让自己的思考多一些角度。</p>
+<p>Spark 调度系统的核心职责是，<strong>先将用户构建的 DAG 转化为分布式任务，结合分布式集群资源的可用性，基于调度规则依序把分布式任务分发到执行器</strong>。</p>
+<p>事实上，Spark 调度系统的工作流程包含如下 5 个步骤：</p>
+<ol>
+<li>将 DAG 拆分为不同的运行阶段 Stages；</li>
+<li>创建分布式任务 Tasks 和任务组 TaskSet；</li>
+<li>获取集群内可用的硬件资源情况；</li>
+<li>按照调度规则决定优先调度哪些任务 / 组；</li>
+<li>依序将分布式任务分发到执行器 Executor。</li>
+</ol>
+<p>了解了步骤，还要看看实际有哪些节点。Spark 调度系统包含 3 个核心组件，分别是 DAGScheduler、TaskScheduler 和 SchedulerBackend。这 3 个组件都运行在 Driver 进程中，它们通力合作将用户构建的 DAG 转化为分布式任务，再把这些任务分发给集群中的 Executors 去执行。</p>
+<p><img src="/images/scheduler_1.png" alt="scheduler_1"></p>
+<p>下边就逐个介绍5个节点在做的事情：</p>
+<h3 id="DAGScheduler"><a href="#DAGScheduler" class="headerlink" title="DAGScheduler"></a>DAGScheduler</h3><p>DAGScheduler 的主要职责有二：一是把用户 DAG 拆分为 Stages；二是在 Stage 内创建计算任务 Tasks，这些任务囊括了用户通过组合不同算子实现的数据转换逻辑。然后，执行器 Executors 接收到 Tasks，会将其中封装的计算函数应用于分布式数据分片，去执行分布式的计算过程。</p>
+<p>任务切分好之后，就应该需要资源进行计算。而且这个资源要是合理的且足够优化的，比如减少任务阻塞，减少资源消耗等。因此，在分发任务之前，调度系统得先判断哪些节点的计算资源空闲，然后再把任务分发过去。</p>
+<h3 id="SchedulerBackend"><a href="#SchedulerBackend" class="headerlink" title="SchedulerBackend"></a>SchedulerBackend</h3><p>调度系统是怎么判断节点是否空闲的呢？SchedulerBackend 就是用来干这个事的，它是对于资源调度器的封装与抽象，为了支持多样的资源调度模式如 Standalone、YARN 和 Mesos，SchedulerBackend 提供了对应的实现类。在运行时，Spark 根据用户提供的 MasterURL，来决定实例化哪种实现类的对象。MasterURL 就是你通过各种方式指定的资源管理器，如 –master spark://ip:host（Standalone 模式）、–master yarn（YARN 模式）。这块就比较具象了，有了抽象的接口，各种模式是具体的实现。针对这一点，很多其他计算框架也都是可以借鉴的。</p>
+<p>对于集群中可用的计算资源，SchedulerBackend 会用一个叫做 ExecutorDataMap 的数据结构，来记录每一个计算节点中 Executors 的资源状态。ExecutorDataMap 是一种 HashMap，它的 Key 是标记 Executor 的字符串，Value 是一种叫做 ExecutorData 的数据结构，ExecutorData 用于封装 Executor 的资源状态，如 RPC 地址、主机地址、可用 CPU 核数和满配 CPU 核数等等，它相当于是对 Executor 做的“资源画像”。这个方式也比较通用，但是受限于对接的资源管理器的能力，实际这个数据结构中的信息可能是不同的，尤其是failover的能力的要求，这个数据对于资源管理器的要求也是不一样的。这里实际上可以扩展去理解yarn和k8s以及早起一点的mesos等资源调度系统的特性。</p>
+<p><img src="/images/scheduler_2.png" alt="scheduler_2"></p>
+<p>总的来说，对内，SchedulerBackend 用 ExecutorData 对 Executor 进行资源画像；对外，SchedulerBackend 以 WorkerOffer 为粒度提供计算资源，WorkerOffer 封装了 Executor ID、主机地址和 CPU 核数，用来表示一份可用于调度任务的空闲资源。显然，基于 Executor 资源画像，SchedulerBackend 可以同时提供多个 WorkerOffer 用于分布式任务调度。WorkerOffer 这个名字起得蛮有意思，Offer 的字面意思是公司给你提供的工作机会，结合 Spark 调度系统的上下文，就变成了使用硬件资源的机会。</p>
+<blockquote>
+<p>这里其实还有一个比较重要的问题就是获取的这个map的数据以及提供workoffer的数据更新度是怎么定义的，数据是否是最新的，如果不是，以什么样的频率去更新呢？</p>
+</blockquote>
+<p>好了，到此为止，要调度的计算任务有了，就是 DAGScheduler 通过 Stages 创建的 Tasks；可用于调度任务的计算资源也有了，即 SchedulerBackend 提供的一个又一个 WorkerOffer。如果从供需的角度看待任务调度，DAGScheduler 就是需求端，SchedulerBackend 就是供给端。</p>
+<h3 id="TaskScheduler"><a href="#TaskScheduler" class="headerlink" title="TaskScheduler"></a>TaskScheduler</h3><p>左边有需求，右边有供给，如果把 Spark 调度系统看作是一个交易市场的话，那么中间还需要有个中介来帮它们对接意愿、撮合交易，从而最大限度地提升资源配置的效率。在 Spark 调度系统中，这个中介就是 TaskScheduler。<strong>TaskScheduler 的职责是，基于既定的规则与策略达成供需双方的匹配与撮合</strong>。</p>
+<p><img src="/images/scheduler_3.png" alt="scheduler_2"></p>
+<p>显然，TaskScheduler 的核心是任务调度的规则和策略，TaskScheduler 的调度策略分为两个层次，一个是不同 Stages 之间的调度优先级，一个是 Stages 内不同任务之间的调度优先级。这个其实主要是shuffle和非shuffle任务的执行调取的区别。</p>
+<p>对于两个或多个 Stages，如果它们彼此之间不存在依赖关系、互相独立，在面对同一份可用计算资源的时候，它们之间就会存在竞争关系。这个时候对于资源使用很简单，基本就是按照既定规则来就可以，比如最简单的直接竞争使用，好一点的呢，就是加入一个算法模型，按照数据本地性去匹配资源，节省带宽。</p>
+<p>对于这种 Stages 之间的任务调度，TaskScheduler 提供了 2 种调度模式，分别是 FIFO（先到先得）和 FAIR（公平调度）。 FIFO 非常好理解，在这种模式下，Stages 按照被创建的时间顺序来依次消费可用计算资源。也就是按照时间来算，而后者是按照需求来算，谁有后台谁说了算，或者谁重要就谁说了算。</p>
+<p>spark配置文件中，开发者可以自己定义不同的调度池，，每个调度池可以指定不同的调度优先级，用户在开发过程中可以关联不同作业与调度池的对应关系，这样不同 Stages 的调度就直接和开发者的意愿挂钩，也就能享受不同的优先级待遇。</p>
+<p>对于stage内的任务调度，当 TaskScheduler 接收到来自 SchedulerBackend 的 WorkerOffer 后，TaskScheduler 会优先挑选那些满足本地性级别要求的任务进行分发。</p>
+<blockquote>
+<p>本地性级别有 4 种：Process local &lt; Node local &lt; Rack local &lt; Any。从左到右分别是进程本地性、节点本地性、机架本地性和跨机架本地性。从左到右，计算任务访问所需数据的效率越来越差。</p>
+</blockquote>
+<p>DAGScheduler 划分 Stages、创建分布式任务的过程中，会为每一个任务指定本地性级别，本地性级别中会记录该任务有意向的计算节点地址，甚至是 Executor 进程 ID。换句话说，<strong>任务自带调度意愿，它通过本地性级别告诉 TaskScheduler 自己更乐意被调度到哪里去</strong>。这里实际是一个增加了主动性的过程，这样在任务分发的时候就多了一个更有价值的参考项，任务调度算法更加合理。</p>
+<p>由此可见，<strong>Spark 调度系统的原则是尽可能地让数据呆在原地、保持不动，同时尽可能地把承载计算任务的代码分发到离数据最近的地方，从而最大限度地降低分布式系统中的网络开销</strong>。毕竟，分发代码的开销要比分发数据的代价低太多，这也正是“数据不动代码动”这个说法的由来。</p>
+<p>总的来说，TaskScheduler 根据本地性级别遴选出待计算任务之后，先对这些任务进行序列化。然后，交给 SchedulerBackend，SchedulerBackend 根据 ExecutorData 中记录的 RPC 地址和主机地址，再将序列化的任务通过网络分发到目的主机的 Executor 中去。最后，Executor 接收到任务之后，把任务交由内置的线程池，线程池中的多线程则并发地在不同数据分片之上执行任务中封装的数据处理函数，从而实现分布式计算。</p>
+<blockquote>
+<p>这里有时间可以看看 spark 是怎么分发任务逻辑的？</p>
+</blockquote>
+<blockquote>
+<p>ExecutorData里只记录了cpu信息，没有内存信息，这是为啥？</p>
+<p>1、TaskScheduler在准备调度任务的时候，要事先知道都有哪些Executors可用，注意，是可用。也就是TaskScheduler的核心目的，在于获取“可用”的Executors。</p>
+<p>2、TaskScheduler要达到目的，它只需知道Executors是否有空闲CPU、有几个空闲CPU就可以了，有这些信息就足以让他决定是否把tasks调度到目标Executors上去。</p>
+<p>3、每个Executors的内存总大小，在Spark集群启动的时候就确定了，因此，ExecutorData自然是没必要记录像Total Memory这样的冗余信息。</p>
+<p>4、Spark对于内存的预估不准。</p>
+<p>5、每个Executors的可用内存都会随着GC的执行而动态变化。</p>
+</blockquote>
+<p>DAGScheduler 在创建 Tasks 的过程中，是如何设置每一个任务的本地性级别？</p>
+<p>位置信息通过特定的字符串前缀格式标识<br>executor_[hostname]<em>[executorid]<br>[hostname]<br>hdfs_cache</em>[hostname]</p>
+<p>DAGScheduler会尝试获取RDD的每个Partition的偏好位置信息：</p>
+<p>a.如果RDD被缓存，通过缓存的位置信息获取每个分区的位置信息；</p>
+<p>b.如果RDD有preferredLocations属性，通过preferredLocations获取每个分区的位置信息；</p>
+<p>c. 遍历RDD的所有是NarrowDependency的父RDD，找到第一个满足a,b条件的位置信息。</p>
+<p>在计算与存储分离的云计算环境中，Node local 本地性级别成立吗？你认为哪些情况下成立？哪些情况下不成立？</p>
+<p>资源调度器支持过滤或者选择，那么有可能是成立的。反之就不成立。</p>
+<p>补充一个总结的图：</p>
+<p><img src="/images/scheduler_4.png" alt="scheduler_4"></p>
+<p>下边是一个总的流程图：</p>
+<p><img src="/images/schduler_5.png" alt="scheduler_5"></p>
+<blockquote>
+<p>延迟调度：在调度的时候，我们肯定希望Task的Locality级别越高越好，也就是理想状态是PROCESS_local级别。所以才有这个延迟调度，调度过程是动态的，在调度任务的时候，会优先匹配本地模式，如果发现没匹配上，会等上指定的一段时间，超出这个时间会按照下一个级别来调度申请任务。</p>
+</blockquote>
+<blockquote>
+<p>spark整体调度过程中，如果划分好模块的职责，都会多次利用master/slave的结构，构建底层的这些服务。模块的抽象和构建就很重要。</p>
+</blockquote>
+<p>为了最大程度地提高任务运行的稳定性、集群的资源利用率、兼容更多常见任务的异常，调度要支持很多规则，为的就是扩展不同角度的策略。比如<strong>黑名单，推测执行</strong>等。</p>
+<p>这里还要关注一下动态资源申请，spark目前比较常用的策略，为的就是资源的充分利用。动态资源申请的原理就是根据堆积的任务数量进行申请资源。逐步按照2的n次方进行申请的。释放的策略也是按照指定时间没有使用的话，资源会逐步释放。</p>
+<p>参考：</p>
+<p><a href="https://zhuanlan.zhihu.com/p/68393078" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/68393078</a></p>
+<p><a href="https://time.geekbang.org/column/article/355028" target="_blank" rel="noopener">https://time.geekbang.org/column/article/355028</a></p>
+<p><a href="https://zhuanlan.zhihu.com/p/79708528" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/79708528</a></p>
+<p><a href="https://www.cnblogs.com/xia520pi/p/8695141.html" target="_blank" rel="noopener">https://www.cnblogs.com/xia520pi/p/8695141.html</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/spark/" rel="tag"># spark</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/10/01/%E3%80%8A%E6%B7%B1%E5%BA%A6%E6%80%9D%E7%BB%B4%E3%80%8B/" rel="next" title="《深度思维》">
+                <i class="fa fa-chevron-left"></i> 《深度思维》
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/10/02/spark%E5%8E%9F%E7%90%86-%E5%AD%98%E5%82%A8/" rel="prev" title="spark原理-存储">
+                spark原理-存储 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#spark原理–调度"><span class="nav-number">1.</span> <span class="nav-text">spark原理–调度</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#DAGScheduler"><span class="nav-number">1.1.</span> <span class="nav-text">DAGScheduler</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SchedulerBackend"><span class="nav-number">1.2.</span> <span class="nav-text">SchedulerBackend</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#TaskScheduler"><span class="nav-number">1.3.</span> <span class="nav-text">TaskScheduler</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

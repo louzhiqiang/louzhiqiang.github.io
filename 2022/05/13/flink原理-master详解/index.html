@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="flink," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="flink原理–master详解Flink 是 Master&#x2F;Slave 架构，这里的master就是flink的主轴节点，负责整个集群的一些协调工作，Flink 中 Master 节点主要包含三大组件：Flink Resource Manager、Flink Dispatcher 以及为每个运行的 Job 创建一个 JobManager 服务。  master的组件中包括JM，所以两者的工作范围">
+<meta property="og:type" content="article">
+<meta property="og:title" content="flink原理--master详解">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/13/flink%E5%8E%9F%E7%90%86-master%E8%AF%A6%E8%A7%A3/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="flink原理–master详解Flink 是 Master&#x2F;Slave 架构，这里的master就是flink的主轴节点，负责整个集群的一些协调工作，Flink 中 Master 节点主要包含三大组件：Flink Resource Manager、Flink Dispatcher 以及为每个运行的 Job 创建一个 JobManager 服务。  master的组件中包括JM，所以两者的工作范围">
+<meta property="og:image" content="https://matt33.com/images/flink/1-3.png">
+<meta property="og:image" content="https://matt33.com/images/flink/5-flink-master.png">
+<meta property="article:published_time" content="2022-05-13T12:26:35.000Z">
+<meta property="article:modified_time" content="2022-05-17T09:02:50.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="flink">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://matt33.com/images/flink/1-3.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/13/flink原理-master详解/"/>
+
+
+
+
+
+  <title>flink原理--master详解 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/13/flink%E5%8E%9F%E7%90%86-master%E8%AF%A6%E8%A7%A3/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">flink原理--master详解</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-13T20:26:35+08:00">
+                2022-05-13
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="flink原理–master详解"><a href="#flink原理–master详解" class="headerlink" title="flink原理–master详解"></a>flink原理–master详解</h2><p>Flink 是 Master/Slave 架构，这里的master就是flink的主轴节点，负责整个集群的一些协调工作，Flink 中 Master 节点主要包含三大组件：Flink Resource Manager、Flink Dispatcher 以及为每个运行的 Job 创建一个 JobManager 服务。</p>
+<blockquote>
+<p>master的组件中包括JM，所以两者的工作范围不同，master会为每个提交的作业创建JM。</p>
+</blockquote>
+<h3 id="三大组件的协调"><a href="#三大组件的协调" class="headerlink" title="三大组件的协调"></a>三大组件的协调</h3><ol>
+<li><strong>Dispatcher</strong>: 负责接收用户提供的作业，并且负责为这个新提交的作业拉起一个新的 JobManager 服务；</li>
+<li><strong>ResourceManager</strong>: 负责资源的管理，在整个 Flink 集群中只有一个 ResourceManager，资源相关的内容都由这个服务负责；</li>
+<li><strong>JobManager</strong>: 负责管理具体某个作业的执行，在一个 Flink 集群中可能有多个作业同时执行，每个作业都会有自己的 JobManager 服务。</li>
+</ol>
+<p><img src="https://matt33.com/images/flink/1-3.png" alt="Flink 的架构图（来自官网）"></p>
+<p>根据不同的flink集群运作模式，任务提交的流程会有一些差别。</p>
+<ol>
+<li>类似于 Standalone 这种 Session 模式（对于 YARN 模式来说），这种情况下 Client 可以直接与 Dispatcher 建立连接并提交作业；</li>
+<li>是 Per-Job 模式，这种情况下 Client 首先向资源管理系统 （如 Yarn）申请资源来启动 ApplicationMaster，然后再向 ApplicationMaster 中的 Dispatcher 提交作业。</li>
+</ol>
+<p>当作业到 Dispatcher 后，Dispatcher 会首先启动一个 JobManager 服务，然后 JobManager 会向 ResourceManager 申请资源来启动作业中具体的任务。ResourceManager 选择到空闲的 Slot （<a href="http://matt33.com/2019/11/23/flink-learn-start-1/#Flink-%E6%9E%B6%E6%9E%84" target="_blank" rel="noopener">Flink 架构-基本概念</a>）之后，就会通知相应的 TM 将该 Slot 分配给指定的 JobManager。</p>
+<blockquote>
+<p>这里提炼一下这种设计模式，对于计算业务的分层，以及分层之后的节点的划分，是参考了不同的运行模式，这样整体模式没变，但是却兼容了现在计算模式架构的演进。</p>
+</blockquote>
+<h3 id="Master的启动流程"><a href="#Master的启动流程" class="headerlink" title="Master的启动流程"></a>Master的启动流程</h3><p>Flink 集群 Master 节点在初始化时，会先调用 ClusterEntrypoint 的 <code>runClusterEntrypoint()</code> 方法启动集群，其整体流程如下图所示：</p>
+<p><img src="https://matt33.com/images/flink/5-flink-master.png" alt="Flink Master 启动的整体流程"></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ClusterEntrypoint.java</span></span><br><span class="line"><span class="comment">//note: run cluster real start-point</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">runCluster</span><span class="params">(Configuration configuration)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    <span class="keyword">synchronized</span> (lock) &#123;</span><br><span class="line">        <span class="comment">//note: 首先会初始化相关的服务(这里会涉及到一系列的服务)</span></span><br><span class="line">        initializeServices(configuration);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// write host information into configuration</span></span><br><span class="line">        configuration.setString(JobManagerOptions.ADDRESS, commonRpcService.getAddress());</span><br><span class="line">        configuration.setInteger(JobManagerOptions.PORT, commonRpcService.getPort());</span><br><span class="line"></span><br><span class="line">        <span class="keyword">final</span> DispatcherResourceManagerComponentFactory&lt;?&gt; dispatcherResourceManagerComponentFactory = createDispatcherResourceManagerComponentFactory(configuration);</span><br><span class="line"></span><br><span class="line">        <span class="comment">//note: 创建 DispatcherResourceManagerComponent 对象（前面初始化的服务，都在这里使用了）</span></span><br><span class="line">        clusterComponent = dispatcherResourceManagerComponentFactory.create(</span><br><span class="line">            configuration,</span><br><span class="line">            commonRpcService,</span><br><span class="line">            haServices,</span><br><span class="line">            blobServer,</span><br><span class="line">            heartbeatServices,</span><br><span class="line">            metricRegistry,</span><br><span class="line">            archivedExecutionGraphStore,</span><br><span class="line">            <span class="keyword">new</span> RpcMetricQueryServiceRetriever(metricRegistry.getMetricQueryServiceRpcService()),</span><br><span class="line">            <span class="keyword">this</span>);</span><br><span class="line"></span><br><span class="line">        clusterComponent.getShutDownFuture().whenComplete(</span><br><span class="line">            (ApplicationStatus applicationStatus, Throwable throwable) -&gt; &#123;</span><br><span class="line">                <span class="keyword">if</span> (throwable != <span class="keyword">null</span>) &#123;</span><br><span class="line">                    <span class="comment">//note: 抛出异常的情况下</span></span><br><span class="line">                    shutDownAsync(</span><br><span class="line">                        ApplicationStatus.UNKNOWN,</span><br><span class="line">                        ExceptionUtils.stringifyException(throwable),</span><br><span class="line">                        <span class="keyword">false</span>);</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    <span class="comment">// This is the general shutdown path. If a separate more specific shutdown was</span></span><br><span class="line">                    <span class="comment">// already triggered, this will do nothing</span></span><br><span class="line">                    shutDownAsync(</span><br><span class="line">                        applicationStatus,</span><br><span class="line">                        <span class="keyword">null</span>,</span><br><span class="line">                        <span class="keyword">true</span>);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个过程主要是创建任务流程需要的基础service以及创建了两个重要的服务：dispatcher 和 resourcemanager 两个组件。</p>
+<h4 id="initializeServices"><a href="#initializeServices" class="headerlink" title="initializeServices"></a>initializeServices</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">/ ClusterEntrypoint.java</span><br><span class="line"><span class="comment">//note: 初始化相关的服务</span></span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">initializeServices</span><span class="params">(Configuration configuration)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line"></span><br><span class="line">    LOG.info(<span class="string">"Initializing cluster services."</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">synchronized</span> (lock) &#123;</span><br><span class="line">        <span class="keyword">final</span> String bindAddress = configuration.getString(JobManagerOptions.ADDRESS);</span><br><span class="line">        <span class="keyword">final</span> String portRange = getRPCPortRange(configuration);</span><br><span class="line"></span><br><span class="line">        <span class="comment">//note: 创建 RPC 服务</span></span><br><span class="line">        commonRpcService = createRpcService(configuration, bindAddress, portRange);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// update the configuration used to create the high availability services</span></span><br><span class="line">        <span class="comment">//note: 根据当前创建的 RPC 服务信息做相关的配置（之前设置的端口可能是一个 range）</span></span><br><span class="line">        configuration.setString(JobManagerOptions.ADDRESS, commonRpcService.getAddress());</span><br><span class="line">        configuration.setInteger(JobManagerOptions.PORT, commonRpcService.getPort());</span><br><span class="line"></span><br><span class="line">        <span class="comment">//note: 用于 IO 的线程池</span></span><br><span class="line">        ioExecutor = Executors.newFixedThreadPool(</span><br><span class="line">            Hardware.getNumberCPUCores(),</span><br><span class="line">            <span class="keyword">new</span> ExecutorThreadFactory(<span class="string">"cluster-io"</span>));</span><br><span class="line">        <span class="comment">//note: HA service（跟用户配置有关，可以是 NONE、ZooKeeper 也可以自定义的类）</span></span><br><span class="line">        haServices = createHaServices(configuration, ioExecutor);</span><br><span class="line">        <span class="comment">//note: 初始化 Blob Server</span></span><br><span class="line">        blobServer = <span class="keyword">new</span> BlobServer(configuration, haServices.createBlobStore());</span><br><span class="line">        blobServer.start();</span><br><span class="line">        <span class="comment">//note: heartbeat service</span></span><br><span class="line">        heartbeatServices = createHeartbeatServices(configuration);</span><br><span class="line">        <span class="comment">//note: metrics reporter</span></span><br><span class="line">        metricRegistry = createMetricRegistry(configuration);</span><br><span class="line"></span><br><span class="line">        <span class="comment">//note: 创建了一个 Flink 内部的 metrics rpc service</span></span><br><span class="line">        <span class="keyword">final</span> RpcService metricQueryServiceRpcService = MetricUtils.startMetricsRpcService(configuration, bindAddress);</span><br><span class="line">        <span class="comment">//note: start MetricQueryService</span></span><br><span class="line">        metricRegistry.startQueryService(metricQueryServiceRpcService, <span class="keyword">null</span>);</span><br><span class="line"></span><br><span class="line">        <span class="comment">//note: 创建一个 ArchivedExecutionGraphStore 对象，用于存储用户作业的物理 graph</span></span><br><span class="line">        archivedExecutionGraphStore = createSerializableExecutionGraphStore(configuration, commonRpcService.getScheduledExecutor());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>RpcService: 创建一个 rpc 服务；</li>
+<li>HighAvailabilityServices: HA service 相关的实现，它的作用有很多，比如：处理 ResourceManager 的 leader 选举、JobManager leader 的选举等；</li>
+<li>BlobServer: 主要管理一些大文件的上传等，比如用户作业的 jar 包、TM 上传 log 文件等（Blob 是指二进制大对象也就是英文 Binary Large Object 的缩写）；</li>
+<li>HeartbeatServices: 初始化一个心跳服务；</li>
+<li>MetricRegistryImpl: metrics 相关的服务；</li>
+<li>ArchivedExecutionGraphStore: 存储 execution graph 的服务，默认有两种实现，<code>MemoryArchivedExecutionGraphStore</code> 主要是在内存中缓存，<code>FileArchivedExecutionGraphStore</code> 会持久化到文件系统，也会在内存中缓存。</li>
+</ol>
+<h4 id="DispatcherResourceManagerComponent"><a href="#DispatcherResourceManagerComponent" class="headerlink" title="DispatcherResourceManagerComponent"></a>DispatcherResourceManagerComponent</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// AbstractDispatcherResourceManagerComponentFactory.java</span></span><br><span class="line"><span class="comment">//note: 创建 DispatcherResourceManagerComponent 对象</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> DispatcherResourceManagerComponent&lt;T&gt; <span class="title">create</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">        Configuration configuration,</span></span></span><br><span class="line"><span class="function"><span class="params">        RpcService rpcService,</span></span></span><br><span class="line"><span class="function"><span class="params">        HighAvailabilityServices highAvailabilityServices,</span></span></span><br><span class="line"><span class="function"><span class="params">        BlobServer blobServer,</span></span></span><br><span class="line"><span class="function"><span class="params">        HeartbeatServices heartbeatServices,</span></span></span><br><span class="line"><span class="function"><span class="params">        MetricRegistry metricRegistry,</span></span></span><br><span class="line"><span class="function"><span class="params">        ArchivedExecutionGraphStore archivedExecutionGraphStore,</span></span></span><br><span class="line"><span class="function"><span class="params">        MetricQueryServiceRetriever metricQueryServiceRetriever,</span></span></span><br><span class="line"><span class="function"><span class="params">        FatalErrorHandler fatalErrorHandler)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line"></span><br><span class="line">    LeaderRetrievalService dispatcherLeaderRetrievalService = <span class="keyword">null</span>;</span><br><span class="line">    LeaderRetrievalService resourceManagerRetrievalService = <span class="keyword">null</span>;</span><br><span class="line">    WebMonitorEndpoint&lt;U&gt; webMonitorEndpoint = <span class="keyword">null</span>;</span><br><span class="line">    ResourceManager&lt;?&gt; resourceManager = <span class="keyword">null</span>;</span><br><span class="line">    JobManagerMetricGroup jobManagerMetricGroup = <span class="keyword">null</span>;</span><br><span class="line">    T dispatcher = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">//note: 用于 Dispatcher leader 选举</span></span><br><span class="line">        dispatcherLeaderRetrievalService = highAvailabilityServices.getDispatcherLeaderRetriever();</span><br><span class="line"></span><br><span class="line">        <span class="comment">//note: 用于 Resource Manager leader 选举（对于使用 zk 的 HA 模式来说，与上面的区别是使用的路径不同）</span></span><br><span class="line">        resourceManagerRetrievalService = highAvailabilityServices.getResourceManagerLeaderRetriever();</span><br><span class="line"></span><br><span class="line">        <span class="comment">//note: Dispatcher 的 Gateway</span></span><br><span class="line">        <span class="keyword">final</span> LeaderGatewayRetriever&lt;DispatcherGateway&gt; dispatcherGatewayRetriever = <span class="keyword">new</span> RpcGatewayRetriever&lt;&gt;(</span><br><span class="line">            rpcService,</span><br><span class="line">            DispatcherGateway<span class="class">.<span class="keyword">class</span>,</span></span><br><span class="line">            DispatcherId::fromUuid,</span><br><span class="line">            <span class="number">10</span>,</span><br><span class="line">            Time.milliseconds(<span class="number">50L</span>));</span><br><span class="line"></span><br><span class="line">        <span class="comment">//note: ResourceManager 的 Gateway</span></span><br><span class="line">        <span class="keyword">final</span> LeaderGatewayRetriever&lt;ResourceManagerGateway&gt; resourceManagerGatewayRetriever = <span class="keyword">new</span> RpcGatewayRetriever&lt;&gt;(</span><br><span class="line">            rpcService,</span><br><span class="line">            ResourceManagerGateway<span class="class">.<span class="keyword">class</span>,</span></span><br><span class="line">            ResourceManagerId::fromUuid,</span><br><span class="line">            <span class="number">10</span>,</span><br><span class="line">            Time.milliseconds(<span class="number">50L</span>));</span><br><span class="line"></span><br><span class="line">        <span class="comment">//note: 它主要使用 web 前端的 rest 接口调用</span></span><br><span class="line">        <span class="keyword">final</span> ExecutorService executor = WebMonitorEndpoint.createExecutorService(</span><br><span class="line">            configuration.getInteger(RestOptions.SERVER_NUM_THREADS),</span><br><span class="line">            configuration.getInteger(RestOptions.SERVER_THREAD_PRIORITY),</span><br><span class="line">            <span class="string">"DispatcherRestEndpoint"</span>);</span><br><span class="line"></span><br><span class="line">        <span class="comment">//note: metrics Fetcher</span></span><br><span class="line">        <span class="keyword">final</span> <span class="keyword">long</span> updateInterval = configuration.getLong(MetricOptions.METRIC_FETCHER_UPDATE_INTERVAL);</span><br><span class="line">        <span class="keyword">final</span> MetricFetcher metricFetcher = updateInterval == <span class="number">0</span></span><br><span class="line">            ? VoidMetricFetcher.INSTANCE</span><br><span class="line">            : MetricFetcherImpl.fromConfiguration(</span><br><span class="line">                configuration,</span><br><span class="line">                metricQueryServiceRetriever,</span><br><span class="line">                dispatcherGatewayRetriever,</span><br><span class="line">                executor);</span><br><span class="line"></span><br><span class="line">        <span class="comment">//note: standalone 模式下，这里创建的是 DispatcherRestEndpoint 对象</span></span><br><span class="line">        webMonitorEndpoint = restEndpointFactory.createRestEndpoint(</span><br><span class="line">            configuration,</span><br><span class="line">            dispatcherGatewayRetriever,</span><br><span class="line">            resourceManagerGatewayRetriever,</span><br><span class="line">            blobServer,</span><br><span class="line">            executor,</span><br><span class="line">            metricFetcher,</span><br><span class="line">            highAvailabilityServices.getWebMonitorLeaderElectionService(),</span><br><span class="line">            fatalErrorHandler);</span><br><span class="line"></span><br><span class="line">        <span class="comment">//note: 启动 DispatcherRestEndpoint</span></span><br><span class="line">        log.debug(<span class="string">"Sarting Dispatcher REST endptoint."</span>);</span><br><span class="line">        webMonitorEndpoint.start();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">final</span> String hostname = getHostname(rpcService);</span><br><span class="line"></span><br><span class="line">        jobManagerMetricGroup = MetricUtils.instantiateJobManagerMetricGroup(</span><br><span class="line">            metricRegistry,</span><br><span class="line">            hostname,</span><br><span class="line">            ConfigurationUtils.getSystemResourceMetricsProbingInterval(configuration));</span><br><span class="line"></span><br><span class="line">        <span class="comment">//note: 创建 ResourceManager 对象（StandAlone 模式，这里创建的是 StandaloneResourceManager 对象）</span></span><br><span class="line">        resourceManager = resourceManagerFactory.createResourceManager(</span><br><span class="line">            configuration,</span><br><span class="line">            ResourceID.generate(),</span><br><span class="line">            rpcService,</span><br><span class="line">            highAvailabilityServices,</span><br><span class="line">            heartbeatServices,</span><br><span class="line">            metricRegistry,</span><br><span class="line">            fatalErrorHandler,</span><br><span class="line">            <span class="keyword">new</span> ClusterInformation(hostname, blobServer.getPort()),</span><br><span class="line">            webMonitorEndpoint.getRestBaseUrl(),</span><br><span class="line">            jobManagerMetricGroup);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">final</span> HistoryServerArchivist historyServerArchivist = HistoryServerArchivist.createHistoryServerArchivist(configuration, webMonitorEndpoint);</span><br><span class="line"></span><br><span class="line">        <span class="comment">//note: 创建 dispatcher 对象（StandAlone 模式下，创建的是 StandaloneDispatcher 对象）</span></span><br><span class="line">        dispatcher = dispatcherFactory.createDispatcher(</span><br><span class="line">            configuration,</span><br><span class="line">            rpcService,</span><br><span class="line">            highAvailabilityServices,</span><br><span class="line">            resourceManagerGatewayRetriever,</span><br><span class="line">            blobServer,</span><br><span class="line">            heartbeatServices,</span><br><span class="line">            jobManagerMetricGroup,</span><br><span class="line">            metricRegistry.getMetricQueryServiceGatewayRpcAddress(),</span><br><span class="line">            archivedExecutionGraphStore,</span><br><span class="line">            fatalErrorHandler,</span><br><span class="line">            historyServerArchivist);</span><br><span class="line"></span><br><span class="line">        <span class="comment">//note: 启动 ResourceManager</span></span><br><span class="line">        log.debug(<span class="string">"Starting ResourceManager."</span>);</span><br><span class="line">        resourceManager.start();</span><br><span class="line">        resourceManagerRetrievalService.start(resourceManagerGatewayRetriever); <span class="comment">//note: 监听 leader</span></span><br><span class="line"></span><br><span class="line">        <span class="comment">//note: 启动 Dispatcher</span></span><br><span class="line">        log.debug(<span class="string">"Starting Dispatcher."</span>);</span><br><span class="line">        dispatcher.start();</span><br><span class="line">        dispatcherLeaderRetrievalService.start(dispatcherGatewayRetriever);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> createDispatcherResourceManagerComponent(</span><br><span class="line">            dispatcher,</span><br><span class="line">            resourceManager,</span><br><span class="line">            dispatcherLeaderRetrievalService,</span><br><span class="line">            resourceManagerRetrievalService,</span><br><span class="line">            webMonitorEndpoint,</span><br><span class="line">            jobManagerMetricGroup);</span><br><span class="line"></span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception exception) &#123;</span><br><span class="line">        <span class="comment">//note: 清除前面启动的所有服务的组件</span></span><br><span class="line">        <span class="comment">// ...</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>上文看出，针对不同的任务提交模式，resourceManager 和 dispatcher 也是不同的实现，在针对云原生模式，这块都需要单独去扩展，这样把资源分配和提交这些外部组件就隔离出去，对于后续生态扩展都能有更好的自由度。</p>
+<ol>
+<li><code>Dispatcher</code>: 初始化并启动这个服务，如果 JM 启动了 HA 模式，这里会竞选 leader，只有是 leader 的 <code>Dispatcher</code> 才会真正对外提供服务（参考前面图中的流程）；</li>
+<li><code>ResourceManager</code>: 这个跟 <code>Dispatcher</code> 有点类似。</li>
+</ol>
+<p>这里看到flink的高可用设计也是有策略可以实现的，目前常用的就是zookeeper。</p>
+<h3 id="服务详解"><a href="#服务详解" class="headerlink" title="服务详解"></a>服务详解</h3><h4 id="Dispatcher"><a href="#Dispatcher" class="headerlink" title="Dispatcher"></a>Dispatcher</h4><p><strong>Dispatcher</strong> 主要是用于作业的提交、并把它们持久化、为作业创建对应的 JobManager 等，Client 端提交的 JobGraph 就是提交给了 Dispatcher 服务，这里先看一下一个 Dispatcher 对象被选举为 leader 后是如何初始化的，如果当前的 Dispatcher 被选举为 leader，则会调用其 <code>grantLeadership()</code> 方法。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Dispatcher.java</span></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Callback method when current resourceManager is granted leadership.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * note: 如果当前的 dispatcher 是 leader 的情况下</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> newLeaderSessionID unique leadershipID</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">grantLeadership</span><span class="params">(<span class="keyword">final</span> UUID newLeaderSessionID)</span> </span>&#123;</span><br><span class="line">    runAsyncWithoutFencing(</span><br><span class="line">        () -&gt; &#123;</span><br><span class="line">            log.info(<span class="string">"Dispatcher &#123;&#125; was granted leadership with fencing token &#123;&#125;"</span>, getAddress(), newLeaderSessionID);</span><br><span class="line"></span><br><span class="line">            <span class="comment">//note: 通过 recoverJobs() 方法先从 job graph store 中恢复所有的 jobs</span></span><br><span class="line">            <span class="keyword">final</span> CompletableFuture&lt;Collection&lt;JobGraph&gt;&gt; recoveredJobsFuture = recoveryOperation.thenApplyAsync(</span><br><span class="line">                FunctionUtils.uncheckedFunction(ignored -&gt; recoverJobs()),</span><br><span class="line">                getRpcService().getExecutor());</span><br><span class="line"></span><br><span class="line">            <span class="comment">//note: 通过 tryAcceptLeadershipAndRunJobs() 调用 runJob 启动前面的每一个 job</span></span><br><span class="line">            <span class="keyword">final</span> CompletableFuture&lt;Boolean&gt; fencingTokenFuture = recoveredJobsFuture.thenComposeAsync(</span><br><span class="line">                (Collection&lt;JobGraph&gt; recoveredJobs) -&gt; tryAcceptLeadershipAndRunJobs(newLeaderSessionID, recoveredJobs),</span><br><span class="line">                getUnfencedMainThreadExecutor());</span><br><span class="line"></span><br><span class="line">            <span class="keyword">final</span> CompletableFuture&lt;Void&gt; confirmationFuture = fencingTokenFuture.thenCombineAsync(</span><br><span class="line">                recoveredJobsFuture,</span><br><span class="line">                BiFunctionWithException.unchecked((Boolean confirmLeadership, Collection&lt;JobGraph&gt; recoveredJobs) -&gt; &#123;</span><br><span class="line">                    <span class="keyword">if</span> (confirmLeadership) &#123;</span><br><span class="line">                        <span class="comment">//note: 如果是 leader，并且前面两步都完成的话，就会走到这里</span></span><br><span class="line">                        leaderElectionService.confirmLeaderSessionID(newLeaderSessionID);</span><br><span class="line">                    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                        <span class="keyword">for</span> (JobGraph recoveredJob : recoveredJobs) &#123;</span><br><span class="line">                            <span class="comment">//note: 从 job graph store 中删除这些作业相关的 state</span></span><br><span class="line">                            submittedJobGraphStore.releaseJobGraph(recoveredJob.getJobID());</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                    <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">                &#125;),</span><br><span class="line">                getRpcService().getExecutor());</span><br><span class="line"></span><br><span class="line">            confirmationFuture.whenComplete(</span><br><span class="line">                (Void ignored, Throwable throwable) -&gt; &#123;</span><br><span class="line">                    <span class="keyword">if</span> (throwable != <span class="keyword">null</span>) &#123;</span><br><span class="line">                        onFatalError(</span><br><span class="line">                            <span class="keyword">new</span> DispatcherException(</span><br><span class="line">                                String.format(<span class="string">"Failed to take leadership with session id %s."</span>, newLeaderSessionID),</span><br><span class="line">                                (ExceptionUtils.stripCompletionException(throwable))));</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;);</span><br><span class="line"></span><br><span class="line">            recoveryOperation = confirmationFuture;</span><br><span class="line">        &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Dispatcher 被选举为 leader 后，它主要的操作步骤如下：</p>
+<ol>
+<li><code>recoverJobs()</code>: 先从 job graph store 恢复所有作业的 JobGraph；</li>
+<li><code>tryAcceptLeadershipAndRunJobs()</code>: 启动前面恢复的每个作业，这里要说明的是，目前看到的 1.9 的实现，这里会将前面所有的作业都会重启，我在看的时候是有点懵逼的，这个 HA 有点伪 HA，相当于 leader 切换之后，作业就必须要得重启恢复，这个代价是有点大的，不过也看到社区有改进的计划（<a href="https://issues.apache.org/jira/browse/FLINK-10333" target="_blank" rel="noopener">FLINK-10333</a> 这个进度有点慢）；</li>
+</ol>
+<p>详细看下 Dispatcher 对外提供了哪些 API 实现（这些接口主要还是 <code>DispatcherGateway</code> 中必须要实现的接口），通过这些 API，其实就很容易看出它到底对外提供了哪些功能，提供的 API 有：</p>
+<ol>
+<li><code>listJobs()</code>: 列出当前提交的作业列表；</li>
+<li><code>submitJob()</code>: 向集群提交作业；</li>
+<li><code>getBlobServerPort()</code>: 返回 blob server 的端口；</li>
+<li><code>requestJob()</code>: 根据 jobId 请求一个作业的 ArchivedExecutionGraph（它是这个作业 ExecutionGraph 序列化后的形式）；</li>
+<li><code>disposeSavepoint()</code>: 清理指定路径的 savepoint 状态信息；</li>
+<li><code>cancelJob()</code>: 取消一个指定的作业；</li>
+<li><code>requestClusterOverview()</code>: 请求这个集群的全局信息，比如：集群有多少个 slot，有多少可用的 slot，有多少个作业等等；</li>
+<li><code>requestMultipleJobDetails()</code>: 返回当前集群正在执行的作业详情，返回对象是 JobDetails 列表；</li>
+<li><code>requestJobStatus()</code>: 请求一个作业的作业状态（返回的类型是 <code>JobStatus</code>）；</li>
+<li><code>requestOperatorBackPressureStats()</code>: 请求一个 Operator 的反压情况；</li>
+<li><code>requestJobResult()</code>: 请求一个 job 的 <code>JobResult</code>；</li>
+<li><code>requestMetricQueryServiceAddresses()</code>: 请求 MetricQueryService 的地址；</li>
+<li><code>requestTaskManagerMetricQueryServiceAddresses()</code>: 请求 TaskManager 的 MetricQueryService 的地址；</li>
+<li><code>triggerSavepoint()</code>: 使用指定的目录触发一个 savepoint；</li>
+<li><code>stopWithSavepoint()</code>: 停止当前的作业，并在停止前做一次 savepoint；</li>
+<li><code>shutDownCluster()</code>: 关闭集群；</li>
+</ol>
+<p>通过 Dispatcher 提供的 API 可以看出，Dispatcher 服务主要有功能有：</p>
+<ol>
+<li>提交/取消作业；</li>
+<li>触发/取消/清理 一个作业的 savepoint；</li>
+<li>作业状态/列表查询；</li>
+</ol>
+<p>Dispatcher 这里主要处理的还是 Job 相关的请求，对外提供了统一的接口。</p>
+<blockquote>
+<p>这里可以多关注一下dispatcher的设计，就会知道如果让自己设计一个这样的角色的服务或者组件，如何抽象，如何思考易用性和扩展性。</p>
+</blockquote>
+<h4 id="ResourceManager"><a href="#ResourceManager" class="headerlink" title="ResourceManager"></a>ResourceManager</h4><p>ResourceManager 从名字就可以看出，它主要是资源管理相关的服务，如果其被选举为 leader，实现如下，它会清除缓存中的数据，然后启动 SlotManager 服务：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// ResourceManager.java</span></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Callback method when current resourceManager is granted leadership.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * note：如果当前的 resourceManager 被选举为 leader 的话，就执行这个方法</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> newLeaderSessionID unique leadershipID</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">grantLeadership</span><span class="params">(<span class="keyword">final</span> UUID newLeaderSessionID)</span> </span>&#123;</span><br><span class="line">    <span class="comment">//note: tryAcceptLeadership() 清除之前 leader 的信息，这里会重新初始化 leader 相关的信息，并启动 SlotManager 服务</span></span><br><span class="line">    <span class="keyword">final</span> CompletableFuture&lt;Boolean&gt; acceptLeadershipFuture = clearStateFuture</span><br><span class="line">        .thenComposeAsync((ignored) -&gt; tryAcceptLeadership(newLeaderSessionID), getUnfencedMainThreadExecutor());</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> CompletableFuture&lt;Void&gt; confirmationFuture = acceptLeadershipFuture.thenAcceptAsync(</span><br><span class="line">        (acceptLeadership) -&gt; &#123;</span><br><span class="line">            <span class="keyword">if</span> (acceptLeadership) &#123;</span><br><span class="line">                <span class="comment">// confirming the leader session ID might be blocking,</span></span><br><span class="line">                leaderElectionService.confirmLeaderSessionID(newLeaderSessionID);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;,</span><br><span class="line">        getRpcService().getExecutor());</span><br><span class="line"></span><br><span class="line">    confirmationFuture.whenComplete(</span><br><span class="line">        (Void ignored, Throwable throwable) -&gt; &#123;</span><br><span class="line">            <span class="keyword">if</span> (throwable != <span class="keyword">null</span>) &#123;</span><br><span class="line">                onFatalError(ExceptionUtils.stripCompletionException(throwable));</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">private</span> CompletableFuture&lt;Boolean&gt; <span class="title">tryAcceptLeadership</span><span class="params">(<span class="keyword">final</span> UUID newLeaderSessionID)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (leaderElectionService.hasLeadership(newLeaderSessionID)) &#123;</span><br><span class="line">        <span class="keyword">final</span> ResourceManagerId newResourceManagerId = ResourceManagerId.fromUuid(newLeaderSessionID);</span><br><span class="line"></span><br><span class="line">        log.info(<span class="string">"ResourceManager &#123;&#125; was granted leadership with fencing token &#123;&#125;"</span>, getAddress(), newResourceManagerId);</span><br><span class="line"></span><br><span class="line">        <span class="comment">// clear the state if we've been the leader before</span></span><br><span class="line">        <span class="comment">//note: 清除之前的状态</span></span><br><span class="line">        <span class="keyword">if</span> (getFencingToken() != <span class="keyword">null</span>) &#123;</span><br><span class="line">            clearStateInternal();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        setFencingToken(newResourceManagerId);</span><br><span class="line"></span><br><span class="line">        <span class="comment">//note: 本节点启动 leader 服务</span></span><br><span class="line">        startServicesOnLeadership();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> prepareLeadershipAsync().thenApply(ignored -&gt; <span class="keyword">true</span>);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> CompletableFuture.completedFuture(<span class="keyword">false</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">startServicesOnLeadership</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="comment">//note: 启动心跳服务</span></span><br><span class="line">    startHeartbeatServices();</span><br><span class="line"></span><br><span class="line">    <span class="comment">//note: 启动 slotManager</span></span><br><span class="line">    slotManager.start(getFencingToken(), getMainThreadExecutor(), <span class="keyword">new</span> ResourceActionsImpl());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里也来看下 ResourceManager 对外提供的 API（<code>ResourceManagerGateway</code> 相关方法的实现）：</p>
+<ol>
+<li><code>registerJobManager()</code>: 在 ResourceManager 中注册一个 <code>JobManager</code> 对象，一个作业启动后，JobManager 初始化后会调用这个方法；</li>
+<li><code>registerTaskExecutor()</code>: 在 ResourceManager 中注册一个 <code>TaskExecutor</code>（<code>TaskExecutor</code> 实际上就是一个 TaskManager），当一个 TaskManager 启动后，会主动向 ResourceManager 注册；</li>
+<li><code>sendSlotReport()</code>: TM 向 ResourceManager 发送 <code>SlotReport</code>（<code>SlotReport</code> 包含了这个 TaskExecutor 的所有 slot 状态信息，比如：哪些 slot 是可用的、哪些 slot 是已经被分配的、被分配的 slot 分配到哪些 Job 上了等）；</li>
+<li><code>heartbeatFromTaskManager()</code>: 向 ResourceManager 发送来自 TM 的心跳信息；</li>
+<li><code>heartbeatFromJobManager()</code>: 向 ResourceManager 发送来自 JM 的心跳信息；</li>
+<li><code>disconnectTaskManager()</code>: TM 向 ResourceManager 发送一个断开连接的请求；</li>
+<li><code>disconnectJobManager()</code>: JM 向 ResourceManager 发送一个断开连接的请求；</li>
+<li><code>requestSlot()</code>: JM 向 ResourceManager 请求 slot 资源；</li>
+<li><code>cancelSlotRequest()</code>: JM 向 ResourceManager 发送一个取消 slot 申请的请求；</li>
+<li><code>notifySlotAvailable()</code>: TM 向 ResourceManager 发送一个请求，通知 ResourceManager 某个 slot 现在可用了（TM 端某个 slot 的资源被释放，可以再进行分配了）；</li>
+<li><code>deregisterApplication()</code>: 向资源管理系统（比如：yarn、mesos）申请关闭当前的 Flink 集群，一般是在关闭集群的时候调用的；</li>
+<li><code>requestTaskManagerInfo()</code>: 请求当前注册到 ResourceManager 的 TM 的详细信息（返回的类型是 <code>TaskManagerInfo</code>，可以请求的是全部的 TM 列表，也可以是根据某个 <code>ResourceID</code> 请求某个具体的 TM）；</li>
+<li><code>requestResourceOverview()</code>: 向 ResourceManager 请求资源概况，返回的类型是 <code>ResourceOverview</code>，它包括注册的 TM 数量、注册的 slot 数、可用的 slot 数等；</li>
+<li><code>requestTaskManagerMetricQueryServiceAddresses()</code>: 请求 TM MetricQueryService 的地址信息；</li>
+<li><code>requestTaskManagerFileUpload()</code>: 向 TM 发送一个文件上传的请求，这里上传的是 TM 的 LOG/STDOUT 类型的文件，文件会上传到 Blob Server，这里会拿到一个 BlobKey（Blobkey 实际上是文件名的一部分，通过 BlobKey 可以确定这个文件的物理位置信息）；</li>
+</ol>
+<p>从上面的 API 列表中，可以看出 ResourceManager 的主要功能是：</p>
+<ol>
+<li>JobManager/TaskManager 资源的注册/心跳监控/连接断开的处理；</li>
+<li>处理/取消 JM 资源（slot）的申请；</li>
+<li>提供资源信息查询；</li>
+<li>向 TM 发送请求，触发其 LOG/STDOUT 文件上传到 BlobServer；</li>
+</ol>
+<p>ResourceManager 在启动的时候，也会启动一个 SlotManager 服务，TM 相关的 slot 资源都是在 SlotManager 中维护的。</p>
+<h4 id="SlotManager"><a href="#SlotManager" class="headerlink" title="SlotManager"></a>SlotManager</h4><p>SlotManager 会维护所有从 TaskManager 注册过来的 slot（包括它们的分配情况）以及所有 pending 的 SlotRequest（所有的 slot 请求都会先放到 pending 列表中，然后再去判断是否可以满足其资源需求）。只要有新的 slot 注册或者旧的 slot 资源释放，SlotManager 都会检测 pending SlotRequest 列表，检查是否有 SlotRequest 可以满足，如果可以满足，就会将资源分配给这个 SlotRequest；如果没有足够可用的 slot，SlotManager 会尝试着申请新的资源（比如：申请一个 worker 启动）。</p>
+<p>当然，为了资源及时释放和避免资源浪费，空转的 task manager（它当前已经分配的 slot 并未使用）和 pending slot request 在 timeout 之后将会分别触发它们的释放和失败（对应的方法实现是 <code>checkTaskManagerTimeouts()</code> 和 <code>checkSlotRequestTimeouts()</code>）。</p>
+<p>SlotManager 对外的提供的 API 如下（<code>SlotManager</code> 中必须要实现的接口，实现类是 <code>SlotManagerImpl</code>）：</p>
+<ol>
+<li><code>getNumberRegisteredSlots()</code>: 获取注册的 slot 的总数量；</li>
+<li><code>getNumberRegisteredSlotsOf()</code>: 获取某个 TM 注册的 slot 的数量；</li>
+<li><code>getNumberFreeSlots()</code>: 获取当前可用的（还未分配的 slot） slot 的数量；</li>
+<li><code>getNumberFreeSlotsOf()</code>: 获取某个 TM 当前可用的 slot 的数量；</li>
+<li><code>getNumberPendingTaskManagerSlots()</code>: 获取 <code>pendingSlots</code> 中 slot 的数量（<code>pendingSlots</code> 记录的是 SlotManager 主动去向资源管理系统申请的资源，该系统在一些情况下会新启动 worker 来创建资源，但这些slot 还没有主动汇报过来，就会暂时先放到 <code>pendingSlots</code> 中，如果 TM 过来注册的话，该 slot 就会从 pendingSlots 中移除，存储到其他对象中）；</li>
+<li><code>getNumberPendingSlotRequests()</code>: 获取 <code>pendingSlotRequests</code> 列表的数量，这个集合中存储的是收到的、还没分配的 SlotRequest 列表，当一个 SlotRequest 发送过来之后，会先存储到这个集合中，当分配完成后，才会从这个集合中移除；</li>
+<li><code>registerSlotRequest()</code>: JM 发送一个 slot 请求（这里是 ResourceManager 通过 <code>requestSlot()</code> 接口调用的）；</li>
+<li><code>unregisterSlotRequest()</code>: 取消或移除一个正在排队（可能已经在处理中）的 SlotRequest；</li>
+<li><code>registerTaskManager()</code>: 注册一个 TM，这里会将 TM 中所有的 slot 注册过来，等待后面分配；</li>
+<li><code>unregisterTaskManager()</code>: 取消一个 TM 的注册（比如：关闭的时候可能会调用），这里会将这个 TM 上所有的 slot 都移除，会先从缓存中移除，然后再通知 JM 这个 slot 分配失败；</li>
+<li><code>reportSlotStatus()</code>: TM 汇报当前 slot 分配的情况，SlotManager 会将其更新到自己的缓存中；</li>
+<li><code>freeSlot()</code>: 释放一个指定的 slot，如果这个 slot 之前已经被分配出去了，这里会更新其状态，将其状态改为 <code>FREE</code>；</li>
+<li><code>setFailUnfulfillableRequest()</code>: 遍历 <code>pendingSlotRequests</code> 列表，如果这些 slot 请求现在还分配不到合适的资源，这里会将其设置为 fail，会通知 JM slot 分配失败。</li>
+</ol>
+<p>同样，从上面的 API 列表中，总结一下 SlotManager 的功能：</p>
+<ol>
+<li>提供 slot 相关的信息查询；</li>
+<li>处理/取消 JM 发送的 SlotRequest；</li>
+<li>注册/取消 一个 TM（该 TM 涉及到的所有 slot 都会被注册或取消）；</li>
+<li>Slot 资源的释放；</li>
+</ol>
+<blockquote>
+<p>flink不管是针对什么资源提供方，都需要靠这个resourceManager和slotManager来兼容，这样flink才跟这一套易变的架构解耦，让计算整体架构更稳定。</p>
+</blockquote>
+<h4 id="其他"><a href="#其他" class="headerlink" title="其他"></a>其他</h4><ol>
+<li><code>BlobServer</code>: 它是 Flink 用来管理二进制大文件的服务，Flink JobManager 中启动的 BlobServer 负责监听请求并派发线程去处理（这个将会在下篇文章中讲述）；</li>
+<li><code>JobManager</code>: Dispatcher 会为每个作业创建一个 JobManager 对象，它用来处理这个作业相关的协调工作，比如：task 的调度、Checkpoint 的触发及失败恢复等（这个也会在下篇文章中讲述）；</li>
+<li><code>HA service</code>: Flink HA 的实现目前是依赖了 ZK，使用 <code>curator</code> 这个包来实现的，有兴趣的可以看下 <a href="https://www.cnblogs.com/francisYoung/p/5464789.html" target="_blank" rel="noopener">Curator leader 选举(一)</a> 这篇文章。</li>
+</ol>
+<h3 id="总结："><a href="#总结：" class="headerlink" title="总结："></a>总结：</h3><ol>
+<li><strong>Dispatcher</strong>: 负责接收用户提供的作业，并且负责为这个新提交的作业拉起一个新的 JobManager 组件，它主要还是处理 Job 相关的请求，对外提供了统一的接口抽象；</li>
+<li><strong>ResourceManager</strong>: 负责资源的管理，所有资源相关的请求都是 ResourceManager 中处理的；</li>
+<li><strong>JobManager</strong>: 负责管理具体作业的执行</li>
+</ol>
+<p>三大组件各司其职，抽象得当，对于生态边界的界定和解耦，我认为才是这部分的精髓。</p>
+<p>参考：</p>
+<p><a href="https://matt33.com/2019/12/23/flink-master-5/" target="_blank" rel="noopener">Flink Master 详解 | Matt’s Blog</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/flink/" rel="tag"># flink</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/05/12/hashmap%E7%9A%84%E6%AD%BB%E5%BE%AA%E7%8E%AF/" rel="next" title="hashmap的死循环">
+                <i class="fa fa-chevron-left"></i> hashmap的死循环
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/05/17/flink%E5%8E%9F%E7%90%86-jobManager%E5%8E%9F%E7%90%86/" rel="prev" title="flink原理--jobManager原理">
+                flink原理--jobManager原理 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#flink原理–master详解"><span class="nav-number">1.</span> <span class="nav-text">flink原理–master详解</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#三大组件的协调"><span class="nav-number">1.1.</span> <span class="nav-text">三大组件的协调</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Master的启动流程"><span class="nav-number">1.2.</span> <span class="nav-text">Master的启动流程</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#initializeServices"><span class="nav-number">1.2.1.</span> <span class="nav-text">initializeServices</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#DispatcherResourceManagerComponent"><span class="nav-number">1.2.2.</span> <span class="nav-text">DispatcherResourceManagerComponent</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#服务详解"><span class="nav-number">1.3.</span> <span class="nav-text">服务详解</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Dispatcher"><span class="nav-number">1.3.1.</span> <span class="nav-text">Dispatcher</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#ResourceManager"><span class="nav-number">1.3.2.</span> <span class="nav-text">ResourceManager</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#SlotManager"><span class="nav-number">1.3.3.</span> <span class="nav-text">SlotManager</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#其他"><span class="nav-number">1.3.4.</span> <span class="nav-text">其他</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#总结："><span class="nav-number">1.4.</span> <span class="nav-text">总结：</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

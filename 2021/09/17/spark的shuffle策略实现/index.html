@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="spark," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="spark的shuffle策略实现之所以单独来写这个思考，是因为在大数据计算中，不管是实时的还是离线生成，涉及shuffle的实现都是复杂的，这个操作对于资源的消耗是随着场景或者上下游数据的差异，让整个操作消耗的资源都会不一样，而且产生结果也是要被后续使用的，那么结果的组织形式都是至关重要的。 目前各种大数据系统针对shuffle的实现是水平不一的，有是系统扩展性足够，shuffle的算法空间就比">
+<meta property="og:type" content="article">
+<meta property="og:title" content="spark的shuffle策略实现">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/17/spark%E7%9A%84shuffle%E7%AD%96%E7%95%A5%E5%AE%9E%E7%8E%B0/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="spark的shuffle策略实现之所以单独来写这个思考，是因为在大数据计算中，不管是实时的还是离线生成，涉及shuffle的实现都是复杂的，这个操作对于资源的消耗是随着场景或者上下游数据的差异，让整个操作消耗的资源都会不一样，而且产生结果也是要被后续使用的，那么结果的组织形式都是至关重要的。 目前各种大数据系统针对shuffle的实现是水平不一的，有是系统扩展性足够，shuffle的算法空间就比">
+<meta property="og:image" content="https://github.com/images/shuffle_0.png">
+<meta property="og:image" content="https://github.com/images/shuffle_2.png">
+<meta property="og:image" content="https://github.com/images/shuffle_3.png">
+<meta property="og:image" content="https://github.com/images/shuffle_4.png">
+<meta property="og:image" content="https://github.com/images/shuffle_5.png">
+<meta property="og:image" content="https://github.com/images/shuffle_6.png">
+<meta property="og:image" content="https://github.com/images/shuffle_7.png">
+<meta property="og:image" content="https://github.com/images/shuffle_8.png">
+<meta property="og:image" content="https://github.com/images/shuffle_9.png">
+<meta property="og:image" content="https://github.com/images/shuffle_10.png">
+<meta property="og:image" content="https://github.com/images/shuffle_11.png">
+<meta property="og:image" content="https://github.com/images/shuffle_12.png">
+<meta property="og:image" content="https://github.com/images/shuffle_13.png">
+<meta property="og:image" content="https://github.com/images/shuffle_14.png">
+<meta property="og:image" content="https://github.com/images/shuffle_15.png">
+<meta property="og:image" content="https://github.com/images/shuffle_16.png">
+<meta property="og:image" content="https://static001.geekbang.org/resource/image/2c/eb/2c4ec7fb70bfd103f70f24e56yya91eb.jpg">
+<meta property="article:published_time" content="2021-09-17T04:53:05.000Z">
+<meta property="article:modified_time" content="2022-09-04T06:13:48.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="spark">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/shuffle_0.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/17/spark的shuffle策略实现/"/>
+
+
+
+
+
+  <title>spark的shuffle策略实现 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/17/spark%E7%9A%84shuffle%E7%AD%96%E7%95%A5%E5%AE%9E%E7%8E%B0/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">spark的shuffle策略实现</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-09-17T12:53:05+08:00">
+                2021-09-17
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+                  ， 
+                
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/spark/" itemprop="url" rel="index">
+                    <span itemprop="name">spark</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="spark的shuffle策略实现"><a href="#spark的shuffle策略实现" class="headerlink" title="spark的shuffle策略实现"></a>spark的shuffle策略实现</h2><p>之所以单独来写这个思考，是因为在大数据计算中，不管是实时的还是离线生成，涉及shuffle的实现都是复杂的，这个操作对于资源的消耗是随着场景或者上下游数据的差异，让整个操作消耗的资源都会不一样，而且产生结果也是要被后续使用的，那么结果的组织形式都是至关重要的。</p>
+<p>目前各种大数据系统针对shuffle的实现是水平不一的，有是系统扩展性足够，shuffle的算法空间就比较大，可以有更多的优化措施。下边总结一下spark的shuffle实现，供自己梳理。</p>
+<h4 id="shuffle怎么来的"><a href="#shuffle怎么来的" class="headerlink" title="shuffle怎么来的"></a>shuffle怎么来的</h4><p>当某个结果需要上游的全部数据才能计算出来当前的结果，这个时候就需要进行shuffle操作。在分布式计算环境中，主要有两个阶段，一个是“Map”阶段，后一个阶段叫“Reduce”阶段，而前一个阶段也叫“shuffle write”阶段，后一个阶段也叫“shuffle read”阶段。</p>
+<p>比如有个spark job的依赖关系如下：</p>
+<p><img src="/images/shuffle_0.png" alt="image-20210909141433272"></p>
+<p>在这个job中，对应划分之后的RDD结构为：</p>
+<p><img src="/images/shuffle_2.png" alt="image-20210909141510723"></p>
+<p>那么整个执行过程如下：</p>
+<p><img src="/images/shuffle_3.png" alt="image-20210909141537383"></p>
+<p>中间就涉及到shuffle 过程，前一个stage 的 ShuffleMapTask 进行 shuffle write， 把数据存储在 blockManager 上面， 并且把数据位置元信息上报到 driver 的 mapOutTrack 组件中， 下一个 stage 根据数据位置元信息， 进行 shuffle read， 拉取上个stage 的输出数据。</p>
+<h4 id="shuffle的发展"><a href="#shuffle的发展" class="headerlink" title="shuffle的发展"></a>shuffle的发展</h4><ul>
+<li>Spark 0.8及以前 Hash Based Shuffle</li>
+<li>Spark 0.8.1 为Hash Based Shuffle引入File Consolidation机制</li>
+<li>Spark 0.9 引入ExternalAppendOnlyMap</li>
+<li>Spark 1.1 引入Sort Based Shuffle，但默认仍为Hash Based Shuffle</li>
+<li>Spark 1.2 默认的Shuffle方式改为Sort Based Shuffle</li>
+<li>Spark 1.4 引入Tungsten-Sort Based Shuffle</li>
+<li>Spark 1.6 Tungsten-sort并入Sort Based Shuffle</li>
+<li>Spark 2.0 Hash Based Shuffle退出历史舞台</li>
+</ul>
+<p>关于 Hash Based Shuffle，回顾一下，每个mapper会根据reducer的数量，创建出响应的bucket，bucket的总数就是M * R，这样就会产生大量的小文件，对文件系统压力很大，而且也不利于IO吞吐量。一般在大数据量的背景下，M 和 R的数字都会比较大，结果就是计算过程中小文件数量暴增，系统会经常遇到文件数等限制，而且小文件带来的IO是指数级上升，所以这个硬伤，在大数据计算量比较大的背景下，就成了必须要优化的环节。当时做的第一个优化就是把在同一个core上运行的多个mapper输出进行文件合并，这样总的文件数目就变成cores数量 * R个了。</p>
+<p>举例：优化之前是这样的：</p>
+<p><img src="/images/shuffle_4.png" alt="image-20210909142545306"></p>
+<p>优化之后：4个map task， 4个reducer， 如果不使用 Consolidation机制， 会产生 16个小文件。但是但是现在这 4个 map task 分两批运行在 2个core上， 这样只会产生 8个小文件。</p>
+<p><img src="/images/shuffle_5.png" alt="image-20210909142603873"></p>
+<p>在同一个 core 上先后运行的两个 map task的输出， 对应同一个文件的不同的 segment上， 称为一个 FileSegment， 形成一个 ShuffleBlockFile。</p>
+<p>后面就引入了  Sort Based Shuffle， map端的任务会按照Partition id以及key对记录进行排序。同时将全部结果写到一个数据文件中，同时生成一个索引文件， 再后面就就引入了 Tungsten-Sort Based Shuffle， 这个是直接使用堆外内存和新的内存管理模型，节省了内存空间和大量的gc， 是为了提升性能。</p>
+<p>可见每一次优化都是抓住了上一次的痛点，通过一次底层的兑变，大幅度解决上层的效率问题。</p>
+<h4 id="shuffle的实现"><a href="#shuffle的实现" class="headerlink" title="shuffle的实现"></a>shuffle的实现</h4><p>在shuffle的两阶段实现中，write阶段是优化的重点，也是优化的发起点，所以一般而言，shuffle write阶段开个好头，后边的过程会省心很多，但是在设计整个过程的时候，这两个阶段是统一考虑的，并不是割裂开的。</p>
+<p>shuffle writer 的实现主要有以下三种：</p>
+<p>分为 BypassMergeSortShuffleWriter， SortShuffleWriter 和 UnsafeShuffleWriter， Hash Based Shuffle 已经退出历史舞台了，会提一下，深层次的问题就不追究了。</p>
+<p><img src="/images/shuffle_6.png" alt="shuffle的分类流程"></p>
+<p>上面是使用哪种 writer 的判断依据， 是否开启 mapSideCombine 这个判断，是因为有些算子会在 map 端先进行一次 combine， 减少传输数据。 因为 BypassMergeSortShuffleWriter 会临时输出Reducer个（分区数目）小文件，所以分区数必须要小于一个阀值，默认是小于200。</p>
+<p>UnsafeShuffleWriter需要Serializer支持relocation，Serializer支持relocation：原始数据首先被序列化处理，并且再也不需要反序列，在其对应的元数据被排序后，需要Serializer支持relocation，在指定位置读取对应数据。</p>
+<h4 id="BypassMergeSortShuffleWriter-实现细节"><a href="#BypassMergeSortShuffleWriter-实现细节" class="headerlink" title="BypassMergeSortShuffleWriter 实现细节"></a>BypassMergeSortShuffleWriter 实现细节</h4><p>BypassMergeSortShuffleWriter和Hash Shuffle中的HashShuffleWriter实现基本一致， 唯一的区别在于，map端的多个输出文件会被汇总为一个文件。 所有分区的数据会合并为同一个文件，会生成一个索引文件，是为了索引到每个分区的起始地址，可以随机 access 某个partition的所有数据。</p>
+<p><img src="/images/shuffle_7.png" alt="bypass的过程"></p>
+<p>但是需要注意的是，这种方式不宜有太多分区，因为过程中会并发打开所有分区对应的临时文件，会对文件系统造成很大的压力。</p>
+<p>具体实现就是给每个分区分配一个临时文件，对每个 record的key 使用分区器（模式是hash，如果用户自定义就使用自定义的分区器）找到对应分区的输出文件句柄，直接写入文件，没有在内存中使用 buffer。 最后copyStream方法把所有的临时分区文件拷贝到最终的输出文件中，并且记录每个分区的文件起始写入位置，把这些位置数据写入索引文件中。</p>
+<h4 id="SortShuffleWriter-实现细节"><a href="#SortShuffleWriter-实现细节" class="headerlink" title="SortShuffleWriter 实现细节"></a>SortShuffleWriter 实现细节</h4><p>有一个这样的场景：</p>
+<p>我们可以先考虑一个问题，假如我有 100亿条数据，但是我们的内存只有1M，但是我们磁盘很大， 我们现在要对这100亿条数据进行排序，是没法把所有的数据一次性的load进行内存进行排序的，这就涉及到一个外部排序的问题，我们的1M内存只能装进1亿条数据，每次都只能对这 1亿条数据进行排序，排好序后输出到磁盘，总共输出100个文件，最后怎么把这100个文件进行merge成一个全局有序的大文件。我们可以每个文件（有序的）都取一部分头部数据作为一个 buffer， 并且把这 100个 buffer放在一个堆里面，进行堆排序，比较方式就是对所有堆元素（buffer）的head元素进行比较大小， 然后不断的把每个堆顶的 buffer 的head 元素 pop 出来输出到最终文件中， 然后继续堆排序，继续输出。如果哪个buffer 空了，就去对应的文件中继续补充一部分数据。最终就得到一个全局有序的大文件。</p>
+<p>想通上面举的例子，就差不多搞清楚sortshufflewirter的实现原理了，因为解决的是同一个问题。</p>
+<p>SortShuffleWriter 中的处理步骤：</p>
+<ul>
+<li>使用 PartitionedAppendOnlyMap 或者 PartitionedPairBuffer 在内存中进行排序，  排序的 K 是（partitionId， hash（key）） 这样一个元组。</li>
+<li>如果超过内存 limit， 我 spill 到一个文件中，这个文件中元素也是有序的，首先是按照 partitionId的排序，如果 partitionId 相同， 再根据 hash（key）进行比较排序</li>
+<li>如果需要输出全局有序的文件的时候，就需要对之前所有的输出文件 和 当前内存中的数据结构中的数据进行  merge sort， 进行全局排序</li>
+</ul>
+<p>和我们开始提的那个问题基本类似，不同的地方在于，需要对 Key 相同的元素进行  aggregation， 就是使用定义的 func 进行聚合， 比如你的算子是 reduceByKey（<em>+</em>）, 这个func 就是加法运算， 如果两个key 相同， 就会先找到所有相同的key 进行 reduce(<em>+</em>) 操作，算出一个总结果 Result，然后输出数据（K，Result）元素。</p>
+<p>SortShuffleWriter 中使用 ExternalSorter 来对内存中的数据进行排序，ExternalSorter内部维护了两个集合PartitionedAppendOnlyMap、PartitionedPairBuffer， 两者都是使用了 hash table 数据结构， 如果需要进行 aggregation， 就使用 PartitionedAppendOnlyMap（支持 lookup 某个Key，如果之前存储过相同key的K-V 元素，就需要进行 aggregation，然后再存入aggregation后的 K-V）， 否则使用 PartitionedPairBuffer（只进行添K-V 元素），</p>
+<p><img src="/images/shuffle_8.png" alt="PartitionedAppendOnlyMap结构"></p>
+<p>可以看上图， PartitionedAppendOnlyMap 中的 K 是（PatitionId, K）的元组， 这样就是先按照partitionId进行排序，如果 partitionId 相同，再按照  hash（key）再进行排序。</p>
+<p>AppendOnlyMap的结构如下：</p>
+<p><img src="/images/shuffle_9.png" alt="AppendOnlyMap"></p>
+<p>这个很简单就是个 hash table，其中的 K 是（PatitionId, hash（Key））的元组， 当要 put(K, V) 时，先 hash(K) 找存放位置，如果存放位置已经被占用，就使用 Quadratic probing 探测方法来找下一个空闲位置。对于图中的 K6 来说，第三次查找找到 K4 后面的空闲位置，放进去即可。get(K6) 的时候类似，找三次找到 K6，取出紧挨着的 V6，与先来的 value 做 func，结果重新放到 V6 的位置。</p>
+<blockquote>
+<p>这里包含一致性hash的知识，Quadratic probing 探测方法就属于一种解决方式，在命中的hash值之后顺延找到空位，这个方式的缺点就是找到命中的hash值位置，还需要一个O（N）的算法来确认真值。</p>
+</blockquote>
+<p>下边看下 ExternalAppendOnlyMap ：</p>
+<p><img src="/images/shuffle_10.png" alt="ExternalAppendOnlyMap"></p>
+<p>上图中可以看到整个原理图，逻辑也很简单， 内存不够的时候，先spill了四次，输出到文件中的元素都是有序的，读取的时候都是按序读取，最后跟内存剩余的数据进行 全局merge。</p>
+<p>merge 过程就是 每个文件读取部分数据（StreamBuffer）放到 mergeHeap 里面， 当前内存中的 PartitionedAppendOnlyMap 也进行 sort，形成一个 sortedMap 放在 mergeHeap 里面，  这个 heap 是一个 优先队列 PriorityQueue， 并且自定义了排序方式，就是取出堆元素StreamBuffer的head元素进行比较大小</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> heap = <span class="keyword">new</span> mutable.<span class="type">PriorityQueue</span>[<span class="type">Iter</span>]()(<span class="keyword">new</span> <span class="type">Ordering</span>[<span class="type">Iter</span>] &#123;</span><br><span class="line">      <span class="comment">// Use the reverse of comparator.compare because PriorityQueue dequeues the max</span></span><br><span class="line">      <span class="keyword">override</span> <span class="function"><span class="keyword">def</span> <span class="title">compare</span></span>(x: <span class="type">Iter</span>, y: <span class="type">Iter</span>): <span class="type">Int</span> = -comparator.compare(x.head._1, y.head._1)</span><br><span class="line">    &#125;)</span><br></pre></td></tr></table></figure>
+
+<p>这样的话，每次从堆顶的 StreamBuffer 中 pop 出的 head 元素就是全局最小的元素（记住是按照（partitionId，hash（Key））排序的）， 如果需要 aggregation， 就把这些key 相同的元素放在一个一个 mergeBuffers 中，  第一个被放入 mergeBuffers 的 StreamBuffer 被称为 minBuffer，那么 minKey 就是 minBuffer 中第一个 record 的 key。当 merge-combine 的时候，与 minKey 有相同的Key的records 被 aggregate 一起，然后输出。</p>
+<p>如果不需要 aggregation， 那就简单了， 直接把 堆顶的 StreamBuffer 中 pop 出的 head 元素 返回就好了。</p>
+<blockquote>
+<p> 以上过程涉及的数据结构都可能会成为自己日后开发需要涉及的。</p>
+</blockquote>
+<p>最终读取的时候，从整个 全局 merge 后的读取迭代器中读取的数据，就是按照 partitionId 从小到大排序的数据， 读取过程中使用再按照 分区分段， 并且记录每个分区的文件起始写入位置，把这些位置数据写入索引文件中。</p>
+<p><img src="/images/shuffle_11.png" alt="总过程"></p>
+<h4 id="UnsafeShuffleWriter-实现细节"><a href="#UnsafeShuffleWriter-实现细节" class="headerlink" title="UnsafeShuffleWriter 实现细节"></a>UnsafeShuffleWriter 实现细节</h4><p>UnsafeShuffleWriter 里面维护着一个 ShuffleExternalSorter， 用来做外部排序，要先把部分排序数据输出到磁盘，然后最后再进行merge 全局排序。 既然这里也是外部排序，跟 SortShuffleWriter 有什么区别呢， 这里只根据 record 的 partition id 先在内存 ShuffleInMemorySorter 中进行排序， 排好序的数据经过序列化压缩输出到一个临时文件的一段，并且记录每个分区段的seek位置，方便后续可以单独读取每个分区的数据，读取流经过解压反序列化，就可以正常读取了。</p>
+<p>整个过程就是不断地在 ShuffleInMemorySorter 插入数据，如果没有内存就申请内存，如果申请不到内存就 spill 到文件中，最终合并成一个 依据 partition id 全局有序 的大文件。</p>
+<table>
+<thead>
+<tr>
+<th>区别</th>
+<th>UnsafeShuffleWriter</th>
+<th>SortShuffleWriter</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>排序方式</td>
+<td>最终只是 partition 级别的排序</td>
+<td>先 partition 排序，相同分区 key有序</td>
+</tr>
+<tr>
+<td>aggregation</td>
+<td>没有饭序列化，没有aggregation</td>
+<td>支持 aggregation</td>
+</tr>
+</tbody></table>
+<h5 id="使用-UnsafeShuffleWriter-的条件"><a href="#使用-UnsafeShuffleWriter-的条件" class="headerlink" title="使用 UnsafeShuffleWriter 的条件"></a>使用 UnsafeShuffleWriter 的条件</h5><ul>
+<li>没有指定 aggregation 或者key排序， 因为 key 没有编码到排序指针中，所以只有 partition 级别的排序</li>
+<li>原始数据首先被序列化处理，并且再也不需要反序列，在其对应的元数据被排序后，需要Serializer支持relocation，在指定位置读取对应数据。 KryoSerializer 和 spark sql 自定义的序列化器 支持这个特性。</li>
+<li>分区数目必须小于 16777216 ，因为 partition number 使用24bit 表示的。</li>
+<li>以为每个分区使用 27 位来表示 record offset， 所以一个 record 不能大于这个值。</li>
+</ul>
+<p>内存排序：</p>
+<p><img src="/images/shuffle_12.png" alt="内存排序"></p>
+<p>我们不妨看向对记录排序的例子。一个标准的排序步骤需要为记录储存一组的指针，并使用quicksort 来互换指针直到所有记录被排序。基于顺序扫描的特性，排序通常能获得一个不错的缓存命中率。然而，排序一组指针的缓存命中率却很低，因为每个比较运算都需要对两个指针解引用，而这两个指针对应的却是内存中两个随机位置的数据。</p>
+<p>那么，我们该如何提高排序中的缓存本地性？其中一个方法就是通过指针顺序地储存每个记录的sort key。我们使用 8个字节（partition id 作为 key， 和数据真正的指针）来代表一条数据，放在一个 sort array 中，每次对比排序的操作只需要线性的查找每对pointer-key，从而不会产生任何的随机扫描。 这样如果对所有记录的 partion 进行排序的时候， 直接对这个数据里面的进行排序，就好了，极大的提高了性能。</p>
+<p>当然 这里对数据排序， UnsafeShuffleWriter 使用的是 RadixSort, 这个很简单，我就不介绍了， 不同清楚的可以参考下 这个文档 <a href="http://bubkoo.com/2014/01/15/sort-algorithm/radix-sort/" target="_blank" rel="noopener">http://bubkoo.com/2014/01/15/sort-algorithm/radix-sort/</a></p>
+<p><img src="/images/shuffle_13.png" alt="radixSort"></p>
+<p>上面是申请内存的过程，申请到的内存作为 一个 page 记录在 allocatedPages 中，spill的时候进行 free 这些内存， 有一个当前使用的 currentPage， 如果不够用了，就继续去申请。</p>
+<p><img src="/images/shuffle_14.png" alt="排序写入"></p>
+<p>看下上面的图， 每次插入一条 record 到page 中， 就把 partionId + pageNumber + offset in page， 作为一个元素插入到 LongArray 中， 最终读取数据的时候， 对LongArray 进行 RadixSort 排序，  排序后依次根据指针元素索引原始数据，就做到 partition 级别有序了。</p>
+<p><img src="/images/shuffle_15.png" alt="spill的过程"></p>
+<p>spill 文件的时候， UnsafeShuffleInMemorySorter 生成一个数据迭代器， 会返回一个根据partition id 排过序迭代器，该迭代器粒度每个元素就是一个指针，对应 PackedRecordPointer 这个数据结构， 这个 PackedRecordPointer 定义的数据结构就是  <code>[24 bit partition number][13 bit memory page number][27 bit offset in page]</code> 然后到根据该指针可以拿到真实的record, 在一开始进入UnsafeShuffleExternalSorter 就已经被序列化了，所以在这里就纯粹变成写字节数组了。一个文件里不同的partiton的数据用fileSegment来表示，对应的信息存在 SpillInfo 数据结构中。</p>
+<blockquote>
+<p>参考数据结构中指针的定义，其实都是字节级别的使用，可见越是底层的这些应用，越是要掰着手指头敲代码。</p>
+</blockquote>
+<p><img src="/images/shuffle_16.png" alt="合并文件"></p>
+<p>每个spill 文件的分区索引都保存在 SpillInfo 数据结构中， Task结束前，我们要做一次mergeSpills操作， 如果 fastMergeEnabled  并且压缩方式支持 concatenation of compressed data， 就可以直接 简单地连接相同分区的压缩数据到一起，而且不用解压反序列化。使用一种高效的数据拷贝技术，比如  NIO’s transferTo 就可以避免解压和 buffer 拷贝。</p>
+<blockquote>
+<p>约到这个时候，就会发现一个解压带来的操作可能都是极其客观的。</p>
+</blockquote>
+<p>Reducer阶段：</p>
+<p><img src="https://static001.geekbang.org/resource/image/2c/eb/2c4ec7fb70bfd103f70f24e56yya91eb.jpg" alt="reducer过程"></p>
+<p>Reduce Task 将拉取到的数据块填充到读缓冲区，然后按照任务的计算逻辑不停地消费、处理缓冲区中的数据记录。</p>
+<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p>整个过程可以归纳为：排序、溢出、归并。但是这三个过程为应对大数据量和其他的异常状况，进行了更加复杂的涉及，让整体更加省资源，计算更加高效。</p>
+<p>上文中提到了两种中间的数据结构，PartitionedPairBuffer 和 PartitionedAppendOnlyMap， groupByKey 底层使用的是 PartitionedPairBuffer，而reduceByKey 使用的是 PartitionedAppendOnlyMap，PartitionedAppendOnlyMap最大的特点是value值是可以进行累加的，那么就以为着针对一些运算我实际可以用更高效的内存数据结构、更少的磁盘文件、更小的文件尺寸，我们就能大幅降低了 Shuffle 过程中的磁盘和网络开销。因为 对于聚合类计算，reduceByKey的效率是高效很多的。即使不计算，他的效率也更高一些。</p>
+<p>shuffle消耗的问题点主要如下：</p>
+<ul>
+<li>无论是 PartitionedPairBuffer、PartitionedAppendOnlyMap 这些内存数据结构，还是读写缓冲区，都会消耗宝贵的内存资源；</li>
+<li>由于内存空间有限，因此溢出的临时文件会引入大量磁盘 I/O，而且，Map 阶段输出的中间文件也会消耗磁盘；</li>
+<li>呈指数级增长的跨节点数据分发，带来的网络开销更是不容小觑。</li>
+<li>shuffle的消耗的资源是不平衡的，调整起来会比较不稳定。</li>
+</ul>
+<p>现在针对shuffle的一些主要措施就是避免shuffle，如果避免不了，有一些大神选择了单独service。后续会研究一两个这样的service来看一下他的优劣。</p>
+<p>参考：</p>
+<ul>
+<li><a href="https://mp.weixin.qq.com/s/6zvUHOa935xaEKpp_KCyGA" target="_blank" rel="noopener">https://mp.weixin.qq.com/s/6zvUHOa935xaEKpp_KCyGA</a></li>
+<li><a href="https://mp.weixin.qq.com/s/ebRfhNQjlvu56TZ_3BePEQ" target="_blank" rel="noopener">https://mp.weixin.qq.com/s/ebRfhNQjlvu56TZ_3BePEQ</a></li>
+<li><a href="https://time.geekbang.org/column/article/359907" target="_blank" rel="noopener">https://time.geekbang.org/column/article/359907</a></li>
+<li><a href="https://iteblog.blog.csdn.net/article/details/108570977?spm=1001.2101.3001.6650.2&amp;utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7ECTRLIST%7ERate-2-108570977-blog-120844632.pc_relevant_antiscanv2&amp;depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7ECTRLIST%7ERate-2-108570977-blog-120844632.pc_relevant_antiscanv2&amp;utm_relevant_index=5" target="_blank" rel="noopener">https://iteblog.blog.csdn.net/article/details/108570977?spm=1001.2101.3001.6650.2&amp;utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7ECTRLIST%7ERate-2-108570977-blog-120844632.pc_relevant_antiscanv2&amp;depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7ECTRLIST%7ERate-2-108570977-blog-120844632.pc_relevant_antiscanv2&amp;utm_relevant_index=5</a></li>
+<li><a href="https://mp.weixin.qq.com/s?__biz=MzA5MTc0NTMwNQ%3D%3D&amp;chksm=887dd115bf0a58037c31b078064cfb761765b5aa8c249ac0e53b215f81c99c24ef99bd6ecf48&amp;idx=1&amp;mid=2650721379&amp;scene=21&amp;sn=b0ce28c57d30899c7666652ecd205a30#wechat_redirect" target="_blank" rel="noopener">https://mp.weixin.qq.com/s?__biz=MzA5MTc0NTMwNQ%3D%3D&amp;chksm=887dd115bf0a58037c31b078064cfb761765b5aa8c249ac0e53b215f81c99c24ef99bd6ecf48&amp;idx=1&amp;mid=2650721379&amp;scene=21&amp;sn=b0ce28c57d30899c7666652ecd205a30#wechat_redirect</a></li>
+<li><a href="https://www.jianshu.com/p/c83bb237caa8" target="_blank" rel="noopener">https://www.jianshu.com/p/c83bb237caa8</a></li>
+<li><a href="https://www.jianshu.com/p/d328c96aebfd" target="_blank" rel="noopener">https://www.jianshu.com/p/d328c96aebfd</a></li>
+</ul>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/spark/" rel="tag"># spark</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/09/09/%E5%85%B3%E4%BA%8E%E6%89%B9%E6%B5%81%E4%B8%80%E4%BD%93%E6%9E%B6%E6%9E%84%E6%80%9D%E8%80%83/" rel="next" title="关于批流一体架构思考">
+                <i class="fa fa-chevron-left"></i> 关于批流一体架构思考
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/09/24/spark%E5%B9%BF%E6%92%AD%E7%9A%84%E8%AE%BE%E8%AE%A1%E4%BA%8E%E5%AE%9E%E7%8E%B0/" rel="prev" title="spark广播的设计于实现">
+                spark广播的设计于实现 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#spark的shuffle策略实现"><span class="nav-number">1.</span> <span class="nav-text">spark的shuffle策略实现</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#shuffle怎么来的"><span class="nav-number">1.0.1.</span> <span class="nav-text">shuffle怎么来的</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#shuffle的发展"><span class="nav-number">1.0.2.</span> <span class="nav-text">shuffle的发展</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#shuffle的实现"><span class="nav-number">1.0.3.</span> <span class="nav-text">shuffle的实现</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#BypassMergeSortShuffleWriter-实现细节"><span class="nav-number">1.0.4.</span> <span class="nav-text">BypassMergeSortShuffleWriter 实现细节</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#SortShuffleWriter-实现细节"><span class="nav-number">1.0.5.</span> <span class="nav-text">SortShuffleWriter 实现细节</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#UnsafeShuffleWriter-实现细节"><span class="nav-number">1.0.6.</span> <span class="nav-text">UnsafeShuffleWriter 实现细节</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#使用-UnsafeShuffleWriter-的条件"><span class="nav-number">1.0.6.1.</span> <span class="nav-text">使用 UnsafeShuffleWriter 的条件</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#总结"><span class="nav-number">1.0.7.</span> <span class="nav-text">总结</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

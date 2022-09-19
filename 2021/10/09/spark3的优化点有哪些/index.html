@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="spark," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="spark 3 版本的优化点有哪些这里找了几个比较主要的方向来记录一下，可以让我们对于spark的发展和未来的趋势有一个比较好的认识，也可以扩展思考一下大数据生态的热点都在哪些方向，及时提醒自己跟进。 自适应查询执行（AQE）spark在3.0版本之前，对于sql执行是RBO和CBO共存的方式，RBO我们就不说了，规则性优化。但是CBO的实现就比较鸡肋，因为是静态产出的执行计划，也就意味着最终的执">
+<meta property="og:type" content="article">
+<meta property="og:title" content="spark3的优化点有哪些">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/09/spark3%E7%9A%84%E4%BC%98%E5%8C%96%E7%82%B9%E6%9C%89%E5%93%AA%E4%BA%9B/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="spark 3 版本的优化点有哪些这里找了几个比较主要的方向来记录一下，可以让我们对于spark的发展和未来的趋势有一个比较好的认识，也可以扩展思考一下大数据生态的热点都在哪些方向，及时提醒自己跟进。 自适应查询执行（AQE）spark在3.0版本之前，对于sql执行是RBO和CBO共存的方式，RBO我们就不说了，规则性优化。但是CBO的实现就比较鸡肋，因为是静态产出的执行计划，也就意味着最终的执">
+<meta property="og:image" content="https://github.com/images/s3_1.png">
+<meta property="og:image" content="https://github.com/images/s3_2.png">
+<meta property="og:image" content="https://github.com/images/s3_3.png">
+<meta property="article:published_time" content="2021-10-09T05:50:32.000Z">
+<meta property="article:modified_time" content="2022-05-13T03:51:26.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="spark">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/s3_1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/09/spark3的优化点有哪些/"/>
+
+
+
+
+
+  <title>spark3的优化点有哪些 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/09/spark3%E7%9A%84%E4%BC%98%E5%8C%96%E7%82%B9%E6%9C%89%E5%93%AA%E4%BA%9B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">spark3的优化点有哪些</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-09T13:50:32+08:00">
+                2021-10-09
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+                  ， 
+                
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/spark/" itemprop="url" rel="index">
+                    <span itemprop="name">spark</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="spark-3-版本的优化点有哪些"><a href="#spark-3-版本的优化点有哪些" class="headerlink" title="spark 3 版本的优化点有哪些"></a>spark 3 版本的优化点有哪些</h2><p>这里找了几个比较主要的方向来记录一下，可以让我们对于spark的发展和未来的趋势有一个比较好的认识，也可以扩展思考一下大数据生态的热点都在哪些方向，及时提醒自己跟进。</p>
+<h3 id="自适应查询执行（AQE）"><a href="#自适应查询执行（AQE）" class="headerlink" title="自适应查询执行（AQE）"></a>自适应查询执行（AQE）</h3><p>spark在3.0版本之前，对于sql执行是RBO和CBO共存的方式，RBO我们就不说了，规则性优化。但是CBO的实现就比较鸡肋，因为是静态产出的执行计划，也就意味着最终的执行计划并不是最优的，因为中间执行有可能不是最优的执行计划。这个CBO之所以可能产出不是最优的，是因为spark本身的任务就是分多个stage的，跨stage的数据存储方式是多种多样的。</p>
+<p>所以spark退出了AQE（Adaptive Query Execution），AQE 是 Spark SQL 的一种动态优化机制，在运行时，每当<strong>Shuffle Map 阶</strong>段执行完毕，AQE 都会结合这个阶段的<strong>统计信息</strong>，基于既定的规则动态地调整、修正尚未执行的<strong>逻辑计划和物理计划</strong>，来完成对原始查询语句的<strong>运行时优化</strong>。</p>
+<p>关键词：<strong>Shuffle Map 阶</strong>段，AQE 优化机制触发的时机是 Shuffle Map 阶段执行完毕。也就是说，AQE 优化的频次与执行计划中 Shuffle 的次数一致。反过来说，如果你的查询语句不会引入 Shuffle 操作，那么 Spark SQL 是不会触发 AQE 的。对于这样的查询，无论你怎么调整 AQE 相关的配置项，AQE 也都爱莫能助。</p>
+<p>关键词：统计信息，AQE 赖以优化的统计信息与 CBO 不同，这些统计信息并不是关于某张表或是哪个列，而是 Shuffle Map 阶段输出的中间文件。每个 data 文件的大小、空文件数量与占比、每个 Reduce Task 对应的分区大小，所有这些基于中间文件的统计值构成了 AQE 进行优化的信息来源。</p>
+<p>关键词：逻辑计划和物理计划，AQE 从运行时获取统计信息，在条件允许的情况下，优化决策会分别作用到逻辑计划和物理计划。</p>
+<p><img src="/images/s3_1.png" alt="s3_1"></p>
+<p>AQE 既定的规则和策略主要有 4 个，分为 1 个逻辑优化规则和 3 个物理优化策略。</p>
+<p><img src="/images/s3_2.png" alt="s3_2"></p>
+<blockquote>
+<p>这种规则看起来其实也和RBO的编码风格类似。</p>
+</blockquote>
+<h4 id="Join-策略调整"><a href="#Join-策略调整" class="headerlink" title="Join 策略调整"></a>Join 策略调整</h4><p>DemoteBroadcastHashJoin 规则的作用，是把 Shuffle Joins 降级为 Broadcast Joins。需要注意的是，这个规则仅适用于 Shuffle Sort Merge Join 这种关联机制，其他机制如 Shuffle Hash Join、Shuffle Nested Loop Join 都不支持。</p>
+<p>满足以下两个条件的表就会应用这个规则：</p>
+<ul>
+<li>中间文件尺寸总和小于广播阈值 spark.sql.autoBroadcastJoinThreshold</li>
+<li>空文件占比小于配置项 spark.sql.adaptive.nonEmptyPartitionRatioForBroadcastJoin</li>
+</ul>
+<p>满足这两个条件，就可以实现这个降级。但是shuffle的过程实际是分多个细小的步骤。在AQE诞生之前，map完之后是要有排序以及数据分发，因为aqe的生效阶段是在第一个shuffle的map阶段之后，上边的规则策略即使生效，对于大表的分发策略还是没有变化，所以这个时候需要一起优化一下，这个时候引入了规则OptimizeLocalShuffleReader。采取 OptimizeLocalShuffleReader 策略可以省去 Shuffle 常规步骤中的网络分发，Reduce Task 可以就地读取本地节点（Local）的中间文件，完成与广播小表的关联操作。</p>
+<p>我一直认为这俩策略是不是可以一起，算在一个规则里。然而AQE的这俩策略是分开的。我感觉原因应该是DemoteBroadcastHashJoin规则和OptimizeLocalShuffleReader规则作用的区域是不一样的。</p>
+<p>不过，需要我们特别注意的是，OptimizeLocalShuffleReader 物理策略的生效与否由一个配置项决定。这个配置项是 <strong>spark.sql.adaptive.localShuffleReader.enabled</strong>，尽管它的默认值是 True，但是你千万不要把它的值改为 False。否则，就像我们刚才说的，AQE 的 Join 策略调整就变成了形同虚设。</p>
+<h4 id="自动分区合并"><a href="#自动分区合并" class="headerlink" title="自动分区合并"></a>自动分区合并</h4><p><strong>在 Reduce 阶段，当 Reduce Task 从全网把数据分片拉回，AQE 按照分区编号的顺序，依次把小于目标尺寸的分区合并在一起</strong>。目标分区尺寸由以下两个参数共同决定。</p>
+<ul>
+<li>spark.sql.adaptive.advisoryPartitionSizeInBytes，由开发者指定分区合并后的推荐尺寸。</li>
+<li>spark.sql.adaptive.coalescePartitions.minPartitionNum，分区合并后，分区数不能低于该值。</li>
+</ul>
+<p><img src="/images/s3_3.png" alt="s3_3"></p>
+<p>我们还要注意，在 Shuffle Map 阶段完成之后，AQE 优化机制被触发，CoalesceShufflePartitions 策略“无条件”地被添加到新的物理计划中。读取配置项、计算目标分区大小、依序合并相邻分区这些计算逻辑，在 Tungsten WSCG 的作用下融合进“手写代码”于 Reduce 阶段执行。</p>
+<blockquote>
+<p>通用规则会直接进行强制使用，但是使用的方式还是值得借鉴的。</p>
+</blockquote>
+<h4 id="自动倾斜处理"><a href="#自动倾斜处理" class="headerlink" title="自动倾斜处理"></a>自动倾斜处理</h4><p>在 Reduce 阶段，当 Reduce Task 所需处理的分区尺寸大于一定阈值时，利用 OptimizeSkewedJoin 策略，AQE 会把大分区拆成多个小分区。倾斜分区和拆分粒度由以下这些配置项决定。</p>
+<ul>
+<li>spark.sql.adaptive.skewJoin.skewedPartitionFactor，判定倾斜的膨胀系数</li>
+<li>spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes，判定倾斜的最低阈值</li>
+<li>spark.sql.adaptive.advisoryPartitionSizeInBytes，以字节为单位，定义拆分粒度</li>
+</ul>
+<p>数据倾斜的处理实际要应对的场景是很复杂的，spark 3 中关于这点优化主要把大块数据进行了拆分。而在实际的使用中，仅仅做数据拆分并没有从根本上解决倾斜的问题，因为调度上这些数据的计算还是会集中在某些节点上。</p>
+<blockquote>
+<p>所以这部分的调优，要酌情参考，而且要谨慎使用。</p>
+</blockquote>
+<h3 id="动态分区剪裁（DPP）"><a href="#动态分区剪裁（DPP）" class="headerlink" title="动态分区剪裁（DPP）"></a>动态分区剪裁（DPP）</h3><p>什么是分区剪裁呢？实际上，分区剪裁是谓词下推的一种特例，它指的是在分区表中下推谓词，并以文件系统目录为单位对数据集进行过滤。分区表就是通过指定分区键，然后使用 partitioned by 语句创建的数据表，或者是使用 partitionBy 语句存储的列存文件（如 Parquet、ORC 等）。</p>
+<p>如果过滤谓词中包含分区键，那么 Spark SQL 对分区表做扫描的时候，是完全可以跳过（剪掉）不满足谓词条件的分区目录，这就是分区剪裁。这部分逻辑在spark3之前其实就已经有实现。那spark3 实现了个啥呢？他的优化主要是<strong>把维度表中的过滤条件，通过关联关系传导到事实表，从而完成事实表的优化</strong>。也就是我们常见的join作为传导关系，然后下推到事实表。然而，这个机制的触发需要满足三个条件：</p>
+<ul>
+<li>事实表必须是分区表，而且分区字段（可以是多个）必须包含 Join Key。</li>
+<li>DPP 仅支持等值 Joins，不支持大于、小于这种不等值关联关系。</li>
+<li>维度表过滤之后的数据集要小于广播阈值。因为维度表删选出来用来裁剪的值会通过广播的形式进行下放。</li>
+</ul>
+<h3 id="join-Hints"><a href="#join-Hints" class="headerlink" title="join Hints"></a>join Hints</h3><p>在满足前提条件的情况下，如等值条件、连接类型、表大小等等，Spark 会优先尊重开发者的意愿，去选取开发者通过 Join Hints 指定的 Join 策略。</p>
+<h3 id="增强python-api"><a href="#增强python-api" class="headerlink" title="增强python api"></a>增强python api</h3><p>Koalas——基于Apache Spark的pandas API实现，重度优化完善这个组件，让数据科学家能够在分布式环境中更高效地处理大数据。</p>
+<h3 id="其他"><a href="#其他" class="headerlink" title="其他"></a>其他</h3><ul>
+<li>加速器感知调度：Hydrogen项目旨在更好地统一基于Spark的深度学习和数据处理。</li>
+<li>结构化流（structedStreaming）的新UI。</li>
+</ul>
+<p>​</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/spark/" rel="tag"># spark</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/10/05/spark%E5%8E%9F%E7%90%86-catalyst%E9%80%BB%E8%BE%91%E8%AE%A1%E5%88%92/" rel="next" title="spark原理--catalyst逻辑计划">
+                <i class="fa fa-chevron-left"></i> spark原理--catalyst逻辑计划
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/10/18/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93/" rel="prev" title="《如何成为学习高手》总结">
+                《如何成为学习高手》总结 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#spark-3-版本的优化点有哪些"><span class="nav-number">1.</span> <span class="nav-text">spark 3 版本的优化点有哪些</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#自适应查询执行（AQE）"><span class="nav-number">1.1.</span> <span class="nav-text">自适应查询执行（AQE）</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Join-策略调整"><span class="nav-number">1.1.1.</span> <span class="nav-text">Join 策略调整</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#自动分区合并"><span class="nav-number">1.1.2.</span> <span class="nav-text">自动分区合并</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#自动倾斜处理"><span class="nav-number">1.1.3.</span> <span class="nav-text">自动倾斜处理</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#动态分区剪裁（DPP）"><span class="nav-number">1.2.</span> <span class="nav-text">动态分区剪裁（DPP）</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#join-Hints"><span class="nav-number">1.3.</span> <span class="nav-text">join Hints</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#增强python-api"><span class="nav-number">1.4.</span> <span class="nav-text">增强python api</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#其他"><span class="nav-number">1.5.</span> <span class="nav-text">其他</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

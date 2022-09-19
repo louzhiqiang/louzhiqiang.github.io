@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="hbase," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="hbase的行级事务针对于事务，如果并行插入多行数据，不能一次性写进wal的情况下，有可能造成事务的不一致。 每个事务只会产生一个 WAL 单元。这样就可以保证 WAL 写入时候的原子性。 HBase 事务隔离性写写并发控制实现写写并发其实很简单，只需要在写入（或更新）之前先获取行锁，如果获取不到，说明已经有其他线程拿了该锁，就需要不断重试等待或者自旋等待，直至其他线程释放该锁。 实现批量写入多行">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hbase原理 第四篇">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/04/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E5%9B%9B%E7%AF%87/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="hbase的行级事务针对于事务，如果并行插入多行数据，不能一次性写进wal的情况下，有可能造成事务的不一致。 每个事务只会产生一个 WAL 单元。这样就可以保证 WAL 写入时候的原子性。 HBase 事务隔离性写写并发控制实现写写并发其实很简单，只需要在写入（或更新）之前先获取行锁，如果获取不到，说明已经有其他线程拿了该锁，就需要不断重试等待或者自旋等待，直至其他线程释放该锁。 实现批量写入多行">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/07/0008.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/10/h2.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/10/h3.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/10/h4.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/10/h5.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/10/h6.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/10/h7.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/10/h8.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/07/11.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/07/12.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/07/13.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/07/14.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/07/15.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/07/16.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/07/17.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/07/18.png">
+<meta property="article:published_time" content="2022-07-04T02:33:46.000Z">
+<meta property="article:modified_time" content="2022-07-04T08:28:54.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="hbase">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://hbasefly.com/wp-content/uploads/2017/07/0008.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/04/hbase原理-第四篇/"/>
+
+
+
+
+
+  <title>hbase原理 第四篇 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/04/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E5%9B%9B%E7%AF%87/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">hbase原理 第四篇</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-07-04T10:33:46+08:00">
+                2022-07-04
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="hbase的行级事务"><a href="#hbase的行级事务" class="headerlink" title="hbase的行级事务"></a>hbase的行级事务</h1><p>针对于事务，如果并行插入多行数据，不能一次性写进wal的情况下，有可能造成事务的不一致。</p>
+<p>每个事务只会产生一个 WAL 单元。这样就可以保证 WAL 写入时候的原子性。</p>
+<h2 id="HBase-事务隔离性"><a href="#HBase-事务隔离性" class="headerlink" title="HBase 事务隔离性"></a><strong>HBase 事务隔离性</strong></h2><h3 id="写写并发控制"><a href="#写写并发控制" class="headerlink" title="写写并发控制"></a><strong>写写并发控制</strong></h3><p>实现写写并发其实很简单，只需要在写入（或更新）之前先获取行锁，如果获取不到，说明已经有其他线程拿了该锁，就需要不断重试等待或者自旋等待，直至其他线程释放该锁。</p>
+<h3 id="实现批量写入多行的写写并发？"><a href="#实现批量写入多行的写写并发？" class="headerlink" title="实现批量写入多行的写写并发？"></a><strong>实现批量写入多行的写写并发？</strong></h3><p>思路还是一样的，使用行锁。但这里需要注意的是必须使用<strong>两阶段锁协议</strong>，即：</p>
+<p>(1) 获取所有待写入（更新）行记录的行锁</p>
+<p>(2) 开始执行写入（更新）操作</p>
+<p>(3) 写入完成之后再统一释放所有行记录的行锁</p>
+<p>不能更新一行锁定（释放）一行，多个事务之间容易形成死锁。两阶段锁协议就是为了避免死锁，MySQL 事务写写并发控制同样使用两阶段锁协议。</p>
+<h2 id="读写并发控制"><a href="#读写并发控制" class="headerlink" title="读写并发控制"></a><strong>读写并发控制</strong></h2><h3 id="实现读写并发控制"><a href="#实现读写并发控制" class="headerlink" title="实现读写并发控制"></a><strong>实现读写并发控制</strong></h3><p>MVCC 机制 – Mutil Version Concurrent Control。</p>
+<p>HBase 中 MVCC 机制实现主要分为两步：</p>
+<p>(1) 为每一个写（更新）事务分配一个 Region 级别自增的序列号</p>
+<p>(2) 为每一个读请求分配一个已完成的最大写事务序列号</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2017/07/0008.png" alt=""></p>
+<p>所有的事务都会生成一个 Region 级别的自增序列，并添加到队列中，如下图最左侧队列，其中最底端为已经提交的事务，队列中的事务为未提交事务。现假设当前事务编号为 15，并且写入完成（中间队列红色框框），但之前的写入事务还未完成（序列号为 12、13、14 的事务还未完成），此时当前事务必须等待，而且对读并不可见，直至之前所有事务完成之后才会对读可见（即读请求才能读取到该事务写入的数据）。如最右侧图，15 号事务之前的所有事务都成功完成，此时 Read Point 就会移动到 15 号事务处，表示 15 号事务之前的所有改动都可见。</p>
+<blockquote>
+<p>递增版本序列号是哪种级别的，那么支持的事务就是哪种级别的。目前hbase支持的SequenceId 是region级别的，那么事务就是region级别的。mysql的则增序列是单机级别的，那么事务就是单机级别的。</p>
+</blockquote>
+<p>参考：</p>
+<p><a href="http://hbasefly.com/2017/07/26/transaction-2/" target="_blank" rel="noopener">数据库事务系列－HBase行级事务模型 &#8211; 有态度的HBase/Spark/BigData</a></p>
+<h1 id="REGIONSERVER-宕机数据恢复"><a href="#REGIONSERVER-宕机数据恢复" class="headerlink" title="REGIONSERVER 宕机数据恢复"></a>REGIONSERVER 宕机数据恢复</h1><h2 id="HLOG"><a href="#HLOG" class="headerlink" title="HLOG"></a>HLOG</h2><p>hlog是region server 恢复的主要依据，因为memstore的数据是内存的，没有机制持久化。所以regionserver可能丢失的数据只有memstore的部分。</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/10/h2.png" alt=""></p>
+<p>hlog是region server级别的，所有region是混合存储的。</p>
+<p>一个 HLog 由 RegionServer 上所有 Region 的日志数据构成，日志数据的最小单元为 &lt;HLogKey,WALEdit&gt;，其中 HLogKey 由 sequenceid、writetime、clusterid、regionname 以及 tablename 组成。其中 sequenceid 是日志写入时分配给数据的一个自增数字，先写入的日志数据 sequenceid 小，后写入的 sequenceid 大。</p>
+<h3 id="HLog-滚动"><a href="#HLog-滚动" class="headerlink" title="HLog 滚动"></a>HLog 滚动</h3><p>HBase 后台启动了一个线程会每隔一段时间（由参数’hbase.regionserver.logroll.period’决定，默认 1 小时）进行日志滚动，即新生成一个新的日志文件。可见，HLog 日志文件并不是一个大文件，而是会产生很多小文件。滚动机制可以有很灵活的删除机制。</p>
+<h3 id="HLog-失效"><a href="#HLog-失效" class="headerlink" title="HLog 失效"></a>HLog 失效</h3><p>那怎么判断一个日志文件里面的数据失效了呢？首先从原理上讲一旦数据从 Memstore 中落盘，对应的日志就可以被删除，因此一个文件所有数据失效，只需要看该文件中最大 sequenceid 对应的数据是否已经落盘就可以，HBase 会在每次执行 flush 的时候纪录对应的最大的 sequenceid，如果前者小于后者，则可以认为该日志文件失效。一旦判断失效就会将该文件从 WALs 文件夹移动到 OldWALs 文件夹。</p>
+<h3 id="HLog-删除"><a href="#HLog-删除" class="headerlink" title="HLog 删除"></a>HLog 删除</h3><p>HMaster 后台会启动一个线程每隔一段时间（由参数’hbase.master.cleaner.interval’，默认 1 分钟）会检查一次文件夹 OldWALs 下的所有失效日志文件，确认是否可以被删除，确认之后执行删除操作。又有同学问了，刚才不是已经确认可以被删除了吗？这里基于两点考虑，第一对于使用 HLog 进行主从复制的业务来说，第三步的确认并不完整，需要继续确认是否该 HLog 还在应用于主从复制；第二对于没有执行主从复制的业务来讲，HBase 依然提供了一个过期的 TTL（由参数’hbase.master.logcleaner.ttl’决定，默认 10 分钟），也就是说 OldWALs 里面的文件最多依然再保存 10 分钟。</p>
+<h2 id="故障恢复"><a href="#故障恢复" class="headerlink" title="故障恢复"></a>故障恢复</h2><p><img src="http://hbasefly.com/wp-content/uploads/2016/10/h3.png" alt=""></p>
+<p>HBase 检测宕机是通过 Zookeeper 实现的， 正常情况下 RegionServer 会周期性向 Zookeeper 发送心跳，一旦发生宕机，心跳就会停止，超过一定时间（SessionTimeout）Zookeeper 就会认为 RegionServer 宕机离线，并将该消息通知给 Master。</p>
+<p>一台 RegionServer 只有一个 HLog 文件，即所有 Region 的日志都是混合写入该 HLog 的，然而，回放日志是以 Region 为单元进行的，一个 Region 一个 Region 回放，因此在回放之前首先需要将 HLog 按照 Region 进行分组，每个 Region 的日志数据放在一起，方便后面按照 Region 进行回放。这个分组的过程就称为 HLog 切分。</p>
+<p>而基于切分策略，目前hbase有三个递进的过程：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/10/h4.png" alt=""></p>
+<h3 id="LogSplitting"><a href="#LogSplitting" class="headerlink" title="LogSplitting"></a><strong>LogSplitting</strong></h3><p><img src="http://hbasefly.com/wp-content/uploads/2016/10/h5.png" alt=""></p>
+<p>这种日志切分可以完成最基本的任务，但是效率极差，在某些场景下（集群整体宕机）进行恢复可能需要 N 个小时！也因为恢复效率太差，所以开发了 Distributed Log Splitting 架构。</p>
+<h3 id="Distributed-Log-Splitting"><a href="#Distributed-Log-Splitting" class="headerlink" title="Distributed Log Splitting"></a><strong>Distributed Log Splitting</strong></h3><p>Distributed Log Splitting 是 Log Splitting 的分布式实现，它借助 Master 和所有 RegionServer 的计算能力进行日志切分，其中 Master 作为协调者，RegionServer 作为实际的工作者。基本工作原理如下图所示：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/10/h6.png" alt=""></p>
+<ol>
+<li><p>Master 会将待切分日志路径发布到 Zookeeper 节点上（/hbase/splitWAL），每个日志作为一个任务，每个任务都会有对应状态，起始状态为 TASK_UNASSIGNED</p>
+</li>
+<li><p>所有 RegionServer 启动之后都注册在这个节点上等待新任务，一旦 Master 发布任务之后，RegionServer 就会抢占该任务</p>
+</li>
+<li><p>抢占任务实际上首先去查看任务状态，如果是 TASK_UNASSIGNED 状态，说明当前没有人占有，此时就去修改该节点状态为 TASK_OWNED。如果修改失败，说明其他 RegionServer 也在抢占，修改成功表明任务抢占成功。</p>
+</li>
+<li><p>RegionServer 抢占任务成功之后会分发给相应线程处理，如果处理成功，会将该任务对应 zk 节点状态修改为 TASK_DONE，一旦失败会修改为 TASK_ERR</p>
+</li>
+<li><p>Master 会一直监听在该 ZK 节点上，一旦发生状态修改就会得到通知。任务状态变更为 TASK_ERR 的话，Master 会重新发布该任务，而变更为 TASK_DONE 的话，Master 会将对应的节点删除</p>
+</li>
+</ol>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/10/h7.png" alt=""></p>
+<ol>
+<li><p>假设 Master 当前发布了 4 个任务，即当前需要回放 4 个日志文件，分别为 hlog1、hlog2、hlog3 和 hlog4</p>
+</li>
+<li><p>RegionServer1 抢占到了 hlog1 和 hlog2 日志，RegionServer2 抢占到了 hlog3 日志，RegionServer3 抢占到了 hlog4 日志</p>
+</li>
+<li><p>以 RegionServer1 为例，其抢占到 hlog1 和 hlog2 日志之后会分别分发给两个 HLogSplitter 线程进行处理，HLogSplitter 负责对日志文件执行具体的切分，切分思路还是首先读出日志中每一个 &lt;HLogKey, WALEdit&gt; 数据对，根据 HLogKey 所属 Region 写入不同的 Region Buffer</p>
+</li>
+<li><p>每个 Region Buffer 都会有一个对应的写线程，将 buffer 中的日志数据写入 hdfs 中，写入路径为 / hbase/table/region2/seqenceid.temp，其中 seqenceid 是一个日志中某个 region 对应的最大 sequenceid</p>
+</li>
+<li><p>针对某一 region 回放日志只需要将该 region 对应的所有文件按照 sequenceid 由小到大依次进行回放即可</p>
+</li>
+</ol>
+<p>这种方式会产生很多日志<strong>小文件</strong>，产生的文件数将会是 M * N，其中 M 是待切分的总 hlog 数量，N 是一个宕机 RegionServer 上的 Region 个数。假如一个 RegionServer 上有 200 个 Region，并且有 90 个 hlog 日志，一旦该 RegionServer 宕机，那这种方式的恢复过程将会创建 90 ＊ 200 ＝ 18000 个小文件。这还只是一个 RegionServer 宕机的情况，如果是整个集群宕机小文件将会更多！！！</p>
+<h3 id="Distributed-Log-Replay"><a href="#Distributed-Log-Replay" class="headerlink" title="Distributed Log Replay"></a><strong>Distributed Log Replay</strong></h3><p>该方案在基本流程上做了一些改动，如下图所示：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/10/h8.png" alt=""></p>
+<p>相比 Distributed Log Splitting 方案，流程上的改动主要有两点：先重新分配 Region，再切分回放 HLog；Region 重新分配打开之后状态设置为 recovering，核心在于 recovering 状态的 Region 可以对外提供写服务，不能提供读服务，而且不能执行 split、merge 等操作。</p>
+<p>DLR 的 HLog 切分回放基本框架类似于 Distributed Log Splitting，但它在分解完 HLog 为 Region-Buffer 之后并没有去写入小文件，而是直接去执行回放。这样设计可以大大减少小文件的读写 IO 消耗，解决 DLS 的切身痛点。</p>
+<p>DLR最大的特点是支持快速的写可用恢复。</p>
+<p>DLS之所以要写入文件，原因是为了sequenceid排序，这时候回放是可以最大程度保证还原历史回放。</p>
+<p>但是如果不去排序，是否会有问题呢？</p>
+<p>参考：</p>
+<p><a href="http://hbasefly.com/2016/10/29/hbase-regionserver-recovering/" target="_blank" rel="noopener">HBase原理－RegionServer宕机数据恢复 &#8211; 有态度的HBase/Spark/BigData</a></p>
+<h1 id="要弄懂的-SEQUENCEID"><a href="#要弄懂的-SEQUENCEID" class="headerlink" title="要弄懂的 SEQUENCEID"></a>要弄懂的 SEQUENCEID</h1><h2 id="为什么需要-sequenceId？"><a href="#为什么需要-sequenceId？" class="headerlink" title="为什么需要 sequenceId？"></a><strong>为什么需要 sequenceId？</strong></h2><ol>
+<li><p>Memstore 中的数据 flush 到 HDFS 文件中后 HLog 对应的数据是不是就可以被删除了？不然 HLog 会无限增长！那问题来了，Memstore 中被 flush 到 HDFS 的数据，如何映射到 HLog 中的相关日志数据？</p>
+</li>
+<li><p>HBase 中单个 HLog 都有固定大小，日志文件最大个数也是固定设置的，默认最大 HLog 文件数量为 8。如果日志数量超过这个数量，就必须删除最老的 HLog 日志。那问题来了，如何知道待删除 HLog 日志对应的所有数据都已经落盘了？（如果知道哪些数据没有落盘，就可以强制对其执行 flush，之后就可以将 HLog 删除）</p>
+</li>
+<li><p>RegionServer 宕机之后 Memstore 中数据必然会丢失，大家都知道可以通过 HLog 进行恢复。那问题来了，HLog 中哪些数据需要恢复？哪些不需要恢复？</p>
+</li>
+</ol>
+<p>这三个问题从本质上来讲是一个问题，都需要一种介质来表示 Memstore 中数据 Flush 的那个点对应 HLog 哪个位置，这个介质就是本文要介绍的重点－sequenceId</p>
+<h2 id="HLOG的核心结构"><a href="#HLOG的核心结构" class="headerlink" title="HLOG的核心结构"></a>HLOG的核心结构</h2><p><img src="http://hbasefly.com/wp-content/uploads/2017/07/11.png" alt=""></p>
+<p>HLog 中日志单元 WALEntry 表示一次行级更新的最小追加单元（图中红色 / 黄色小方框），它由两部分组成：HLogKey 和 WALEdit，HLogKey 中包含多个属性信息，包含 table name、region name、sequenceid 等；WALEdit 用来表示一个事务中的更新集合，一次行级事务可以原子操作同一行中的多个列。上图中 WALEdit 包含多个 KeyValue。</p>
+<h2 id="sequenceid"><a href="#sequenceid" class="headerlink" title="sequenceid"></a><strong>sequenceid</strong></h2><p>sequenceid 是 region 级别一次行级事务的自增序号。这个定义是我琢磨出来的，需要关注的地方有三个：</p>
+<ol>
+<li><p>sequenceid 是自增序号。很好理解，就是随着时间推移不断自增，不会减小。</p>
+</li>
+<li><p>sequenceid 是一次行级事务的自增序号。行级事务是什么？简单点说，就是更新一行中的多个列族、多个列，行级事务能够保证这次更新的原子性、一致性、持久性以及设置的隔离性，HBase 会为一次行级事务分配一个自增序号。</p>
+</li>
+<li><p>sequenceid 是 region 级别的自增序号。每个 region 都维护属于自己的 sequenceid，不同 region 的 sequenceid 相互独立。</p>
+</li>
+</ol>
+<p><img src="http://hbasefly.com/wp-content/uploads/2017/07/12.png" alt=""></p>
+<h4 id="HLog-在什么时候可以过期回收？"><a href="#HLog-在什么时候可以过期回收？" class="headerlink" title="HLog 在什么时候可以过期回收？"></a><strong>HLog 在什么时候可以过期回收？</strong></h4><p>下图中虚线右侧部分为超过单个 HLog 大小阈值后切分形成的一个 HLog 文件，问题是这个文件什么时候可以被系统回收删除。理论上来说只需要这个文件上所有 Region 对应的最大 sequenceid 已经落盘就可以删除，比如下图中如果 RegionA 对应的最大 sequenceid(5) 已经落盘，同时 RegionB 对应的最大 sequenceid(5) 也落盘，那该 HLog 就可以被删除。那怎么实现的呢？</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2017/07/13.png" alt=""></p>
+<p>RegionServer 会为每个 Region 维护了一个变量 oldestUnflushedSequenceId（实际上是为每个 Store，为了方便讲解，此处暂且认为是 Region，不影响原理），表示这个 Region 最早的还未落盘的 seqid ，即这个 seqid 之前的所有数据都已经落盘。接下来看看这个值在 flush 的时候是怎么维护的，以及如何用这个值实现 HLog 的过期回收判断。</p>
+<p>下图是 flush 过程中 oldestUnflushedSequenceId 变量变化的示意图，初始时为 null，假设在某一时刻阶段二 RegionA(红色方框) 要执行 flush，中间 HLog 中 sequenceId 为 1~4 对应的数据将会落盘，在执行 flush 之前，HBase 会 append 一个空的 Entry 到 HLog，仅为获取下一个 sequenceId(5)，并将这个 sequenceId 赋给 OldestUnflushedSequenceId-RegionA。如图中第三阶段 OldestUnflushedSequenceId-RegionA 指向 sequenceId 为 5 的 Entry。</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2017/07/14.png" alt=""></p>
+<p>可见，每次 flush 之后这个变量就会往前移动一段距离。这个变量至关重要，是解决文初提到的三个问题的关键。基于上述对这个变量的理解，来看看下面两种场景下右侧 HLog 是否可以删除：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2017/07/15.png" alt=""></p>
+<p>很显然，场景一中右侧 HLog 还有未落盘的数据（sequenceid=5 还未落盘），因此不能删除；而场景二中右侧 HLog 的所有数据都已经落盘，所以这个 HLog 理论上就已经可以被删除回收。</p>
+<h4 id="HLog-数量超过阈值-maxlogs-之后删除最早-HLog，应该强制刷新哪些-Region？"><a href="#HLog-数量超过阈值-maxlogs-之后删除最早-HLog，应该强制刷新哪些-Region？" class="headerlink" title="HLog 数量超过阈值 (maxlogs) 之后删除最早 HLog，应该强制刷新哪些 Region？"></a><strong>HLog 数量超过阈值 (maxlogs) 之后删除最早 HLog，应该强制刷新哪些 Region？</strong></h4><p>假设当前系统设置了 HLog 的最大数量为 32，即 hbase.regionserver.maxlogs=32，上图中最左侧 HLog 是第 33 个，此时系统会获取到最老的日志（最右侧 HLog），并检查所有的 Entry 对应的数据是否都已经落盘，如图所示 RegionC 还有部分数据没有落地，为了安全删除这个 HLog 就必须强制对本 HLog 中多个 Region 执行 flush 操作，将所有数据落盘。</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2017/07/16.png" alt=""></p>
+<h4 id="RegionServer-宕机恢复-replay-日志时哪些-WALEntry-需要被回放，哪些会被-skip？"><a href="#RegionServer-宕机恢复-replay-日志时哪些-WALEntry-需要被回放，哪些会被-skip？" class="headerlink" title="RegionServer 宕机恢复 replay 日志时哪些 WALEntry 需要被回放，哪些会被 skip？"></a><strong>RegionServer 宕机恢复 replay 日志时哪些 WALEntry 需要被回放，哪些会被 skip？</strong></h4><p>理论上来说只需要回放 Memstore 中没有落地的数据对应的 WALEntry，已经落地数据对应的 WALEntry 可以 skip。可问题是 RegionServer 已经宕机了，&lt;region, oldestUnflushedSequenceId&gt; 对应信息肯定没有了，如何是好？想办法持久化呗，上文分析 oldestUnflushedSequenceId 变量是 flush 时产生的一个变量，这个变量完全可以以 flush 的时候以元数据的形式写到 HFile 中（代码见下图）：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2017/07/17.png" alt=""></p>
+<p>这样 Region 在宕机迁移重新打开之后加载 HFile 元数据就可以恢复出这个核心变量 oldestUnflushedSequenceId（本次 flush 所生成的所有 HFlie 中都存储同一个 sequenceId），这个 <strong>sequenceId</strong> 在恢复出来之后就可以用来在回放 WALEntry 的时候过滤哪些 Entry 需要被回放，哪些会被 skip。</p>
+<p>这里提一个问题：有没有可能一次 flush 所生成的所有 HFile 中存储的 sequenceId 出现不一致，比如：region 中所有 store（store1、store2）都执行 flush，其中 store1 执行 flush 成功，此时 oldestUnflushedSequenceId 变量成功追加到对应的 HFile 中；但在 store2 执行 flush 之前 RegionServer 发生宕机异常，store2 对应的 oldestUnflushedSequenceId 变量还是上个文件对应的 sequenceId，这种情况下回放数据会不会有影响？如果有，为什么？如果没有，是什么机制保证的？</p>
+<blockquote>
+<p><strong>hbase 中 flush 操作是 region 级别操作，即每次执行 flush 都需要整个 region 中的所有 store 全都执行 flush。</strong></p>
+<p><strong>Per-CF Flush 允许系统对某个或某些列组单独执行 flush。实现原理与上文所分析内容基本相似。不同的是上文中</strong> <strong>oldestUnflushedSequenceId 是与 region 一一对应的，Per-CF Flush 中这个参数需要细化到 store，与 store 一一对应。</strong></p>
+</blockquote>
+<h3 id="Per-CF-Flush"><a href="#Per-CF-Flush" class="headerlink" title="Per-CF Flush"></a><strong>Per-CF Flush</strong></h3><p>region 级别 flush 确实存在不少问题，在多个列族的情况下其中一个 store 大小超过了阈值（128M），不论其他 store 多大多小都会强制落盘，有些很小的列族（几兆）落盘后形成很多特别小的文件，对 hbase 的读并不是一件好事。</p>
+<p>per-cf flush 允许单个 store 执行 flush，该 feature 在 1.0.0 以上版本已经存在，在 1.2.0 版本设置为默认策略。实现这个功能有两个必要的工作，其一是提出一种新的 flush 策略能够在多个列族中选择一个或者多个单独进行进行 flush，目前新策略称为 FlushLargerStoresPolicy，即选择当前最大的一个 store 进行 flush。其二是必须将 oldestUnflushedSequenceId 的粒度从 region 细化到 store，即从 map&lt;region, oldestUnflushedSequenceId&gt; 改为 map&lt;region, map&lt;store, oldestUnflushedSequenceId&gt;&gt;，上文所述三个问题的判断逻辑也需要修改为 store 级别判断逻辑。这里使用 store 级别判断逻辑简单对问题一和问题三进行复盘。</p>
+<h4 id="Per-CF-Flush-策略下，HLog-在什么时候可以过期回收？"><a href="#Per-CF-Flush-策略下，HLog-在什么时候可以过期回收？" class="headerlink" title="Per-CF Flush 策略下，HLog 在什么时候可以过期回收？"></a><strong>Per-CF Flush 策略下，HLog 在什么时候可以过期回收？</strong></h4><p>region 级别的判断逻辑主要依赖于 map&lt;region, oldestUnflushedSequenceId&gt;，详见上文。store 级别的数据结构改为了 map&lt;region, map&lt;store, oldestUnflushedSequenceId&gt;&gt;，其实很容易经过简单的转化又变回 region 级别，map&lt;store, oldestUnflushedSequenceId &gt; 找到最小的 oldestUnflushedSequenceId 称为 minSeqNum，这样 region 级别的数据结构就变出来了 – map&lt;region, minSeqNum&gt;，其他逻辑都不用变.</p>
+<h4 id="Per-CF-Flush-策略下，RegionServer-宕机恢复-replay-日志时哪些数据需要被回放，哪些会被-skip？"><a href="#Per-CF-Flush-策略下，RegionServer-宕机恢复-replay-日志时哪些数据需要被回放，哪些会被-skip？" class="headerlink" title="Per-CF Flush 策略下，RegionServer 宕机恢复 replay 日志时哪些数据需要被回放，哪些会被 skip？"></a><strong>Per-CF Flush 策略下，RegionServer 宕机恢复 replay 日志时哪些数据需要被回放，哪些会被 skip？</strong></h4><p>这个问题稍微复杂一点，第一个关注的问题是回放粒度的问题。需要回过头来看看 HLog 中 Entry 的组成，如图可以知道一个 Entry 由 WALKey 和 WAKEdit 两部分构成，WALKey 包含一些基本信息，本文重点关注 sequenceId 这个变量；WALEdit 包含插入 \ 更新的 KeyValue 集合，这里需要重点注意，这些 KeyValue 可能包含一行中多个列族（列），因此可以说 WALEdit 会包含多个 store 更新的 KeyValue。</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2017/07/18.png" alt=""></p>
+<p>在 All-CF Flush 策略下，我们以 HLog-Entry 为粒度进行数据回放没有任何问题，但是在 Per-CF Flush 策略下就不再行得通。因为一个 HLog-Entry 中多个 CF 的 KeyValue 是混在一起的，可能部分 KV 已经落盘，其他部分还没有。因此需要将回放粒度减小到 KeyValue 级别，一个一个 KeyValue 分别进行检查回放。</p>
+<p>回放粒度问题摸清了，再来关注哪些 KeyValue 需要被回放，哪些会被 skip。上文说过，每次 flush 的时候对应的 oldestUnflushedSequenceId 会被持久化到 HFile 的元数据中。在 All-CF Flush 策略下，一次 flush 操作中整个 region 所有 store 所持久化的 oldestUnflushedSequenceId 都相同，因此回放的时候 HLog-Entry 的 sequenceId 只需要与这一个 oldestUnflushedSequenceId 比较就可以，大的话就需要回放，小的话就 skip。但在 Per-CF 的场景下又不再行得通，一个 region 中不同 store 都有自己独立的 oldestUnflushedSequenceId，因此回放的时候需要根据 KeyValue 找到对应 store，在与该 store 中的 oldestUnflushedSequenceId 比较，大的话需要回放，小的话 skip。</p>
+<p>总结起来就是：skip hlog cells per store when replaying，注意这里蕴含两个点： hlog cells 以及 per store。</p>
+<p>copy自：</p>
+<p><a href="http://hbasefly.com/2017/07/02/hbase-sequenceid/" target="_blank" rel="noopener">HBase原理－要弄懂的sequenceId &#8211; 有态度的HBase/Spark/BigData</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/hbase/" rel="tag"># hbase</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/07/03/hdfs%E7%9A%84Hedged-Read%E5%8E%9F%E7%90%86/" rel="next" title="hdfs的Hedged Read原理">
+                <i class="fa fa-chevron-left"></i> hdfs的Hedged Read原理
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/07/04/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E4%BA%94%E7%AF%87/" rel="prev" title="hbase原理 第五篇">
+                hbase原理 第五篇 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#hbase的行级事务"><span class="nav-number">1.</span> <span class="nav-text">hbase的行级事务</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#HBase-事务隔离性"><span class="nav-number">1.1.</span> <span class="nav-text">HBase 事务隔离性</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#写写并发控制"><span class="nav-number">1.1.1.</span> <span class="nav-text">写写并发控制</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#实现批量写入多行的写写并发？"><span class="nav-number">1.1.2.</span> <span class="nav-text">实现批量写入多行的写写并发？</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#读写并发控制"><span class="nav-number">1.2.</span> <span class="nav-text">读写并发控制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#实现读写并发控制"><span class="nav-number">1.2.1.</span> <span class="nav-text">实现读写并发控制</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#REGIONSERVER-宕机数据恢复"><span class="nav-number">2.</span> <span class="nav-text">REGIONSERVER 宕机数据恢复</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#HLOG"><span class="nav-number">2.1.</span> <span class="nav-text">HLOG</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#HLog-滚动"><span class="nav-number">2.1.1.</span> <span class="nav-text">HLog 滚动</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#HLog-失效"><span class="nav-number">2.1.2.</span> <span class="nav-text">HLog 失效</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#HLog-删除"><span class="nav-number">2.1.3.</span> <span class="nav-text">HLog 删除</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#故障恢复"><span class="nav-number">2.2.</span> <span class="nav-text">故障恢复</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#LogSplitting"><span class="nav-number">2.2.1.</span> <span class="nav-text">LogSplitting</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Distributed-Log-Splitting"><span class="nav-number">2.2.2.</span> <span class="nav-text">Distributed Log Splitting</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Distributed-Log-Replay"><span class="nav-number">2.2.3.</span> <span class="nav-text">Distributed Log Replay</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#要弄懂的-SEQUENCEID"><span class="nav-number">3.</span> <span class="nav-text">要弄懂的 SEQUENCEID</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#为什么需要-sequenceId？"><span class="nav-number">3.1.</span> <span class="nav-text">为什么需要 sequenceId？</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#HLOG的核心结构"><span class="nav-number">3.2.</span> <span class="nav-text">HLOG的核心结构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#sequenceid"><span class="nav-number">3.3.</span> <span class="nav-text">sequenceid</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#HLog-在什么时候可以过期回收？"><span class="nav-number">3.3.0.1.</span> <span class="nav-text">HLog 在什么时候可以过期回收？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#HLog-数量超过阈值-maxlogs-之后删除最早-HLog，应该强制刷新哪些-Region？"><span class="nav-number">3.3.0.2.</span> <span class="nav-text">HLog 数量超过阈值 (maxlogs) 之后删除最早 HLog，应该强制刷新哪些 Region？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#RegionServer-宕机恢复-replay-日志时哪些-WALEntry-需要被回放，哪些会被-skip？"><span class="nav-number">3.3.0.3.</span> <span class="nav-text">RegionServer 宕机恢复 replay 日志时哪些 WALEntry 需要被回放，哪些会被 skip？</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Per-CF-Flush"><span class="nav-number">3.3.1.</span> <span class="nav-text">Per-CF Flush</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Per-CF-Flush-策略下，HLog-在什么时候可以过期回收？"><span class="nav-number">3.3.1.1.</span> <span class="nav-text">Per-CF Flush 策略下，HLog 在什么时候可以过期回收？</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Per-CF-Flush-策略下，RegionServer-宕机恢复-replay-日志时哪些数据需要被回放，哪些会被-skip？"><span class="nav-number">3.3.1.2.</span> <span class="nav-text">Per-CF Flush 策略下，RegionServer 宕机恢复 replay 日志时哪些数据需要被回放，哪些会被 skip？</span></a></li></ol></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

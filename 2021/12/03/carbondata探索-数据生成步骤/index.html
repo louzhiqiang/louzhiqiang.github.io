@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="carbondata," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="carbondata的数据生成步骤今天来说一下carbondata的数据生成过程，这部分原理主要是弄清楚一个列存的生成过程的主要步骤，在重要步骤，要找出来具体使用的优化或者设计模式，理解中间一些涉及精髓。比如，如何减小存储，如何进行编码，数据类型如何管理，schema如何管理等等。  下边展开记录的过程中，如果遇到比较精髓的点，会单独阐述一个笔记来记录。  代码入口1org.apache.spar">
+<meta property="og:type" content="article">
+<meta property="og:title" content="carbondata探索-数据生成步骤">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/03/carbondata%E6%8E%A2%E7%B4%A2-%E6%95%B0%E6%8D%AE%E7%94%9F%E6%88%90%E6%AD%A5%E9%AA%A4/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="carbondata的数据生成步骤今天来说一下carbondata的数据生成过程，这部分原理主要是弄清楚一个列存的生成过程的主要步骤，在重要步骤，要找出来具体使用的优化或者设计模式，理解中间一些涉及精髓。比如，如何减小存储，如何进行编码，数据类型如何管理，schema如何管理等等。  下边展开记录的过程中，如果遇到比较精髓的点，会单独阐述一个笔记来记录。  代码入口1org.apache.spar">
+<meta property="og:image" content="https://github.com/images/carbon_p_1.png">
+<meta property="article:published_time" content="2021-12-03T04:56:44.000Z">
+<meta property="article:modified_time" content="2022-06-22T06:11:40.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="carbondata">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/carbon_p_1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/03/carbondata探索-数据生成步骤/"/>
+
+
+
+
+
+  <title>carbondata探索-数据生成步骤 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/03/carbondata%E6%8E%A2%E7%B4%A2-%E6%95%B0%E6%8D%AE%E7%94%9F%E6%88%90%E6%AD%A5%E9%AA%A4/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">carbondata探索-数据生成步骤</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-12-03T12:56:44+08:00">
+                2021-12-03
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="carbondata的数据生成步骤"><a href="#carbondata的数据生成步骤" class="headerlink" title="carbondata的数据生成步骤"></a>carbondata的数据生成步骤</h2><p>今天来说一下carbondata的数据生成过程，这部分原理主要是弄清楚一个列存的生成过程的主要步骤，在重要步骤，要找出来具体使用的优化或者设计模式，理解中间一些涉及精髓。比如，如何减小存储，如何进行编码，数据类型如何管理，schema如何管理等等。</p>
+<blockquote>
+<p>下边展开记录的过程中，如果遇到比较精髓的点，会单独阐述一个笔记来记录。</p>
+</blockquote>
+<h3 id="代码入口"><a href="#代码入口" class="headerlink" title="代码入口"></a>代码入口</h3><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">org.apache.spark.sql.<span class="type">CarbonDataFrameWriter</span></span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>这个入口主要是针对df直接转化为carbon数据存储。类似如下这种：</p>
+</blockquote>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">df1.write</span><br><span class="line">  .format(<span class="string">"carbondata"</span>)</span><br><span class="line">  .option(<span class="string">"tableName"</span>, complexTypeNoDictionaryTableName)</span><br><span class="line">  .mode(<span class="type">SaveMode</span>.<span class="type">Append</span>)</span><br><span class="line">  .save()</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>但是如果是通过sparkSession直接执行的sql语句，会是另一个入口：</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">SparkSession.Builder builder = SparkSession.builder()</span><br><span class="line">    .master(<span class="string">"local"</span>)</span><br><span class="line">    .appName(<span class="string">"JavaCarbonSessionExample"</span>)</span><br><span class="line">    .config(<span class="string">"spark.driver.host"</span>, <span class="string">"localhost"</span>)</span><br><span class="line">    .config(<span class="string">"spark.sql.extensions"</span>, <span class="string">"org.apache.spark.sql.CarbonExtensions"</span>);</span><br><span class="line">SparkSession carbon = builder.getOrCreate();</span><br><span class="line">carbon.sql(...)</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>上边语句的执行入口:  org.apache.spark.sql.execution.command.management.CarbonInsertIntoCommand</p>
+<p>org.apache.spark.sql.execution.command.management这个包下有很多操作，一般来说针对一种操作有自己的实现逻辑。</p>
+</blockquote>
+<p><img src="/images/carbon_p_1.png" alt="carbon_p_1"></p>
+<blockquote>
+<p>上边的CarbonInsertIntoCommand和下边的CarbonDataFrameWriter最终都会走到一个insertData方法，去生成数据。</p>
+</blockquote>
+<hr>
+<p>CarbonDataFrameWriter类需要传入的参数只有两个：</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">CarbonDataFrameWriter</span>(<span class="params">sqlContext: <span class="type">SQLContext</span>, val dataFrame: <span class="type">DataFrame</span></span>)</span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">saveAsCarbonFile</span></span>(parameters: <span class="type">Map</span>[<span class="type">String</span>, <span class="type">String</span>] = <span class="type">Map</span>()): <span class="type">Unit</span> = &#123;</span><br><span class="line">  <span class="comment">// create a new table using DataFrame's schema and write its content into the table</span></span><br><span class="line">  <span class="comment">// 下边这个主要是用来构建carbon自己的建表语句</span></span><br><span class="line">  sqlContext.sparkSession.sql(</span><br><span class="line">    makeCreateTableString(dataFrame.schema, <span class="keyword">new</span> <span class="type">CarbonOption</span>(parameters))).collect()</span><br><span class="line">  <span class="comment">// 这行代码就是写入carbon的主要方法</span></span><br><span class="line">  writeToCarbonFile(parameters)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>writeToCarbonFile主要就是在载入carbonOptions，然后就进入另一个核心方法：loadDataFrame</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Loading DataFrame directly without saving DataFrame to CSV files.</span></span><br><span class="line"><span class="comment"> * @param options</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">private</span> <span class="function"><span class="keyword">def</span> <span class="title">loadDataFrame</span></span>(options: <span class="type">CarbonOption</span>): <span class="type">Unit</span> = &#123;</span><br><span class="line">  <span class="keyword">val</span> header = dataFrame.columns.mkString(<span class="string">","</span>)</span><br><span class="line">  <span class="type">LOGGER</span>.info(<span class="string">"---lou--- loadDataFrame option : "</span> + options.toString)</span><br><span class="line">  <span class="type">LOGGER</span>.info(<span class="string">"---lou--- loadDataFrame header : "</span> + header)</span><br><span class="line">  <span class="type">CarbonInsertIntoWithDf</span>(</span><br><span class="line">    databaseNameOp = <span class="type">Some</span>(<span class="type">CarbonEnv</span>.getDatabaseName(options.dbName)(sqlContext.sparkSession)),</span><br><span class="line">    tableName = options.tableName,</span><br><span class="line">    options = <span class="type">Map</span>(<span class="string">"fileheader"</span> -&gt; header) ++ options.toMap,</span><br><span class="line">    isOverwriteTable = options.overwriteEnabled,</span><br><span class="line">    dataFrame = dataFrame</span><br><span class="line">    ).process(sqlContext.sparkSession)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>上边的process方法主要做了两件事 ： 1、设置一些选项，主要是从option中进行的设置；2、生成 CarbonLoadModel。这个model是数据构建依赖的所有相关配置基本都在，而且还封装一些策略逻辑。还有一些校验逻辑。比如校验分区、压缩、编码等。</p>
+<p>process中代码比较多，我这边就找主要的来说一下。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 生成carbonLoadModel，这个东西可以理解为模型，只不过这个模型主要是用来生成carbondata数据的。</span></span><br><span class="line"><span class="keyword">val</span> carbonLoadModel: <span class="type">CarbonLoadModel</span> = <span class="type">CommonLoadUtils</span>.prepareLoadModel(</span><br><span class="line">  hadoopConf,</span><br><span class="line">  factPath,</span><br><span class="line">  optionsFinal,</span><br><span class="line">  parentTablePath = <span class="literal">null</span>,</span><br><span class="line">  table = table,</span><br><span class="line">  isDataFrame = <span class="literal">true</span>,</span><br><span class="line">  internalOptions = internalOptions,</span><br><span class="line">  partition = finalPartition,</span><br><span class="line">  options = options)</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 这个是前置环节，主要是加载表已有的mv、索引</span></span><br><span class="line"><span class="keyword">val</span> (tableIndexes, indexOperationContext) =</span><br><span class="line">  <span class="type">CommonLoadUtils</span>.firePreLoadEvents(</span><br><span class="line">    sparkSession = sparkSession,</span><br><span class="line">    carbonLoadModel = carbonLoadModel,</span><br><span class="line">    uuid = uuid,</span><br><span class="line">    factPath = factPath,</span><br><span class="line">    optionsFinal = optionsFinal,</span><br><span class="line">    options = options.asJava,</span><br><span class="line">    isOverwriteTable = isOverwriteTable,</span><br><span class="line">    isDataFrame = <span class="literal">true</span>,</span><br><span class="line">    updateModel = updateModel,</span><br><span class="line">    operationContext = operationContext)</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>目前针对LoadTablePreExecutionEvent事件触发的主要是MVLoadPreEventListener，这个事件的onEvent实现如下：如果是mv表，不允许直接insert</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">override</span> <span class="function"><span class="keyword">def</span> <span class="title">onEvent</span></span>(event: <span class="type">Event</span>, operationContext: <span class="type">OperationContext</span>): <span class="type">Unit</span> = &#123;</span><br><span class="line">  <span class="keyword">val</span> loadEvent = event.asInstanceOf[<span class="type">LoadTablePreExecutionEvent</span>]</span><br><span class="line">  <span class="keyword">val</span> loadModel = loadEvent.getCarbonLoadModel</span><br><span class="line">  <span class="keyword">val</span> table = loadModel.getCarbonDataLoadSchema.getCarbonTable</span><br><span class="line">  <span class="keyword">val</span> isInternalCall = loadModel.isAggLoadRequest</span><br><span class="line">  <span class="keyword">if</span> (table.isMV &amp;&amp; !isInternalCall) &#123;</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> <span class="type">UnsupportedOperationException</span>(<span class="string">"Cannot insert data directly into mv."</span>)</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</blockquote>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 获取全部粗粒度和细粒度的索引 已经开始深入到IndexStoreManager</span></span><br><span class="line"><span class="keyword">val</span> tableIndexes = <span class="type">IndexStoreManager</span>.getInstance().getAllCGAndFGIndexes(table)</span><br></pre></td></tr></table></figure>
+
+<p>在process方法的后半部分，有一个重要的代码，实际执行用来写入数据的</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">val (rows, loadResult) &#x3D; insertData(loadParams)</span><br></pre></td></tr></table></figure>
+
+<p>下边我们来深入这个insertData方法。到这块的流程就跟上边说的那个command的方式执行的逻辑就续上了。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * carbon 表数据生成</span></span><br><span class="line"><span class="comment"> * @param loadParams</span></span><br><span class="line"><span class="comment"> * @return</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">insertData</span></span>(loadParams: <span class="type">CarbonLoadParams</span>): (<span class="type">Seq</span>[<span class="type">Row</span>], <span class="type">LoadMetadataDetails</span>) = &#123;</span><br><span class="line">  <span class="keyword">var</span> rows = <span class="type">Seq</span>.empty[<span class="type">Row</span>]</span><br><span class="line">  <span class="keyword">val</span> loadDataFrame = <span class="type">Some</span>(dataFrame)</span><br><span class="line">  <span class="keyword">val</span> table = loadParams.carbonLoadModel.getCarbonDataLoadSchema.getCarbonTable</span><br><span class="line">  <span class="keyword">var</span> loadResult : <span class="type">LoadMetadataDetails</span> = <span class="literal">null</span></span><br><span class="line">  loadParams.dataFrame = loadDataFrame</span><br><span class="line">  <span class="comment">// hive原生分区表 有单独的分支运行</span></span><br><span class="line">  <span class="keyword">if</span> (table.isHivePartitionTable) &#123;</span><br><span class="line">    rows = <span class="type">CommonLoadUtils</span>.loadDataWithPartition(loadParams)</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="comment">// 普通表的运行  走的都直接是这个分支</span></span><br><span class="line">    loadResult = <span class="type">CarbonDataRDDFactory</span>.loadCarbonData(loadParams.sparkSession.sqlContext,</span><br><span class="line">      loadParams.carbonLoadModel,</span><br><span class="line">      loadParams.partitionStatus,</span><br><span class="line">      isOverwriteTable,</span><br><span class="line">      loadParams.hadoopConf,</span><br><span class="line">      loadDataFrame,</span><br><span class="line">      <span class="type">None</span>,</span><br><span class="line">      updateModel,</span><br><span class="line">      operationContext)</span><br><span class="line">  &#125;</span><br><span class="line">  (rows, loadResult)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>loadCarbonData的主逻辑 先进行现场清理，比如确认是否需要删除数据，目录结构创建等。</p>
+<p>然后基于segment的粒度进行加锁、加锁的主要方式就文件方式的加锁。</p>
+<p>比如这样的锁：hdfs://localhost:9000/user/hive/warehouse/carbon_demo.db/carbon_test_demo_1/LockFiles/Segment_0.lock</p>
+<p>在当前方法中写数据的过程如下：</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> colSchema = carbonLoadModel</span><br><span class="line">  .getCarbonDataLoadSchema</span><br><span class="line">  .getCarbonTable</span><br><span class="line">  .getTableInfo</span><br><span class="line">  .getFactTable</span><br><span class="line">  .getListOfColumns</span><br><span class="line">  .asScala</span><br><span class="line">  .filterNot(col =&gt; col.isInvisible || col.isComplexColumn)</span><br><span class="line"><span class="comment">// 数据转换，主要是实践格式的数据、double类型的数据</span></span><br><span class="line"><span class="keyword">val</span> convertedRdd = <span class="type">CommonLoadUtils</span>.getConvertedInternalRow(</span><br><span class="line">  colSchema,</span><br><span class="line">  scanResultRdd.get,</span><br><span class="line">  isGlobalSortPartition = <span class="literal">false</span>)</span><br><span class="line"><span class="comment">// 如果是全局排序</span></span><br><span class="line"><span class="keyword">if</span> (isSortTable &amp;&amp; sortScope.equals(<span class="type">SortScopeOptions</span>.<span class="type">SortScope</span>.<span class="type">GLOBAL_SORT</span>) &amp;&amp;</span><br><span class="line">    !carbonLoadModel.isNonSchemaColumnsPresent) &#123;</span><br><span class="line">  <span class="type">DataLoadProcessBuilderOnSpark</span>.insertDataUsingGlobalSortWithInternalRow(sqlContext</span><br><span class="line">    .sparkSession,</span><br><span class="line">    convertedRdd,</span><br><span class="line">    carbonLoadModel,</span><br><span class="line">    hadoopConf,</span><br><span class="line">    segmentMetaDataAccumulator)</span><br><span class="line">  <span class="comment">// 没有排序字段</span></span><br><span class="line">&#125; <span class="keyword">else</span> <span class="keyword">if</span> (sortScope.equals(<span class="type">SortScopeOptions</span>.<span class="type">SortScope</span>.<span class="type">NO_SORT</span>)) &#123;</span><br><span class="line">  loadDataFrameForNoSort(sqlContext,</span><br><span class="line">    <span class="type">None</span>,</span><br><span class="line">    <span class="type">Some</span>(convertedRdd),</span><br><span class="line">    carbonLoadModel,</span><br><span class="line">    segmentMetaDataAccumulator)</span><br><span class="line">  <span class="comment">// 部分排序</span></span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">  loadDataFrame(sqlContext,</span><br><span class="line">    <span class="type">None</span>,</span><br><span class="line">    <span class="type">Some</span>(convertedRdd),</span><br><span class="line">    carbonLoadModel,</span><br><span class="line">    segmentMetaDataAccumulator)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>我这边目前触发的是loadDataFrameForNoSort。代码主要的逻辑如下：</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">new</span> <span class="type">NewDataFrameLoaderRDD</span>(</span><br><span class="line">  sqlContext.sparkSession,</span><br><span class="line">  <span class="keyword">new</span> <span class="type">DataLoadResultImpl</span>(),</span><br><span class="line">  carbonLoadModel,</span><br><span class="line">  newRdd,</span><br><span class="line">  segmentMetaDataAccumulator</span><br><span class="line">).collect()</span><br></pre></td></tr></table></figure>
+
+<p>NewDataFrameLoaderRDD是load数据的执行class。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> *  It loads the data to carbon from spark DataFrame using</span></span><br><span class="line"><span class="comment"> *  @see org.apache.carbondata.processing.newflow.DataLoadExecutor</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">NewDataFrameLoaderRDD</span>[<span class="type">K</span>, <span class="type">V</span>]</span></span><br></pre></td></tr></table></figure>
+
+<p>里边的核心逻辑就是internalCompute  这个就是计算代码。在internalCompute里核心逻辑是这几行代码：</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> executor = <span class="keyword">new</span> <span class="type">DataLoadExecutor</span></span><br><span class="line"><span class="comment">// in case of success, failure or cancellation clear memory and stop execution</span></span><br><span class="line">context</span><br><span class="line">  .addTaskCompletionListener(<span class="keyword">new</span> <span class="type">InsertTaskCompletionListener</span>(executor,</span><br><span class="line">    executionErrors,</span><br><span class="line">    segmentMetaDataAccumulator,</span><br><span class="line">    carbonLoadModel.getTableName,</span><br><span class="line">    carbonLoadModel.getSegment.getSegmentNo))</span><br><span class="line"><span class="type">LOGGER</span>.info(<span class="string">"---lou--- internalCompute : begin rdd process"</span>)</span><br><span class="line">executor.execute(model, loader.storeLocation, recordReaders.toArray)</span><br></pre></td></tr></table></figure>
+
+<p>而execute方法的主要过程如下：</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 关键的初始化，构建执行过程。也就是涉及的主要几步都加进去，然后再后边初始化和执行，都是直接调用的这个step。</span></span><br><span class="line">loadProcessorStep =</span><br><span class="line">    <span class="keyword">new</span> <span class="type">DataLoadProcessBuilder</span>().build(loadModel, storeLocation, inputIterators);</span><br><span class="line"><span class="comment">// 1. initialize</span></span><br><span class="line"><span class="type">LOGGER</span>.info(<span class="string">"--lou-- Data Loading  loadProcessorStep initialize"</span>);</span><br><span class="line">loadProcessorStep.initialize();</span><br><span class="line"><span class="type">LOGGER</span>.info(<span class="string">"Data Loading is started for table "</span> + loadModel.getTableName());</span><br><span class="line"><span class="comment">// 2. execute the step</span></span><br><span class="line">loadProcessorStep.execute();</span><br><span class="line"><span class="comment">// check and remove any bad record key from bad record entry logger static map</span></span><br><span class="line"><span class="keyword">if</span> (<span class="type">CarbonBadRecordUtil</span>.hasBadRecord(loadModel)) &#123;</span><br><span class="line">  <span class="type">LOGGER</span>.error(<span class="string">"Data Load is partially success for table "</span> + loadModel.getTableName());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">21&#x2F;12&#x2F;03 13:37:14 INFO loading.DataLoadProcessBuilder: ---lou--- build the pipe line of steps for loading data !</span><br><span class="line">21&#x2F;12&#x2F;03 13:37:14 INFO loading.DataLoadProcessBuilder: ---lou--- build the pipe line of steps for loading data !</span><br><span class="line">21&#x2F;12&#x2F;03 13:37:14 INFO util.CarbonDataProcessorUtil: Successfully created dir: &#x2F;Users&#x2F;service&#x2F;hadoop_service&#x2F;hadoop_data&#x2F;hadoop&#x2F;tmp&#x2F;nm-local-dir&#x2F;usercache&#x2F;appcache&#x2F;application_1638509648201_0002&#x2F;carbonfafe56742b77488593d3d86b3d97b2c9_1</span><br><span class="line">21&#x2F;12&#x2F;03 13:37:14 INFO util.CarbonDataProcessorUtil: Successfully created dir: &#x2F;Users&#x2F;service&#x2F;hadoop_service&#x2F;hadoop_data&#x2F;hadoop&#x2F;tmp&#x2F;nm-local-dir&#x2F;usercache&#x2F;appcache&#x2F;application_1638509648201_0002&#x2F;carbon69d1c430bb264adaa16d7d6a2ce70027_0</span><br><span class="line">21&#x2F;12&#x2F;03 13:37:14 INFO loading.DataLoadProcessBuilder: ---lou--- build : into isLoadWithoutConverterWithoutReArrangeStep</span><br><span class="line">21&#x2F;12&#x2F;03 13:37:14 INFO loading.DataLoadProcessBuilder: ---lou--- build : into isLoadWithoutConverterWithoutReArrangeStep</span><br><span class="line">21&#x2F;12&#x2F;03 13:37:14 INFO loading.DataLoadProcessBuilder: ---lou--- buildInternalWithNoConverter : converterProcessorStep : org.apache.carbondata.processing.loading.steps.InputProcessorStepWithNoConverterImpl@7cdb8b82</span><br><span class="line">21&#x2F;12&#x2F;03 13:37:14 INFO loading.DataLoadProcessBuilder: ---lou--- buildInternalWithNoConverter : no need sort!</span><br><span class="line">21&#x2F;12&#x2F;03 13:37:14 INFO loading.DataLoadProcessBuilder: ---lou--- buildInternalWithNoConverter : converterProcessorStep : org.apache.carbondata.processing.loading.steps.InputProcessorStepWithNoConverterImpl@65f5813c</span><br><span class="line">21&#x2F;12&#x2F;03 13:37:14 INFO loading.DataLoadProcessBuilder: ---lou--- buildInternalWithNoConverter : no need sort!</span><br></pre></td></tr></table></figure>
+
+<p>上边这段日志就是步骤的加载过程。也就是每一步都是一个类。每个类都继承了AbstractDataLoadProcessorStep这个类，主要是一个抽象，比如先初始化，然后execute的步骤。</p>
+<p>build代码主要是根据不同种类的源数据和目标数据，枚举式地声明步骤，主要是根据是否converter、是否reArrange、是否是json、是否是分桶表、以及排序类型。</p>
+<p>上边就是走的没有converter、没有reArrange的类型：buildInternalWithNoConverter</p>
+<p>以上类型的区分都是在CarbonLoadModel里有说明。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Build pipe line for Load without Conversion Step.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">private</span> <span class="type">AbstractDataLoadProcessorStep</span> buildInternalWithNoConverter(</span><br><span class="line">    <span class="type">CarbonIterator</span>[] inputIterators, <span class="type">CarbonDataLoadConfiguration</span> configuration,</span><br><span class="line">    <span class="type">SortScopeOptions</span>.<span class="type">SortScope</span> sortScope, boolean withoutReArrange) &#123;</span><br><span class="line">  <span class="comment">// Wraps with dummy processor.</span></span><br><span class="line">  <span class="comment">// 这个方法会传进去到CarbonRowDataWriterProcessorStepImpl，初始化和执行都会在那个类的初始化和execute方法中执行</span></span><br><span class="line">  <span class="comment">// AbstractDataLoadProcessorStep 这个是一个抽象类，他的实现有很多，不过基本就是不同种类的数据输入。比如实时的。比如载入的，比如当前这种insert into或者insert overwrite或者SDK writer等</span></span><br><span class="line">  <span class="type">AbstractDataLoadProcessorStep</span> inputProcessorStep =</span><br><span class="line">      <span class="keyword">new</span> <span class="type">InputProcessorStepWithNoConverterImpl</span>(configuration, inputIterators, withoutReArrange);</span><br><span class="line">  <span class="type">LOGGER</span>.info(<span class="string">"---lou--- buildInternalWithNoConverter : converterProcessorStep : "</span> + inputProcessorStep.toString());</span><br><span class="line">  <span class="keyword">if</span> (sortScope.equals(<span class="type">SortScopeOptions</span>.<span class="type">SortScope</span>.<span class="type">LOCAL_SORT</span>) ||</span><br><span class="line">          configuration.getBucketingInfo() != <span class="literal">null</span>) &#123;</span><br><span class="line">    <span class="type">AbstractDataLoadProcessorStep</span> sortProcessorStep =</span><br><span class="line">        <span class="keyword">new</span> <span class="type">SortProcessorStepImpl</span>(configuration, inputProcessorStep);</span><br><span class="line">    <span class="type">LOGGER</span>.info(<span class="string">"---lou--- buildInternalWithNoConverter : sortProcessorStep : "</span> + sortProcessorStep.toString());</span><br><span class="line">    <span class="comment">//  Writes the sorted data in carbondata format.</span></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="type">DataWriterProcessorStepImpl</span>(configuration, sortProcessorStep);</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="type">LOGGER</span>.info(<span class="string">"---lou--- buildInternalWithNoConverter : no need sort!"</span>);</span><br><span class="line">    <span class="comment">// In all other cases like global sort and no sort uses this step</span></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> <span class="type">CarbonRowDataWriterProcessorStepImpl</span>(configuration, inputProcessorStep);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>InputProcessorStepWithNoConverterImpl 这个方法的主要作用就是读数据出来到下一个环节。他的iniatialize，主要是处理一些数据类型转换。识别需要字典编码的字段，以及需要重分区的字段。而execute的环节，主要是把当前这一批次的数据进行转换到下一个环节的输入。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line">public <span class="type">Iterator</span>&lt;<span class="type">CarbonRowBatch</span>&gt;[] execute() &#123;</span><br><span class="line">  int batchSize = <span class="type">CarbonProperties</span>.getInstance().getBatchSize();</span><br><span class="line">  <span class="type">List</span>&lt;<span class="type">CarbonIterator</span>&lt;<span class="type">Object</span>[]&gt;&gt;[] readerIterators =</span><br><span class="line">      <span class="type">CarbonDataProcessorUtil</span>.partitionInputReaderIterators(<span class="keyword">this</span>.inputIterators, sdkWriterCores);</span><br><span class="line">  <span class="type">Iterator</span>&lt;<span class="type">CarbonRowBatch</span>&gt;[] outIterators = <span class="keyword">new</span> <span class="type">Iterator</span>[readerIterators.length];</span><br><span class="line">  <span class="keyword">for</span> (int i = <span class="number">0</span>; i &lt; outIterators.length; i++) &#123;</span><br><span class="line">    outIterators[i] =</span><br><span class="line">        <span class="keyword">new</span> <span class="type">InputProcessorIterator</span>(readerIterators[i], batchSize,</span><br><span class="line">            rowCounter, orderOfData, noDictionaryMapping, dataTypes, configuration,</span><br><span class="line">            dataFieldsWithComplexDataType, rowConverter, withoutReArrange, isBucketColumnEnabled,</span><br><span class="line">                partitioner);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> outIterators;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>InputProcessorIterator的代码注释是：This iterator wraps the list of iterators and it starts iterating the each iterator of the list one by one. It also parse the data while iterating it.</p>
+<p>这个迭代器主要是包含数据解析的过程，以及数据传输的优化。比如自定义的序列化，格式转换，类型解析等。</p>
+<p>在buildInternalWithNoConverter 中，我们看到 最终运行的类是CarbonRowDataWriterProcessorStepImpl，InputProcessorStepWithNoConverterImpl是它的child，运行的时候，是随着CarbonRowDataWriterProcessorStepImpl的运行而运行。也就是CarbonRowDataWriterProcessorStepImpl在运行initialize的时候，会调用InputProcessorStepWithNoConverterImpl的initialize。execute也是一样的。</p>
+<p>在这里 CarbonRowDataWriterProcessorStepImpl 的execute实现完成就基本是写入数据的完成了。</p>
+<p>所以这里要着重看一下 CarbonRowDataWriterProcessorStepImpl 的execute的实现。</p>
+<p>方法的第一行 就是调用child的execute。</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">final</span> <span class="type">Iterator</span>&lt;<span class="type">CarbonRowBatch</span>&gt;[] iterators = child.execute();</span><br></pre></td></tr></table></figure>
+
+<p>刚才说了 子步骤实现的execute的逻辑就是转换数据。所以这里返回的是CarbonRowBatch的迭代器。这个batch是根据配置来的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">readCounter = <span class="keyword">new</span> <span class="keyword">long</span>[iterators.length];</span><br><span class="line">writeCounter = <span class="keyword">new</span> <span class="keyword">long</span>[iterators.length];</span><br><span class="line">dimensionWithComplexCount = configuration.getDimensionCount();</span><br><span class="line">noDictWithComplextCount =</span><br><span class="line">    configuration.getNoDictionaryCount() + configuration.getComplexDictionaryColumnCount()</span><br><span class="line">        + configuration.getComplexNonDictionaryColumnCount();</span><br><span class="line">directDictionaryDimensionCount = configuration.getDimensionCount() - noDictWithComplextCount;</span><br><span class="line">isNoDictionaryDimensionColumn =</span><br><span class="line">    CarbonDataProcessorUtil.getNoDictionaryMapping(configuration.getDataFields());</span><br><span class="line">measureCount = configuration.getMeasureCount();</span><br><span class="line">CarbonTimeStatisticsFactory.getLoadStatisticsInstance()</span><br><span class="line">    .recordDictionaryValue2MdkAdd2FileTime(CarbonTablePath.DEPRECATED_PARTITION_ID,</span><br><span class="line">        System.currentTimeMillis());</span><br><span class="line"><span class="keyword">if</span> (configuration.getDataLoadProperty(</span><br><span class="line">    DataLoadProcessorConstants.NO_REARRANGE_OF_ROWS) != <span class="keyword">null</span>) &#123;</span><br><span class="line">  <span class="comment">// 查询一些数据列的设置，在实际运行的时候，每行数据实际是不会包含列名称之类的数据，而是会载入每列数据的下标。因为实际行数据是以array的方式存在的。</span></span><br><span class="line">  initializeNoReArrangeIndexes();</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// doExecute 是核心运行逻辑，下边的基于线程池的运行，实际也是最终运行的这个方法</span></span><br><span class="line"><span class="keyword">if</span> (iterators.length == <span class="number">1</span>) &#123;</span><br><span class="line">  doExecute(iterators[<span class="number">0</span>], <span class="number">0</span>);</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">  executorService = Executors.newFixedThreadPool(iterators.length,</span><br><span class="line">      <span class="keyword">new</span> CarbonThreadFactory(<span class="string">"NoSortDataWriterPool:"</span> + configuration.getTableIdentifier()</span><br><span class="line">          .getCarbonTableIdentifier().getTableName(), <span class="keyword">true</span>));</span><br><span class="line">  <span class="comment">// 并发写入</span></span><br><span class="line">  Future[] futures = <span class="keyword">new</span> Future[iterators.length];</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; iterators.length; i++) &#123;</span><br><span class="line">    futures[i] = executorService.submit(<span class="keyword">new</span> DataWriterRunnable(iterators[i], i));</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">for</span> (Future future : futures) &#123;</span><br><span class="line">    future.get();</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>下边看一下doExecute的逻辑：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">doExecute</span><span class="params">(Iterator&lt;CarbonRowBatch&gt; iterator, <span class="keyword">int</span> iteratorIndex)</span> </span>&#123;</span><br><span class="line">  <span class="comment">// 获取数据存储目录</span></span><br><span class="line">  String[] storeLocation = getStoreLocation();</span><br><span class="line">  <span class="comment">// 无用的方法</span></span><br><span class="line">  IndexWriterListener listener = getIndexWriterListener(<span class="number">0</span>);</span><br><span class="line">  <span class="comment">// 这个model跟之前的loadModel是一样的概念，只不过范围不一样。这里的model是更加细化的，主要是用来load数据使用的。而这个CarbonFactDataHandlerModel的官方注释：This class contains all the data required for processing and writing the carbon data。可见这个类的重要性。</span></span><br><span class="line">  <span class="comment">// createCarbonFactDataHandlerModel的主要作用就是set这个模型里的属性，有需要补充的基本都会在这里去补充。其中比较重要的就是加载我们自己的一些设置，比如carbon.number.of.cores.while.loading的设置。再比如用来写入索引的IndexWriterListener，也是在这个方法中进行添加的。这个后边会补充这块的源码来单独说明。</span></span><br><span class="line">  CarbonFactDataHandlerModel model = CarbonFactDataHandlerModel.createCarbonFactDataHandlerModel(</span><br><span class="line">      configuration, storeLocation, <span class="number">0</span>, iteratorIndex, listener);</span><br><span class="line">  model.setColumnLocalDictGenMap(localDictionaryGeneratorMap);</span><br><span class="line">  CarbonFactHandler dataHandler = <span class="keyword">null</span>;</span><br><span class="line">  <span class="keyword">boolean</span> rowsNotExist = <span class="keyword">true</span>;</span><br><span class="line">  <span class="keyword">while</span> (iterator.hasNext()) &#123;</span><br><span class="line">    <span class="keyword">if</span> (rowsNotExist) &#123;</span><br><span class="line">      rowsNotExist = <span class="keyword">false</span>;</span><br><span class="line">      <span class="comment">// 会根据上边的model创建CarbonFactDataHandlerColumnar，而这个类的注释是：Creating fact handler to write data。</span></span><br><span class="line">      <span class="comment">// CarbonFactDataHandlerColumnar 的初始化方法中指定了configuredPageSizeInBytes的大小，也就是每个page的大小。</span></span><br><span class="line">      <span class="comment">// CarbonFactDataHandlerColumnar 的初始化还会初始化一些资源池。比如 根据getNumberOfCores初始化producer的数量，而cosumer的大小是固定的，就是1.这里有一个点关注：producerExecutorService是根据model的getNumberOfCores来初始化的，参数：carbon.number.of.cores.while.loading，而producerExecutorServiceTaskList初始化是固定的16个。</span></span><br><span class="line">      <span class="comment">// CarbonFactDataHandlerColumnar 初始化 semaphore 的大小是getNumberOfCores的大小。</span></span><br><span class="line">      <span class="comment">// CarbonFactDataHandlerColumnar 初始化会 初始化Consumer，并启动对应的Consumer线程池。Consumer中包含 TablePageList 对象。TablePageList是个内部私有类，官方注释：This class will hold the table page data。看了一下get()和put()方法，就是producer和consumer的中间队列。producer往里写，consumer往外消化。</span></span><br><span class="line">      <span class="comment">// 这里用到了生产者消费者的模式，Producer的处理是多线程的，Consumer是单线程的；Producer主要是负责数据的压缩，Consumer负责进行输出，数据的交换通过blockletDataHolder。</span></span><br><span class="line">      dataHandler = CarbonFactHandlerFactory.createCarbonFactHandler(model);</span><br><span class="line">      <span class="keyword">this</span>.carbonFactHandlers.add(dataHandler);</span><br><span class="line">      <span class="comment">// 这个初始化，主要是 设置一些当前这个环节需要的参数以及配置。比如carbon.blocklet.size的大小，默认120000。初始化了FactDataWriter，同时执行了this.dataWriter.initializeWriter()；这里创建FactDataWriter，是根据版本来的，目前2.2.0的carbon获取是CarbonFactDataWriterImplV3，它继承自AbstractFactDataWriter。而AbstractFactDataWriter是实现接口CarbonFactDataWriter。</span></span><br><span class="line">      <span class="comment">// initialise 主要是创建文件以及目录啥的，然后调用一些litener的onBlockstart方法，比如索引就会触发创建索引的目录以及文件，同时会初始化对应的stream。</span></span><br><span class="line">      dataHandler.initialise();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 这是实际处理每行数据的。下边看一下他的具体逻辑。</span></span><br><span class="line">    processBatch(iterator.next(), dataHandler, iteratorIndex);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">try</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> (!rowsNotExist) &#123;</span><br><span class="line">      finish(dataHandler, iteratorIndex);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">    carbonFactHandlers.remove(dataHandler);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>CarbonFactDataHandlerColumnar 中初始化指定configuredPageSizeInBytes的大小：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (Map.Entry&lt;Integer, GenericDataType&gt; entry: model.getComplexIndexMap().entrySet()) &#123;</span><br><span class="line">  <span class="keyword">this</span>.complexIndexMapCopy.put(entry.getKey(), entry.getValue().deepCopy());</span><br><span class="line">&#125;</span><br><span class="line">String pageSizeStrInBytes =</span><br><span class="line">    model.getTableSpec().getCarbonTable().getTableInfo().getFactTable().getTableProperties()</span><br><span class="line">        .get(CarbonCommonConstants.TABLE_PAGE_SIZE_INMB);</span><br><span class="line"><span class="comment">// 最大32000</span></span><br><span class="line"><span class="keyword">if</span> (pageSizeStrInBytes != <span class="keyword">null</span>) &#123;</span><br><span class="line">  configuredPageSizeInBytes = Integer.parseInt(pageSizeStrInBytes) * <span class="number">1024</span> * <span class="number">1024</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// TABLE_PAGE_SIZE_INMB</span></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">   * page size in mb. If page size exceeds this value before 32000 rows count, page will be cut.</span></span><br><span class="line"><span class="comment">   * And remaining rows will written in next page.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line"><span class="comment">// 注释中 关键字  32000 数据过页，会有啥影响？</span></span><br><span class="line"><span class="comment">// 参数 number.of.rows.per.blocklet.column.page = 32000  这里为什么是2g呢？解释如下：support less than 32000 rows in one page, because we support super long string,if it is long enough, a column page with 32000 rows will exceed 2GB。</span></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> String TABLE_PAGE_SIZE_INMB = <span class="string">"table_page_size_inmb"</span>;</span><br></pre></td></tr></table></figure>
+
+<p>CarbonFactDataWriter的定义如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">CarbonFactDataWriter</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * write a encoded table page</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> tablePage</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">writeTablePage</span><span class="params">(TablePage tablePage)</span> <span class="keyword">throws</span> CarbonDataWriterException, IOException</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Below method will be used to write the leaf meta data to file</span></span><br><span class="line"><span class="comment">   *</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@throws</span> CarbonDataWriterException</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">writeFooter</span><span class="params">()</span> <span class="keyword">throws</span> CarbonDataWriterException</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Below method will be used to initialise the writer</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">initializeWriter</span><span class="params">()</span> <span class="keyword">throws</span> CarbonDataWriterException</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Below method will be used to close the writer</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">closeWriter</span><span class="params">()</span> <span class="keyword">throws</span> CarbonDataWriterException</span>;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>写索引的第一个引入点，这里先标记上，一会儿补充上注释。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (listener == <span class="keyword">null</span>) &#123;</span><br><span class="line">  listener = <span class="keyword">new</span> IndexWriterListener();</span><br><span class="line">  listener.registerAllWriter(</span><br><span class="line">      configuration.getTableSpec().getCarbonTable(),</span><br><span class="line">      configuration.getSegmentId(),</span><br><span class="line">      CarbonTablePath.getShardName(</span><br><span class="line">          carbonDataFileAttributes.getTaskId(),</span><br><span class="line">          bucketId,</span><br><span class="line">          taskExtension,</span><br><span class="line">          String.valueOf(carbonDataFileAttributes.getFactTimeStamp()),</span><br><span class="line">          configuration.getSegmentId()),</span><br><span class="line">      segmentProperties);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>下边看一下 具体的写入类 CarbonFactDataWriterImplV3 是怎么实现的？CarbonFactDataWriterImplV3的初始化主要是实现的blocklet的配置，比如carbon.blockletgroup.size.in.mb，默认是64M。这个实现主要是基于blocklet粒度开始写入。</p>
+<p>同时会初始化一个 BlockletDataHolder。这个就是blocklet的数据写入句柄。</p>
+<p>CarbonFactDataWriterImplV3的初始化，也会初始化 AbstractFactDataWriter的构造方法。后者的构造方法主要是初始化了一些线程池以及一些索引、统计类的注册。</p>
+<p>processBatch的逻辑主要就是逐行处理数据，特点就是：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">LOGGER.info(<span class="string">"---lou--- processBatch for iteratorIndex : "</span> + iteratorIndex);</span><br><span class="line"><span class="keyword">if</span> (configuration.getDataLoadProperty(</span><br><span class="line">    DataLoadProcessorConstants.NO_REARRANGE_OF_ROWS) != <span class="keyword">null</span>) &#123;</span><br><span class="line">  <span class="comment">// convert without re-arrange</span></span><br><span class="line">  <span class="keyword">while</span> (batch.hasNext()) &#123;</span><br><span class="line">    CarbonRow row = batch.next();</span><br><span class="line">    CarbonRow converted = convertRowWithoutRearrange(row);</span><br><span class="line">    dataHandler.addDataToStore(converted);</span><br><span class="line">    readCounter[iteratorIndex]++;</span><br><span class="line">  &#125;</span><br><span class="line">&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">  <span class="keyword">while</span> (batch.hasNext()) &#123;</span><br><span class="line">    CarbonRow row = batch.next();</span><br><span class="line">    CarbonRow converted = convertRow(row);</span><br><span class="line">    dataHandler.addDataToStore(converted);</span><br><span class="line">    readCounter[iteratorIndex]++;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line">writeCounter[iteratorIndex] += batch.getSize();</span><br></pre></td></tr></table></figure>
+
+<p>而那个converter主要就是转换Row类型，成为可以存储的row类型。</p>
+<p>addDataToStore 就是存储数据的地方，主要调用的也就是 CarbonFactDataHandlerColumnar 的addToStore方法。</p>
+<p>主要就是添加数据到dataRows，当达到pageSize的大小的时候，就会触发一个producer的任务。</p>
+<p>而Producer的call方法如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">  TablePage tablePage = processDataRows(dataRows);</span><br><span class="line">  dataRows = <span class="keyword">null</span>;</span><br><span class="line">  tablePage.setIsLastPage(isLastPage);</span><br><span class="line">  <span class="comment">// insert the object in array according to sequence number</span></span><br><span class="line">  <span class="keyword">int</span> indexInNodeHolderArray = (pageId - <span class="number">1</span>) % numberOfCores;</span><br><span class="line">  tablePageList.put(tablePage, indexInNodeHolderArray);</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">&#125; <span class="keyword">catch</span> (Throwable throwable) &#123;</span><br><span class="line">  LOGGER.error(<span class="string">"Error in producer"</span>, throwable);</span><br><span class="line">  consumerExecutorService.shutdownNow();</span><br><span class="line">  resetBlockletProcessingCount();</span><br><span class="line">  <span class="keyword">throw</span> <span class="keyword">new</span> CarbonDataWriterException(throwable.getMessage(), throwable);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到上边最核心的方法就是processDataRows。这个方法主要就是初始化一个TablePage，然后addRow，之后进行encode就完事儿了。所以下边第一个核心逻辑就是TablePage的addRow。addRow就一行，调用的就是convertToColumnarAndAddToPages，而这个方法的作用就是   convert each column category, update key and stats。</p>
+<ul>
+<li>1、convert dictionary columns</li>
+<li>2、convert noDictionary columns and complex columns and varchar, binary columns.</li>
+<li>3、convert measure columns</li>
+</ul>
+<p>根据这部分逻辑，可见carbondata是把列分成三种不同的类型，然后每种类型实际的数据写入方式都是细化去优化的，也就是他把String和复杂数据类型都直接转化为byte类型去写入，而measure是直接原值存储，维度列式直接转成字典值进行存储的。</p>
+<p>每种类型都有自己的putData，第一个参数都是rowid。第二个参数就是列值。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&#x2F;&#x2F; For all dimension and measure columns, we store the column data directly in the page,</span><br><span class="line">&#x2F;&#x2F; the length of the page is the number of rows.</span><br></pre></td></tr></table></figure>
+
+<p>而encode方法就三行，主要是编码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// encode dimensions and measure</span></span><br><span class="line">EncodedColumnPage[] dimensions = encodeAndCompressDimensions();</span><br><span class="line">EncodedColumnPage[] measures = encodeAndCompressMeasures();</span><br><span class="line"><span class="keyword">this</span>.encodedTablePage = EncodedTablePage.newInstance(pageSize, dimensions, measures);</span><br></pre></td></tr></table></figure>
+
+<p>这里就是一个一个地进行encode，主要使用都是ColumnpageEncoder里的encode方法，方法如下：</p>
+<p>不同种类的列类型，使用的编码都是不一样的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Return a encoded column page by encoding the input page</span></span><br><span class="line"><span class="comment"> * The encoded binary data and metadata are wrapped in encoding column page</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> EncodedColumnPage <span class="title">encode</span><span class="params">(ColumnPage inputPage)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">  <span class="comment">// 编码</span></span><br><span class="line">  ByteBuffer encodedBytes = encodeData(inputPage);</span><br><span class="line">  <span class="comment">// 添加元数据、索引等非数据信息</span></span><br><span class="line">  DataChunk2 pageMetadata = buildPageMetadata(inputPage, encodedBytes);</span><br><span class="line">  <span class="keyword">return</span> <span class="keyword">new</span> EncodedColumnPage(pageMetadata, encodedBytes, inputPage);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> DataChunk2 <span class="title">buildPageMetadata</span><span class="params">(ColumnPage inputPage, ByteBuffer encodedBytes)</span></span></span><br><span class="line"><span class="function">    <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">  DataChunk2 dataChunk = <span class="keyword">new</span> DataChunk2();</span><br><span class="line">  dataChunk.setData_page_length(encodedBytes.limit() - encodedBytes.position());</span><br><span class="line">  fillBasicFields(inputPage, dataChunk);</span><br><span class="line">  fillNullBitSet(inputPage, dataChunk);</span><br><span class="line">  fillEncoding(inputPage, dataChunk);</span><br><span class="line">  <span class="comment">// 调用format中的生成对应索引的代码，根据对应的格式构建的索引。</span></span><br><span class="line">  fillMinMaxIndex(inputPage, dataChunk);</span><br><span class="line">  fillLegacyFields(dataChunk);</span><br><span class="line">  <span class="keyword">return</span> dataChunk;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>后边剩下的逻辑就是涉及carbon的文件结构来解读后更舒爽一些。目前直接捋这块的逻辑有些晦涩。</p>
+<p>学习到的：</p>
+<p>1、整个数据生成过程对于每一个层次的划分。比如encode、page、blocklet、column种类、字典等逻辑，中间每一个层次都是按照自己封装出来的模块来构建的。</p>
+<p>2、中间数据生成是通过生产者和消费者模式来生产构建的。中间就可以加载上java的多线程，对于效率提升又打开了一些优化的空间。</p>
+<p>3、对于各种command，如果整体没有很好的触发机制和封装机制，代码会显得乱很多的，而carbondata使用的是listener模式，每种触发都是提前封装好的，这样命令过来的时候，有很好的维护机制来管理这些业务变更。这点很重要。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/carbondata/" rel="tag"># carbondata</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/11/26/carbondata%E6%8E%A2%E7%B4%A2-%E7%8E%AF%E5%A2%83%E5%AE%89%E8%A3%85/" rel="next" title="carbondata探索-环境安装">
+                <i class="fa fa-chevron-left"></i> carbondata探索-环境安装
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/12/03/carbondata%E6%8E%A2%E7%B4%A2-Event%E4%BD%BF%E7%94%A8/" rel="prev" title="carbondata探索-Event使用">
+                carbondata探索-Event使用 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#carbondata的数据生成步骤"><span class="nav-number">1.</span> <span class="nav-text">carbondata的数据生成步骤</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#代码入口"><span class="nav-number">1.1.</span> <span class="nav-text">代码入口</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

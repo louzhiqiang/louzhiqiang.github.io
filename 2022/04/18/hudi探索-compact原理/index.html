@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="hudi," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="hudi探索–compact原理compaction 操作是针对于MOR表类型独有的操作，老生常谈的小文件，是必须要进行合并成大文件的，这样读的效率才更高。这样的思路在hbase等系统里也都是常规操作。 compact的过程hudi针对compact主要分成两个过程，生成 HoodieCompactionPlan和执行 HoodieCompactionPlan两阶段。这个过程是通用的，也比较抽象，">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hudi探索--compact原理">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/18/hudi%E6%8E%A2%E7%B4%A2-compact%E5%8E%9F%E7%90%86/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="hudi探索–compact原理compaction 操作是针对于MOR表类型独有的操作，老生常谈的小文件，是必须要进行合并成大文件的，这样读的效率才更高。这样的思路在hbase等系统里也都是常规操作。 compact的过程hudi针对compact主要分成两个过程，生成 HoodieCompactionPlan和执行 HoodieCompactionPlan两阶段。这个过程是通用的，也比较抽象，">
+<meta property="og:image" content="https://github.com/images/HoodieFlinkMergeOnReadTableCompactor.png">
+<meta property="og:image" content="https://github.com/images/LogFileSizeBasedCompactionStrategy.png">
+<meta property="article:published_time" content="2022-04-18T02:50:59.000Z">
+<meta property="article:modified_time" content="2022-05-13T03:48:22.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="hudi">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/HoodieFlinkMergeOnReadTableCompactor.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/18/hudi探索-compact原理/"/>
+
+
+
+
+
+  <title>hudi探索--compact原理 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/18/hudi%E6%8E%A2%E7%B4%A2-compact%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">hudi探索--compact原理</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-04-18T10:50:59+08:00">
+                2022-04-18
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="hudi探索–compact原理"><a href="#hudi探索–compact原理" class="headerlink" title="hudi探索–compact原理"></a>hudi探索–compact原理</h2><p>compaction 操作是针对于MOR表类型独有的操作，老生常谈的小文件，是必须要进行合并成大文件的，这样读的效率才更高。这样的思路在hbase等系统里也都是常规操作。</p>
+<h3 id="compact的过程"><a href="#compact的过程" class="headerlink" title="compact的过程"></a>compact的过程</h3><p>hudi针对compact主要分成两个过程，生成 <code>HoodieCompactionPlan</code>和执行 <code>HoodieCompactionPlan</code>两阶段。这个过程是通用的，也比较抽象，compact的策略就可以根据上下文有很多的灵活性，我们就可以根据不同的业务场景，来指定自己的compact策略，如果没有特殊要求，默认策略也是很好的。</p>
+<h4 id="生成-HoodieCompactionPlan"><a href="#生成-HoodieCompactionPlan" class="headerlink" title="生成 HoodieCompactionPlan"></a>生成 HoodieCompactionPlan</h4><p>生成计划是在调度的时候直接生成的，代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> Option&lt;String&gt; <span class="title">scheduleCompaction</span><span class="params">(Option&lt;Map&lt;String, String&gt;&gt; extraMetadata)</span> <span class="keyword">throws</span> HoodieIOException </span>&#123;</span><br><span class="line">    String instantTime = HoodieActiveTimeline.createNewInstantTime();</span><br><span class="line">    <span class="keyword">return</span> scheduleCompactionAtInstant(instantTime, extraMetadata) ? Option.of(instantTime) : Option.empty();</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>hudi 在 0.10.0 的版本中，（没有看之前的版本实现哈），针对 compact、clean、cluster 是有一个调度服务的，三者共用一个。这三者都属于tableService，</p>
+<p>三者的模式也都是先生产plan，然后根据调度执行plan。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> Option&lt;String&gt; <span class="title">scheduleTableServiceInternal</span><span class="params">(String instantTime, Option&lt;Map&lt;String, String&gt;&gt; extraMetadata,</span></span></span><br><span class="line"><span class="function"><span class="params">                                                      TableServiceType tableServiceType)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">switch</span> (tableServiceType) &#123;</span><br><span class="line">      <span class="keyword">case</span> CLUSTER:</span><br><span class="line">        LOG.info(<span class="string">"Scheduling clustering at instant time :"</span> + instantTime);</span><br><span class="line">        Option&lt;HoodieClusteringPlan&gt; clusteringPlan = createTable(config, hadoopConf, config.isMetadataTableEnabled())</span><br><span class="line">            .scheduleClustering(context, instantTime, extraMetadata);</span><br><span class="line">        <span class="keyword">return</span> clusteringPlan.isPresent() ? Option.of(instantTime) : Option.empty();</span><br><span class="line">      <span class="keyword">case</span> COMPACT:</span><br><span class="line">        LOG.info(<span class="string">"Scheduling compaction at instant time :"</span> + instantTime);</span><br><span class="line">        Option&lt;HoodieCompactionPlan&gt; compactionPlan = createTable(config, hadoopConf, config.isMetadataTableEnabled())</span><br><span class="line">            .scheduleCompaction(context, instantTime, extraMetadata);</span><br><span class="line">        <span class="keyword">return</span> compactionPlan.isPresent() ? Option.of(instantTime) : Option.empty();</span><br><span class="line">      <span class="keyword">case</span> CLEAN:</span><br><span class="line">        LOG.info(<span class="string">"Scheduling cleaning at instant time :"</span> + instantTime);</span><br><span class="line">        Option&lt;HoodieCleanerPlan&gt; cleanerPlan = createTable(config, hadoopConf, config.isMetadataTableEnabled())</span><br><span class="line">            .scheduleCleaning(context, instantTime, extraMetadata);</span><br><span class="line">        <span class="keyword">return</span> cleanerPlan.isPresent() ? Option.of(instantTime) : Option.empty();</span><br><span class="line">      <span class="keyword">default</span>:</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"Invalid TableService "</span> + tableServiceType);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里的createtable()，会根据不同的客户端，比如flink或者spark，来创建不同的表，我这边调试目前主要是flink，所以这里跟到的实体就是  HoodieFlinkMergeOnReadTable ， 根据这个实体进行的计划创建。</p>
+<blockquote>
+<p>不同的实体数据，操作和合并算法是有区别的，是否会有冲突还需要细看一下源码。</p>
+</blockquote>
+<p>在上边说的实体表里，调度compact的方法如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> Option&lt;HoodieCompactionPlan&gt; <span class="title">scheduleCompaction</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">      HoodieEngineContext context,</span></span></span><br><span class="line"><span class="function"><span class="params">      String instantTime,</span></span></span><br><span class="line"><span class="function"><span class="params">      Option&lt;Map&lt;String, String&gt;&gt; extraMetadata)</span> </span>&#123;</span><br><span class="line">    ScheduleCompactionActionExecutor scheduleCompactionExecutor = <span class="keyword">new</span> ScheduleCompactionActionExecutor(</span><br><span class="line">        context, config, <span class="keyword">this</span>, instantTime, extraMetadata,</span><br><span class="line">        <span class="keyword">new</span> HoodieFlinkMergeOnReadTableCompactor());</span><br><span class="line">    <span class="keyword">return</span> scheduleCompactionExecutor.execute();</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>ScheduleCompactionActionExecutor 是一个模式类，里边主要是传入了一个compactor，然后都在execute里去生成计划。</p>
+<p>execute的主要逻辑如下：</p>
+<ul>
+<li><p>判断是否需要compact，这部分主要是看compact的触发策略是否达到要求。</p>
+<ul>
+<li><p>跟当前这个instant time相比，有已经commited 的 instant time</p>
+</li>
+<li><p>getLatestDeltaCommitInfo方法会返回上次compact之后的deltaCommit的数量，以及 最近的一次deltacommit的instant time。是 一个二元组。然后再needCompact中，会根据第一个值以及配置 hoodie.compact.inline.max.delta.commits（默认是5），来比对确认是否达到要求。根据第二个值跟配置 hoodie.compact.inline.max.delta.seconds （默认360s） 进行对比，超过这个时间阈值，就可以compact。第一个配置是距离上次compact之后delta commits的数量，后者是距离上次compact的秒数。</p>
+<p>上边的策略实际是两种，但是触发的时候我们有四种：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">enum</span> CompactionTriggerStrategy &#123;</span><br><span class="line">    <span class="comment">// trigger compaction when reach N delta commits</span></span><br><span class="line">    NUM_COMMITS,</span><br><span class="line">    <span class="comment">// trigger compaction when time elapsed &gt; N seconds since last compaction</span></span><br><span class="line">    TIME_ELAPSED,</span><br><span class="line">    <span class="comment">// trigger compaction when both NUM_COMMITS and TIME_ELAPSED are satisfied</span></span><br><span class="line">    NUM_AND_TIME,</span><br><span class="line">    <span class="comment">// trigger compaction when NUM_COMMITS or TIME_ELAPSED is satisfied</span></span><br><span class="line">    NUM_OR_TIME</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+</li>
+<li><p>确认需要compact之后，就需要生成计划。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">        SyncableFileSystemView fileSystemView = (SyncableFileSystemView) table.getSliceView();</span><br><span class="line">        Set&lt;HoodieFileGroupId&gt; fgInPendingCompactionAndClustering = fileSystemView.getPendingCompactionOperations()</span><br><span class="line">            .map(instantTimeOpPair -&gt; instantTimeOpPair.getValue().getFileGroupId())</span><br><span class="line">            .collect(Collectors.toSet());</span><br><span class="line">        <span class="comment">// exclude files in pending clustering from compaction.</span></span><br><span class="line">        fgInPendingCompactionAndClustering.addAll(fileSystemView.getFileGroupsInPendingClustering().map(Pair::getLeft).collect(Collectors.toSet()));</span><br><span class="line">        <span class="keyword">return</span> compactor.generateCompactionPlan(context, table, config, instantTime, fgInPendingCompactionAndClustering);</span><br><span class="line">      &#125; <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> HoodieCompactionException(<span class="string">"Could not schedule compaction "</span> + config.getBasePath(), e);</span><br><span class="line">      &#125;</span><br></pre></td></tr></table></figure>
+
+<pre><code>最终生成计划实际还是通过 这个 compactor。这个就是上边生成ScheduleCompactionActionExecutor的时候传入的compactor。generateCompactionPlan之前的那几行代码主要就是为了找到需要合并的文件。按照fileGroupId进行组织。
+
+ generateCompactionPlan的主要逻辑如下：
+
+ 1. 校验表类型必须是 MERGE_ON_READ
+
+ 2. 获取合并策略并过滤分区。策略的配置是  hoodie.compaction.strategy。默认是 LogFileSizeBasedCompactionStrategy.class  这个配置的解释如下 ： Compaction strategy decides which file groups are picked up for compaction during each compaction run. By default. Hudi picks the log file with most accumulated unmerged data。
+
+ LogFileSizeBasedCompactionStrategy 的 注解如下 ：LogFileSizeBasedCompactionStrategy orders the compactions based on the total log files size,filters the file group which log files size is greater than the threshold and limits the compactions within a configured IO bound. 这个类的策略是按照log file的大小来过滤并且排序。他也会过滤分区，为了增加compact的并行度，有了分区之后就可以多个点并行compact，因为分区之间是没有相关性的。
+
+ 3.根据hudi的文件视图，生成一个个的HoodieCompactionOperation，一个fileslice一个HoodieCompactionOperation。这个LIST是不区分partition的了。
+
+ 4.在上边那一步，会构建一个avro格式的元数据，包括这次compact的所有相关信息，包括统计等值。
+
+ 5. 生成执行计划，代码如下：</code></pre></li>
+</ul>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">HoodieCompactionPlan compactionPlan = config.getCompactionStrategy().generateCompactionPlan(config, operations,</span><br><span class="line">      CompactionUtils.getAllPendingCompactionPlans(metaClient).stream().map(Pair::getValue).collect(toList()));</span><br></pre></td></tr></table></figure>
+
+<p>这里调用的 CompactionStrategy 是上边提到的logFile  默认的配置策略。调用的generateCompactionPlan 实际是 抽象类 CompactionStrategy 里的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> HoodieCompactionPlan <span class="title">generateCompactionPlan</span><span class="params">(HoodieWriteConfig writeConfig,</span></span></span><br><span class="line"><span class="function"><span class="params">      List&lt;HoodieCompactionOperation&gt; operations, List&lt;HoodieCompactionPlan&gt; pendingCompactionPlans)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// Strategy implementation can overload this method to set specific compactor-id</span></span><br><span class="line">    <span class="keyword">return</span> HoodieCompactionPlan.newBuilder()</span><br><span class="line">        .setOperations(orderAndFilter(writeConfig, operations, pendingCompactionPlans))</span><br><span class="line">        .setVersion(CompactionUtils.LATEST_COMPACTION_METADATA_VERSION).build();</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里的一个设计在于，他把可能变化的逻辑抽象出来之后，用户可以操作的恰好是用户需要的，而其他都封装好了。</p>
+<p>比如这里的 orderAndFilter 方法，基本都是各个子策略自己实现的。在 上边说的 LogFileSizeBasedCompactionStrategy 中，orderAndFilter规定，log fize带下必须大于 配置 hoodie.compaction.logfile.size.threshold （默认是0字节） 的大小，才可以进行compact。然后在 BoundedIOCompactionStrategy 中也定义了 整个合并计划里涉及的总IO 大小， 不能超过 配置 hoodie.compaction.target.io （默认 500G ） 的大小，否则就会抛弃，其他的就会等待下次调度。</p>
+<p>还有一个校验是 同一个fileId的合并不能出现在多个正在执行的compactPlan里，否则会出现并发影响。如果一个fileId出现在之前的compact里，那就直接抛出异常，当前的计划就终止了。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">ValidationUtils.checkArgument(</span><br><span class="line">        compactionPlan.getOperations().stream().noneMatch(</span><br><span class="line">            op -&gt; fgIdsInPendingCompactionAndClustering.contains(<span class="keyword">new</span> HoodieFileGroupId(op.getPartitionPath(), op.getFileId()))),</span><br><span class="line">        <span class="string">"Bad Compaction Plan. FileId MUST NOT have multiple pending compactions. "</span></span><br><span class="line">            + <span class="string">"Please fix your strategy implementation. FileIdsWithPendingCompactions :"</span> + fgIdsInPendingCompactionAndClustering</span><br><span class="line">            + <span class="string">", Selected workload :"</span> + compactionPlan);</span><br></pre></td></tr></table></figure>
+
+<p>这里看到 fgIdsInPendingCompactionAndClustering 其实就是之前的正在pending中的计划的相关数据。</p>
+<blockquote>
+<p>fgIdsInPendingCompactionAndClustering 是所有之前生成的compact，状态是未完成的，然后打平出来的一个hashMap &lt;instantTime, compactionPlan&gt;,最后在ScheduleCompactionActionExecutor中，打平成FileGroupId</p>
+</blockquote>
+<blockquote>
+<p>用来获取pending状态的compact使用的fileSystemView 是 在HoodieTable里 通过方法 createViewManager 创建的，根据配置 view 在服务中的存储方式来构建，如下边代码中，有五种，默认是MEMORY。</p>
+<p>这个配置 hoodie.filesystem.view.type ，注释如下：File system view provides APIs for viewing the files on the underlying lake storage,as file groups and file slices.This config controls how such a view is held. 他们provide different trade offs for memory usage and API request performance.</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">enum</span> FileSystemViewStorageType &#123;</span><br><span class="line">  <span class="comment">// In-memory storage of file-system view</span></span><br><span class="line">  MEMORY,</span><br><span class="line">  <span class="comment">// Constrained Memory storage for file-system view with overflow data spilled to disk</span></span><br><span class="line">  SPILLABLE_DISK,</span><br><span class="line">  <span class="comment">// EMBEDDED Key Value Storage for file-system view</span></span><br><span class="line">  EMBEDDED_KV_STORE,</span><br><span class="line">  <span class="comment">// Delegate file-system view to remote server</span></span><br><span class="line">  REMOTE_ONLY,</span><br><span class="line">  <span class="comment">// A composite storage where file-system view calls are first delegated to Remote server ( REMOTE_ONLY )</span></span><br><span class="line">  <span class="comment">// In case of failures, switches subsequent calls to secondary local storage type</span></span><br><span class="line">  REMOTE_FIRST</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>关于memory格式的表，内部会根据配置hoodie.metadata.enable 来判断需要生成 HoodieMetadataFileSystemView 还是HoodieTableFileSystemView。这个配置默认是false。注释如下：Enable the internal metadata table which serves table metadata like level file listings。</p>
+<p>我这边没管这个配置，应该是默认值。所以这里走的是 HoodieTableFileSystemView。</p>
+<p>生成的时候会调用父类的 init 方法，里边会生成  fgIdToPendingCompaction，</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">resetPendingCompactionOperations(CompactionUtils.getAllPendingCompactionOperations(metaClient).values().stream()</span><br><span class="line">        .map(e -&gt; Pair.of(e.getKey(), CompactionOperation.convertFromAvroRecordInstance(e.getValue()))));</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> Map&lt;HoodieFileGroupId, Pair&lt;String, HoodieCompactionOperation&gt;&gt; getAllPendingCompactionOperations(</span><br><span class="line">      HoodieTableMetaClient metaClient) &#123;</span><br><span class="line">    List&lt;Pair&lt;HoodieInstant, HoodieCompactionPlan&gt;&gt; pendingCompactionPlanWithInstants =</span><br><span class="line">        getAllPendingCompactionPlans(metaClient);</span><br><span class="line"></span><br><span class="line">    Map&lt;HoodieFileGroupId, Pair&lt;String, HoodieCompactionOperation&gt;&gt; fgIdToPendingCompactionWithInstantMap =</span><br><span class="line">        <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line">    pendingCompactionPlanWithInstants.stream().flatMap(instantPlanPair -&gt;</span><br><span class="line">        getPendingCompactionOperations(instantPlanPair.getKey(), instantPlanPair.getValue())).forEach(pair -&gt; &#123;</span><br><span class="line">          <span class="comment">// Defensive check to ensure a single-fileId does not have more than one pending compaction with different</span></span><br><span class="line">          <span class="comment">// file slices. If we find a full duplicate we assume it is caused by eventual nature of the move operation</span></span><br><span class="line">          <span class="comment">// on some DFSs.</span></span><br><span class="line">          <span class="keyword">if</span> (fgIdToPendingCompactionWithInstantMap.containsKey(pair.getKey())) &#123;</span><br><span class="line">            HoodieCompactionOperation operation = pair.getValue().getValue();</span><br><span class="line">            HoodieCompactionOperation anotherOperation = fgIdToPendingCompactionWithInstantMap.get(pair.getKey()).getValue();</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (!operation.equals(anotherOperation)) &#123;</span><br><span class="line">              String msg = <span class="string">"Hudi File Id ("</span> + pair.getKey() + <span class="string">") has more than 1 pending compactions. Instants: "</span></span><br><span class="line">                  + pair.getValue() + <span class="string">", "</span> + fgIdToPendingCompactionWithInstantMap.get(pair.getKey());</span><br><span class="line">              <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(msg);</span><br><span class="line">            &#125;</span><br><span class="line">          &#125;</span><br><span class="line">          fgIdToPendingCompactionWithInstantMap.put(pair.getKey(), pair.getValue());</span><br><span class="line">        &#125;);</span><br><span class="line">    <span class="keyword">return</span> fgIdToPendingCompactionWithInstantMap;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>在这里 getAllPendingCompactionPlans 是获取pending状态的compact操作。pending就是未完成。</p>
+<p>然后下边有一次打平操作。逻辑如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> Stream&lt;Pair&lt;HoodieFileGroupId, Pair&lt;String, HoodieCompactionOperation&gt;&gt;&gt; getPendingCompactionOperations(</span><br><span class="line">      HoodieInstant instant, HoodieCompactionPlan compactionPlan) &#123;</span><br><span class="line">    List&lt;HoodieCompactionOperation&gt; ops = compactionPlan.getOperations();</span><br><span class="line">    <span class="keyword">if</span> (<span class="keyword">null</span> != ops) &#123;</span><br><span class="line">      <span class="keyword">return</span> ops.stream().map(op -&gt; Pair.of(<span class="keyword">new</span> HoodieFileGroupId(op.getPartitionPath(), op.getFileId()),</span><br><span class="line">          Pair.of(instant.getTimestamp(), op)));</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="keyword">return</span> Stream.empty();</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>在这里，他把fileid提取出来了。用来给后边的进行过滤。、</p>
+<p>回到 execute() 方法，在生成 HoodieCompactionPlan 之后，会生成一个 hudiInstant，然后把这一些元数据写入hudi的 timeline。状态是 REQUESTED。会将其序列化后保存在 <code>.hoodie/.aux</code>元数据目录下。</p>
+<p>记录一个类的结构图：</p>
+<p><img src="/images/HoodieFlinkMergeOnReadTableCompactor.png" alt=""></p>
+<p>这个是  HoodieFlinkMergeOnReadTableCompactor  的结构图，他继承了HoodieCompactor 。这个是实际执行的时候会用到的。</p>
+<p>另一个类图  LogFileSizeBasedCompactionStrategy ：</p>
+<p><img src="/images/LogFileSizeBasedCompactionStrategy.png" alt=""></p>
+<p>这里看出，实际CompactionStrategy 的子类有多个，这个主要就是生成策略，确认好合并的路子之后，后边的执行是上边的compactor需要做的。如果需要扩展合并策略，就要实现 CompactionStrategy 这个类。</p>
+<hr>
+<h4 id="执行compactplan"><a href="#执行compactplan" class="headerlink" title="执行compactplan"></a>执行compactplan</h4><p>上边说了plan的生成，下边我们看一下真正执行的时候的逻辑是啥样的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> O <span class="title">compact</span><span class="params">(String compactionInstantTime)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> compact(compactionInstantTime, config.shouldAutoCommit());</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个代码是在 类  AbstractHoodieWriteClient 中，在这个方法中，用到了一个配置 ： hoodie.auto.commit  默认是 true  Controls whether a write operation should auto commit.his can be turned off to perform inspection of the uncommitted write before deciding to commit.</p>
+<p>如果在提交之前有需要触发的动作，这个开关就要off掉。</p>
+<p>这里调用的compact最终是在  HoodieFlinkWriteClient 里。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">List&lt;WriteStatus&gt; writeStatuses =</span><br><span class="line">          getHoodieTable().compact(context, compactionInstantTime).getWriteStatuses();</span><br><span class="line">      commitCompaction(compactionInstantTime, writeStatuses, Option.empty());</span><br><span class="line">      <span class="keyword">return</span> writeStatuses;</span><br></pre></td></tr></table></figure>
+
+<p>这里的 getHoodieTable() 是HoodieFlinkMergeOnReadTable  ，他的compact 逻辑如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> HoodieWriteMetadata&lt;List&lt;WriteStatus&gt;&gt; compact(</span><br><span class="line">      HoodieEngineContext context, String compactionInstantTime) &#123;</span><br><span class="line">    RunCompactionActionExecutor compactionExecutor = <span class="keyword">new</span> RunCompactionActionExecutor(</span><br><span class="line">        context, config, <span class="keyword">this</span>, compactionInstantTime, <span class="keyword">new</span> HoodieFlinkMergeOnReadTableCompactor(),</span><br><span class="line">        <span class="keyword">new</span> HoodieFlinkCopyOnWriteTable(config, context, getMetaClient()));</span><br><span class="line">    <span class="keyword">return</span> convertMetadata(compactionExecutor.execute());</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里的这个RunCompactionActionExecutor跟上边生成策略时的思路是一样的，继承了 BaseActionExecutor，他的主要执行也是在方法 execute 里。BaseActionExecutor主要是写了一些metastore相关的操作。</p>
+<p>execute方法的代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line">  <span class="keyword">public</span> HoodieWriteMetadata&lt;HoodieData&lt;WriteStatus&gt;&gt; execute() &#123;</span><br><span class="line">    HoodieTimeline pendingCompactionTimeline = table.getActiveTimeline().filterPendingCompactionTimeline();</span><br><span class="line">    <span class="comment">// compactor 是 HoodieFlinkMergeOnReadTableCompactor</span></span><br><span class="line">    <span class="comment">// preCompact 如果有一些instant在别的正在运行的compactplan中，那么就要把正在进行中的compact进行回滚</span></span><br><span class="line">    compactor.preCompact(table, pendingCompactionTimeline, instantTime);</span><br><span class="line"></span><br><span class="line">    HoodieWriteMetadata&lt;HoodieData&lt;WriteStatus&gt;&gt; compactionMetadata = <span class="keyword">new</span> HoodieWriteMetadata&lt;&gt;();</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      <span class="comment">// generate compaction plan</span></span><br><span class="line">      <span class="comment">// should support configurable commit metadata</span></span><br><span class="line">      <span class="comment">// 这段代码就是从之前.hoodie/.aux下获取对应的之前存储的compact的元数据</span></span><br><span class="line">      HoodieCompactionPlan compactionPlan =</span><br><span class="line">          CompactionUtils.getCompactionPlan(table.getMetaClient(), instantTime);</span><br><span class="line"></span><br><span class="line">      HoodieData&lt;WriteStatus&gt; statuses = compactor.compact(</span><br><span class="line">          context, compactionPlan, table, config, instantTime, compactionHandler);</span><br><span class="line"></span><br><span class="line">      compactor.maybePersist(statuses, config);</span><br><span class="line">      context.setJobStatus(<span class="keyword">this</span>.getClass().getSimpleName(), <span class="string">"Preparing compaction metadata"</span>);</span><br><span class="line">      List&lt;HoodieWriteStat&gt; updateStatusMap = statuses.map(WriteStatus::getStat).collectAsList();</span><br><span class="line">      HoodieCommitMetadata metadata = <span class="keyword">new</span> HoodieCommitMetadata(<span class="keyword">true</span>);</span><br><span class="line">      <span class="keyword">for</span> (HoodieWriteStat stat : updateStatusMap) &#123;</span><br><span class="line">        metadata.addWriteStat(stat.getPartitionPath(), stat);</span><br><span class="line">      &#125;</span><br><span class="line">      metadata.addMetadata(HoodieCommitMetadata.SCHEMA_KEY, config.getSchema());</span><br><span class="line"></span><br><span class="line">      compactionMetadata.setWriteStatuses(statuses);</span><br><span class="line">      compactionMetadata.setCommitted(<span class="keyword">false</span>);</span><br><span class="line">      compactionMetadata.setCommitMetadata(Option.of(metadata));</span><br><span class="line">    &#125; <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> HoodieCompactionException(<span class="string">"Could not compact "</span> + config.getBasePath(), e);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> compactionMetadata;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里看一下那个compact的逻辑，代码是在HoodieCompactor中</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Execute compaction operations and report back status.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> HoodieData&lt;WriteStatus&gt; <span class="title">compact</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">      HoodieEngineContext context, HoodieCompactionPlan compactionPlan,</span></span></span><br><span class="line"><span class="function"><span class="params">      HoodieTable table, HoodieWriteConfig config, String compactionInstantTime,</span></span></span><br><span class="line"><span class="function"><span class="params">      HoodieCompactionHandler compactionHandler)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (compactionPlan == <span class="keyword">null</span> || (compactionPlan.getOperations() == <span class="keyword">null</span>)</span><br><span class="line">        || (compactionPlan.getOperations().isEmpty())) &#123;</span><br><span class="line">      <span class="keyword">return</span> context.emptyHoodieData();</span><br><span class="line">    &#125;</span><br><span class="line">    HoodieActiveTimeline timeline = table.getActiveTimeline();</span><br><span class="line">    HoodieInstant instant = HoodieTimeline.getCompactionRequestedInstant(compactionInstantTime);</span><br><span class="line">    <span class="comment">// Mark instant as compaction inflight</span></span><br><span class="line">    timeline.transitionCompactionRequestedToInflight(instant);</span><br><span class="line">    table.getMetaClient().reloadActiveTimeline();</span><br><span class="line"></span><br><span class="line">    HoodieTableMetaClient metaClient = table.getMetaClient();</span><br><span class="line">    TableSchemaResolver schemaUtil = <span class="keyword">new</span> TableSchemaResolver(metaClient);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Here we firstly use the table schema as the reader schema to read</span></span><br><span class="line">    <span class="comment">// log file.That is because in the case of MergeInto, the config.getSchema may not</span></span><br><span class="line">    <span class="comment">// the same with the table schema.</span></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      Schema readerSchema = schemaUtil.getTableAvroSchema(<span class="keyword">false</span>);</span><br><span class="line">      config.setSchema(readerSchema.toString());</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">      <span class="comment">// If there is no commit in the table, just ignore the exception.</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Compacting is very similar to applying updates to existing file</span></span><br><span class="line">    List&lt;CompactionOperation&gt; operations = compactionPlan.getOperations().stream()</span><br><span class="line">        .map(CompactionOperation::convertFromAvroRecordInstance).collect(toList());</span><br><span class="line">    LOG.info(<span class="string">"Compactor compacting "</span> + operations + <span class="string">" files"</span>);</span><br><span class="line"></span><br><span class="line">    context.setJobStatus(<span class="keyword">this</span>.getClass().getSimpleName(), <span class="string">"Compacting file slices"</span>);</span><br><span class="line">    TaskContextSupplier taskContextSupplier = table.getTaskContextSupplier();</span><br><span class="line">    <span class="keyword">return</span> context.parallelize(operations).map(operation -&gt; compact(</span><br><span class="line">        compactionHandler, metaClient, config, operation, compactionInstantTime, taskContextSupplier))</span><br><span class="line">        .flatMap(List::iterator);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>在最后一行代码之前，主要还是转化了schema的问题，这块还是要从schema整体的抽象去考虑。</p>
+<blockquote>
+<p>hudi 中 schama 如何管理的?</p>
+</blockquote>
+<p>最终任务是通过引擎，进行并行执行compact，所以这里合并是在 compact方法进行具体的执行。按照一个FileSlice进行合并的。</p>
+<p>这个compact的代码比较多，我罗列一下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Execute a single compaction operation and report back status.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> List&lt;WriteStatus&gt; <span class="title">compact</span><span class="params">(HoodieCompactionHandler compactionHandler,</span></span></span><br><span class="line"><span class="function"><span class="params">                                   HoodieTableMetaClient metaClient,</span></span></span><br><span class="line"><span class="function"><span class="params">                                   HoodieWriteConfig config,</span></span></span><br><span class="line"><span class="function"><span class="params">                                   CompactionOperation operation,</span></span></span><br><span class="line"><span class="function"><span class="params">                                   String instantTime,</span></span></span><br><span class="line"><span class="function"><span class="params">                                   TaskContextSupplier taskContextSupplier)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">    FileSystem fs = metaClient.getFs();</span><br><span class="line"></span><br><span class="line">    Schema readerSchema = HoodieAvroUtils.addMetadataFields(</span><br><span class="line">        <span class="keyword">new</span> Schema.Parser().parse(config.getSchema()), config.allowOperationMetadataField());</span><br><span class="line">    LOG.info(<span class="string">"Compacting base "</span> + operation.getDataFileName() + <span class="string">" with delta files "</span> + operation.getDeltaFileNames()</span><br><span class="line">        + <span class="string">" for commit "</span> + instantTime);</span><br><span class="line">    <span class="comment">// TODO - FIX THIS</span></span><br><span class="line">    <span class="comment">// Reads the entire avro file. Always only specific blocks should be read from the avro file</span></span><br><span class="line">    <span class="comment">// (failure recover).</span></span><br><span class="line">    <span class="comment">// Load all the delta commits since the last compaction commit and get all the blocks to be</span></span><br><span class="line">    <span class="comment">// loaded and load it using CompositeAvroLogReader</span></span><br><span class="line">    <span class="comment">// Since a DeltaCommit is not defined yet, reading all the records. revisit this soon.</span></span><br><span class="line">    String maxInstantTime = metaClient</span><br><span class="line">        .getActiveTimeline().getTimelineOfActions(CollectionUtils.createSet(HoodieTimeline.COMMIT_ACTION,</span><br><span class="line">            HoodieTimeline.ROLLBACK_ACTION, HoodieTimeline.DELTA_COMMIT_ACTION))</span><br><span class="line">        .filterCompletedInstants().lastInstant().get().getTimestamp();</span><br><span class="line">    <span class="comment">// 如果配置了 hoodie.memory.compaction.max.size  默认是无</span></span><br><span class="line">    <span class="comment">//注释："Maximum amount of memory used for compaction operations, before spilling to local storage.</span></span><br><span class="line">    <span class="comment">// 如果上边那个没有配置，就会读取 hoodie.memory.compaction.fraction 这个配置，默认是0.6</span></span><br><span class="line">    <span class="comment">// 注释：HoodieCompactedLogScanner reads logblocks, converts records to HoodieRecords and then</span></span><br><span class="line">    <span class="comment">// merges these log blocks and records. At any point, the number of entries in a log block can be  </span></span><br><span class="line">    <span class="comment">// less than or equal to the number of entries in the corresponding parquet file.</span></span><br><span class="line">    <span class="comment">// This can lead to  OOM in the Scanner. Hence, a spillable map helps alleviate the memory pressure. Use this config to</span></span><br><span class="line">    <span class="comment">// set the max allowable inMemory footprint（内存占用） of the spillable map</span></span><br><span class="line">    <span class="keyword">long</span> maxMemoryPerCompaction = IOUtils.getMaxMemoryPerCompaction(taskContextSupplier, config);</span><br><span class="line">    LOG.info(<span class="string">"MaxMemoryPerCompaction =&gt; "</span> + maxMemoryPerCompaction);</span><br><span class="line"></span><br><span class="line">    List&lt;String&gt; logFiles = operation.getDeltaFileNames().stream().map(</span><br><span class="line">        p -&gt; <span class="keyword">new</span> Path(FSUtils.getPartitionPath(metaClient.getBasePath(), operation.getPartitionPath()), p).toString())</span><br><span class="line">        .collect(toList());</span><br><span class="line">    <span class="comment">// 获取所有log相关的文件</span></span><br><span class="line">    HoodieMergedLogRecordScanner scanner = HoodieMergedLogRecordScanner.newBuilder()</span><br><span class="line">        .withFileSystem(fs)</span><br><span class="line">        .withBasePath(metaClient.getBasePath())</span><br><span class="line">        .withLogFilePaths(logFiles)</span><br><span class="line">        .withReaderSchema(readerSchema)</span><br><span class="line">        .withLatestInstantTime(maxInstantTime)</span><br><span class="line">        .withMaxMemorySizeInBytes(maxMemoryPerCompaction)</span><br><span class="line">        .withReadBlocksLazily(config.getCompactionLazyBlockReadEnabled())</span><br><span class="line">        .withReverseReader(config.getCompactionReverseLogReadEnabled())</span><br><span class="line">        .withBufferSize(config.getMaxDFSStreamBufferSize())</span><br><span class="line">        .withSpillableMapBasePath(config.getSpillableMapBasePath())</span><br><span class="line">        .withDiskMapType(config.getCommonConfig().getSpillableDiskMapType())</span><br><span class="line">        .withBitCaskDiskMapCompressionEnabled(config.getCommonConfig().isBitCaskDiskMapCompressionEnabled())</span><br><span class="line">        .withOperationField(config.allowOperationMetadataField())</span><br><span class="line">        .withPartition(operation.getPartitionPath())</span><br><span class="line">        .build();</span><br><span class="line">    <span class="keyword">if</span> (!scanner.iterator().hasNext()) &#123;</span><br><span class="line">      scanner.close();</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 获取parquet文件</span></span><br><span class="line">    Option&lt;HoodieBaseFile&gt; oldDataFileOpt =</span><br><span class="line">        operation.getBaseFile(metaClient.getBasePath(), operation.getPartitionPath());</span><br><span class="line">    <span class="comment">// 以下逻辑按照数据更新流程来处理</span></span><br><span class="line">    <span class="comment">// 这里的 compactionHandler 是 HoodieFlinkCopyOnWriteTable</span></span><br><span class="line">    <span class="comment">// Compacting is very similar to applying updates to existing file</span></span><br><span class="line">    Iterator&lt;List&lt;WriteStatus&gt;&gt; result;</span><br><span class="line">    <span class="comment">// If the dataFile is present, perform updates else perform inserts into a new base file.</span></span><br><span class="line">    <span class="keyword">if</span> (oldDataFileOpt.isPresent()) &#123;</span><br><span class="line">      result = compactionHandler.handleUpdate(instantTime, operation.getPartitionPath(),</span><br><span class="line">          operation.getFileId(), scanner.getRecords(),</span><br><span class="line">          oldDataFileOpt.get());</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      result = compactionHandler.handleInsert(instantTime, operation.getPartitionPath(), operation.getFileId(),</span><br><span class="line">          scanner.getRecords());</span><br><span class="line">    &#125;</span><br><span class="line">    scanner.close();</span><br><span class="line">    Iterable&lt;List&lt;WriteStatus&gt;&gt; resultIterable = () -&gt; result;</span><br><span class="line">    <span class="comment">// 关注一下这些统计，对于后续合并策略的调整有重要的作用</span></span><br><span class="line">    <span class="keyword">return</span> StreamSupport.stream(resultIterable.spliterator(), <span class="keyword">false</span>).flatMap(Collection::stream).peek(s -&gt; &#123;</span><br><span class="line">      s.getStat().setTotalUpdatedRecordsCompacted(scanner.getNumMergedRecordsInLog());</span><br><span class="line">      s.getStat().setTotalLogFilesCompacted(scanner.getTotalLogFiles());</span><br><span class="line">      s.getStat().setTotalLogRecords(scanner.getTotalLogRecords());</span><br><span class="line">      s.getStat().setPartitionPath(operation.getPartitionPath());</span><br><span class="line">      s.getStat()</span><br><span class="line">          .setTotalLogSizeCompacted(operation.getMetrics().get(CompactionStrategy.TOTAL_LOG_FILE_SIZE).longValue());</span><br><span class="line">      s.getStat().setTotalLogBlocks(scanner.getTotalLogBlocks());</span><br><span class="line">      s.getStat().setTotalCorruptLogBlock(scanner.getTotalCorruptBlocks());</span><br><span class="line">      s.getStat().setTotalRollbackBlocks(scanner.getTotalRollbacks());</span><br><span class="line">      RuntimeStats runtimeStats = <span class="keyword">new</span> RuntimeStats();</span><br><span class="line">      runtimeStats.setTotalScanTime(scanner.getTotalTimeTakenToReadAndMergeBlocks());</span><br><span class="line">      s.getStat().setRuntimeStats(runtimeStats);</span><br><span class="line">    &#125;).collect(toList());</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里顺带着回顾一下写的逻辑，handleInsert就不说了，直接看一下handleUpdate。</p>
+<p>handleUpdate的方式的主要思路如下：</p>
+<p>1、获取schema</p>
+<p>2、HoodieFileReader的生成</p>
+<p>3、创建 readerIterator ，主要是读取parquet相关的数据。</p>
+<p>4、BoundedInMemoryExecutor 创建：一个固定长度的容器，会有生产者和消费者，生产者就是basefile的数据迭代器，而消费者就是mergeHandle，也就是HoodieMergeHandler，然后加了一个转换schema的函数。</p>
+<p>5、execute  BoundedInMemoryExecutor执行</p>
+<p>在HoodieMergeHandler初始化的时候，就把所有的log的数据进行了遍历，形成了&lt;recordKey, HoodieRecord&gt;的结构，这个数据是存储在一个 ExternalSpillableMap的结构里，也就是一个可以扩展到硬盘存储的hashMap。</p>
+<p>在consumer消费的时候，也就是调用了HoodieMergeHandler的write方法。这个write方法传入的参数是parquet base file里的一条记录，旧记录。如果在增量数据中存在对一个的key，就要进行合并把新的记录写到新的文件里，反之就不合并，把就旧记录写入新的文件里。</p>
+<blockquote>
+<p>这里涉及比较琐碎的点是schema的合并。这块的逻辑应该会频繁考虑schema的变更带来的问题。也是一个适合考虑线上数据版本升级的问题。</p>
+</blockquote>
+<p>这里具体写入调用的是  HoodieParquetWriter，调用的parquet-hadoop相关代码包进行的数据写入。</p>
+<p>以上基本就是compact的全过程。</p>
+<blockquote>
+<p>这里读取parquet的方式并不是向量化读取。</p>
+</blockquote>
+<blockquote>
+<p>1、在计划生成之前会形成一个 为完成的compact的 以fileid为粒度的map</p>
+<p>2、plan生成的时候会校验，当前的fileId不能在之前的未完成compact中存在。</p>
+<p>3、在计划执行的时候，会校验当前的instant time，包装成 一个Inflight状态的HoodieInstant，判断这个HoodieInstant是不是在正在pending中的，如果在，那就把当前这个instantTime标识的整个调度进行回滚成Requested状态。</p>
+</blockquote>
+<p>参考：</p>
+<p><a href="https://cloud.tencent.com/developer/article/1812134" target="_blank" rel="noopener">Hudi 压缩(Compaction)实现分析 - 云+社区 - 腾讯云</a></p>
+<p><a href="https://www.cnblogs.com/leesf456/p/13658785.html" target="_blank" rel="noopener">Apache Hudi异步Compaction方式汇总 - leesf - 博客园</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/hudi/" rel="tag"># hudi</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/04/15/flink%E5%8E%9F%E7%90%86-%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0EXACTLY-ONCE/" rel="next" title="flink原理--如何实现EXACTLY_ONCE">
+                <i class="fa fa-chevron-left"></i> flink原理--如何实现EXACTLY_ONCE
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/04/18/hudi%E6%8E%A2%E7%B4%A2-clean%E5%8E%9F%E7%90%86/" rel="prev" title="hudi探索--clean原理">
+                hudi探索--clean原理 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#hudi探索–compact原理"><span class="nav-number">1.</span> <span class="nav-text">hudi探索–compact原理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#compact的过程"><span class="nav-number">1.1.</span> <span class="nav-text">compact的过程</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#生成-HoodieCompactionPlan"><span class="nav-number">1.1.1.</span> <span class="nav-text">生成 HoodieCompactionPlan</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#执行compactplan"><span class="nav-number">1.1.2.</span> <span class="nav-text">执行compactplan</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

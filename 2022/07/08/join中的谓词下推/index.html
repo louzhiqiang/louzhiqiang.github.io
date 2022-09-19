@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="join的谓词下推无论是 broadcast hash join、shuffle hash join 还是 sort merge join，都是最基础的 join 算法，有没有什么优化方案呢？还真有，这就是今天要聊的主角－Runtime Filter（下文简称 RF） RF 算法理论为了更好地说明整个过程，这里使用一个 SQL 示例对 RF 算法进行完整讲解，SQL：select item.nam">
+<meta property="og:type" content="article">
+<meta property="og:title" content="join中的谓词下推">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/08/join%E4%B8%AD%E7%9A%84%E8%B0%93%E8%AF%8D%E4%B8%8B%E6%8E%A8/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="join的谓词下推无论是 broadcast hash join、shuffle hash join 还是 sort merge join，都是最基础的 join 算法，有没有什么优化方案呢？还真有，这就是今天要聊的主角－Runtime Filter（下文简称 RF） RF 算法理论为了更好地说明整个过程，这里使用一个 SQL 示例对 RF 算法进行完整讲解，SQL：select item.nam">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/04/20170410095857_95476.png">
+<meta property="article:published_time" content="2022-07-08T08:22:17.000Z">
+<meta property="article:modified_time" content="2022-07-08T09:27:26.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://hbasefly.com/wp-content/uploads/2017/04/20170410095857_95476.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/08/join中的谓词下推/"/>
+
+
+
+
+
+  <title>join中的谓词下推 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/08/join%E4%B8%AD%E7%9A%84%E8%B0%93%E8%AF%8D%E4%B8%8B%E6%8E%A8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">join中的谓词下推</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-07-08T16:22:17+08:00">
+                2022-07-08
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="join的谓词下推"><a href="#join的谓词下推" class="headerlink" title="join的谓词下推"></a>join的谓词下推</h1><p>无论是 broadcast hash join、shuffle hash join 还是 sort merge join，都是最基础的 join 算法，有没有什么优化方案呢？还真有，这就是今天要聊的主角－Runtime Filter（下文简称 RF）</p>
+<h3 id="RF-算法理论"><a href="#RF-算法理论" class="headerlink" title="RF 算法理论"></a>RF 算法理论</h3><p>为了更好地说明整个过程，这里使用一个 SQL 示例对 RF 算法进行完整讲解，SQL：select item.name, order.* from order , item where order.item_id = item.id and item.category = ‘book’，其中 order 为订单表，item 为商品表，两张表根据商品 id 字段进行 join，该 SQL 意为取出商品类别为书籍的所有订单详情。假设商品类型为书籍的商品并不多，join 算法因此确定为 broadcast hash join。整个流程如下图所示：</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2017/04/20170410095857_95476.png" alt="img"></p>
+<p>Step 1：将 item 表的 join 字段（item.id）经过多个 hash 函数映射处理为一个 bloomfilter（如果对 bloomfilter 不了解，自行 google）</p>
+<p>Step 2：将映射好的 bloomfilter 分别广播到 order 表的所有 partition 上，准备进行过滤</p>
+<p>Step 3：以 Partition2 为例，存储进程（比如 DataNode 进程）将 order 表中 join 列（order.item_id）数据一条一条读出来，使用 bloomfilter 进行过滤。淘汰该订单数据不是书籍相关商品的订单，这条数据直接跳过；否则该条订单数据有可能是待检索订单，将该行数据全部扫描出来。</p>
+<p>Step 4：将所有未被 bloomfilter 过滤掉的订单数据，通过本地 socket 通信发送到计算进程（impalad）。</p>
+<p>Step 5：再将所有书籍商品数据广播到所有 Partition 节点与 step4 所得订单数据进行真正的 hashjoin 操作，得到最终的选择结果。</p>
+<h3 id="RF-算法分析"><a href="#RF-算法分析" class="headerlink" title="RF 算法分析"></a><strong>RF 算法分析</strong></h3><ul>
+<li><strong>RF 本质：通过谓词（ bloomfilter）下推，在存储层通过 bloomfilter 对数据进行过滤，可以从三个方面实现对 Join 的优化。其一，如果可以跳过很多记录，就可以减少了数据 IO 扫描次数。这点需要重点解释一下，许多朋友会有这样的疑问：既然需要把数据扫描出来使用 BloomFilter 进行过滤，为什么还会减少 IO 扫描次数呢？这里需要关注一个事实：大多数表存储行为都是列存，列之间独立存储，扫描过滤只需要扫描 join 列数据（而不是所有列），如果某一列被过滤掉了，其他对应的同一行的列就不需要扫描了，这样减少 IO 扫描次数。其二，减少了数据从存储层通过 socket(甚至 TPC）发送到计算层的开销，其三，减少了最终 hash join 执行的开销。</strong></li>
+<li>RF 代价：对照未使用 RF 的 Broadcast Hash Join 来看，前者主要增加了 bloomfilter 的生成、广播以及大表根据 bloomfilter 进行过滤这三个开销。通常情况下，这几个步骤在小表较小的情况下代价并不大，基本可以忽略。</li>
+<li>RF 优化效果：基本取决于 bloomfilter 的过滤效果，如果大量数据被过滤掉了，那么 join 的性能就会得到极大提升；否则性能提升就会有限。</li>
+<li>RF 实现：和常见的谓词下推（’=‘，’&gt;’，’&lt;‘等）一样，RF 实现需要在计算层以及存储层分别进行相关逻辑实现，计算层要构造 bloomfilter 并将 bloomfilter 下传到存储层，存储层要实现使用该 bloomfilter 对指定数据进行过滤。</li>
+</ul>
+<blockquote>
+<p>这里的谓词下推其实下推的是where后的条件，而且要下推到主表。不过这里的区别是不是下推的等值条件，而是下推的是bloomfilter。</p>
+</blockquote>
+<p>提到谓词下推，这里再引申一下下。以前经常满大街听到谓词下推，然而对谓词下推却总感觉懵懵懂懂，并不明白的很真切。经过 RF 的洗礼，现在确信有了更进一步的理解。这里拿出来和大家交流交流。个人认为谓词下推有两个层面的理解：</p>
+<ul>
+<li>其一是逻辑执行计划优化层面的说法，比如 SQL 语句：select * from order ,item where item.id = order.item_id and item.category = ‘book’，正常情况语法解析之后应该是先执行 Join 操作，再执行 Filter 操作。通过谓词下推，可以将 Filter 操作下推到 Join 操作之前执行。即将 where item.category = ‘book’下推到 item.id = order.item_id 之前先行执行。</li>
+<li>其二是真正实现层面的说法，谓词下推是将过滤条件从计算进程下推到存储进程先行执行，注意这里有两种类型进程：计算进程以及存储进程。计算与存储分离思想，这在大数据领域相当常见，比如最常见的计算进程有 SparkSQL、Hive、impala 等，负责 SQL 解析优化、数据计算聚合等，存储进程有 HDFS（DataNode）、Kudu、HBase，负责数据存储。正常情况下应该是将所有数据从存储进程加载到计算进程，再进行过滤计算。谓词下推是说将一些过滤条件下推到存储进程，直接让存储进程将数据过滤掉。这样的好处显而易见，过滤的越早，数据量越少，序列化开销、网络开销、计算开销这一系列都会减少，性能自然会提高。</li>
+</ul>
+<blockquote>
+<p>这里提到的第二点，在spark 3.3版本的发布中已经优化丰富了很多，很多谓词下推都支持的更加健壮，比如丰富的表达式下推，范围下推等，而且基于新的架构可以支持更多的存储格式。</p>
+</blockquote>
+<blockquote>
+<p><strong><em>RF 机制并不仅仅是一个简单的谓词下推，它的精髓在于提出了一个重要的谓词－bloomfilter。\</em></strong></p>
+</blockquote>
+<p>当前对 RF 支持的系统并不多，笔者只知道目前唯有 Impala on Parquet 进行了支持。</p>
+<blockquote>
+<p>目前最新版本的spark 3.3 已经支持了bloomfilter join。</p>
+</blockquote>
+<p>参考：</p>
+<p><a href="http://hbasefly.com/2017/04/10/bigdata-join-2/" target="_blank" rel="noopener">http://hbasefly.com/2017/04/10/bigdata-join-2/</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/07/07/HDFS-Hedged-Read/" rel="next" title="HDFS Hedged Read">
+                <i class="fa fa-chevron-left"></i> HDFS Hedged Read
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/07/08/java%E7%9A%84gc%E5%87%A0%E9%97%AE/" rel="prev" title="java的gc几问">
+                java的gc几问 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#join的谓词下推"><span class="nav-number">1.</span> <span class="nav-text">join的谓词下推</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#RF-算法理论"><span class="nav-number">1.0.1.</span> <span class="nav-text">RF 算法理论</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#RF-算法分析"><span class="nav-number">1.0.2.</span> <span class="nav-text">RF 算法分析</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

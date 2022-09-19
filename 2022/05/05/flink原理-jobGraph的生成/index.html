@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="flink," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="flink原理–jobGraph的生成为啥需要jobgraphStreamGraph是用户逻辑的拓扑，它并没有做任何的优化。而这里为什么要分成两层，不是一次性直接生成jobGraph呢？里最主要的原因是为兼容 batch process，Streaming process 最初产生的是 StreamGraph，而 batch process 产生的则是 OptimizedPlan，但是它们最后都会">
+<meta property="og:type" content="article">
+<meta property="og:title" content="flink原理--jobGraph的生成">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/05/flink%E5%8E%9F%E7%90%86-jobGraph%E7%9A%84%E7%94%9F%E6%88%90/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="flink原理–jobGraph的生成为啥需要jobgraphStreamGraph是用户逻辑的拓扑，它并没有做任何的优化。而这里为什么要分成两层，不是一次性直接生成jobGraph呢？里最主要的原因是为兼容 batch process，Streaming process 最初产生的是 StreamGraph，而 batch process 产生的则是 OptimizedPlan，但是它们最后都会">
+<meta property="og:image" content="https://matt33.com/images/flink/3-create-job-graph.png">
+<meta property="og:image" content="https://matt33.com/images/flink/3-operator-chain.png">
+<meta property="og:image" content="https://matt33.com/images/flink/3-StreamPartitioner.png">
+<meta property="og:image" content="https://matt33.com/images/flink/3-JobGraph.png">
+<meta property="article:published_time" content="2022-05-05T02:22:15.000Z">
+<meta property="article:modified_time" content="2022-05-12T07:22:20.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="flink">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://matt33.com/images/flink/3-create-job-graph.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/05/flink原理-jobGraph的生成/"/>
+
+
+
+
+
+  <title>flink原理--jobGraph的生成 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/05/flink%E5%8E%9F%E7%90%86-jobGraph%E7%9A%84%E7%94%9F%E6%88%90/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">flink原理--jobGraph的生成</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-05T10:22:15+08:00">
+                2022-05-05
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="flink原理–jobGraph的生成"><a href="#flink原理–jobGraph的生成" class="headerlink" title="flink原理–jobGraph的生成"></a>flink原理–jobGraph的生成</h2><h3 id="为啥需要jobgraph"><a href="#为啥需要jobgraph" class="headerlink" title="为啥需要jobgraph"></a>为啥需要jobgraph</h3><p>StreamGraph是用户逻辑的拓扑，它并没有做任何的优化。而这里为什么要分成两层，不是一次性直接生成jobGraph呢？里最主要的原因是为兼容 batch process，Streaming process 最初产生的是 StreamGraph，而 batch process 产生的则是 OptimizedPlan，但是它们最后都会转换为 JobGraph。</p>
+<p>根据自己的理解，第一层streamingGraph，是用户跟flink打交道的入口，这个graph也就是用户验证自己逻辑在flink中的运行拓扑的验证，而在这之后的运行，就是flink自己的机制了，用户可以选择通过日志、监控、统计去看任务运行的状况，但是更加具体的细节就可以不用特别深入，在这种情况下，就能满足一大部分的业务开发。</p>
+<p>换句话话。并不是需要人人都是流式计算的专家也可以很好的运行起来flink相关的任务，而如果遇到比较麻烦的异常会有”专家“来解决。</p>
+<p>还有一点就是jobGraph里会加入一些优化，主要是算子的 Chain 操作，Chain 在一起的算子将会在同一个 task 上运行，会极大减少 shuffle 的开销。</p>
+<h3 id="jobGraph的概念"><a href="#jobGraph的概念" class="headerlink" title="jobGraph的概念"></a>jobGraph的概念</h3><p>jobGraph 也是graph的一种，只是加入了更多的属性，也就可以做更多的策略优化了，但是里边的顶点和边都由之前的streamnode和streamEdge进行了替换。</p>
+<ol>
+<li><strong>StreamConfig</strong>: 它会记录一个 StreamOperator 的配置信息，它保存了这个 StreamOperator 的基本信息，在这里它会将 StreamGraph 中的 StreamNode 的详细信息同步到它对应的 StreamConfig 对象中；</li>
+<li><strong>JobVertex</strong>: JobVertex 相当于是 JobGraph 的顶点，跟 StreamNode 的区别是，它是 Operator Chain 之后的顶点，会包含多个 StreamNode；</li>
+<li><strong>IntermediateDataSet</strong>: 它是由一个 Operator（可能是 source，也可能是某个中间算子）产生的一个中间数据集；</li>
+<li><strong>JobEdge</strong>: 它相当于是 JobGraph 中的边（连接通道），这个边连接的是一个 IntermediateDataSet 跟一个要消费的 JobVertex。</li>
+</ol>
+<p>这里  IntermediateDataSet 是这里抽象出来的概念，为了后续生成ExecutionGraph做准备。</p>
+<h3 id="jobGraph的生成"><a href="#jobGraph的生成" class="headerlink" title="jobGraph的生成"></a>jobGraph的生成</h3><p><img src="https://matt33.com/images/flink/3-create-job-graph.png" alt="生成 JobGraph 的流程"></p>
+<p>这张图是介绍了graph的生成逻辑，基本就是在遍历steamGraph进行逐个节点转换，还要转换edge。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//note: 根据 StreamGraph 生成 JobGraph</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> JobGraph <span class="title">createJobGraph</span><span class="params">()</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// make sure that all vertices start immediately</span></span><br><span class="line">    <span class="comment">//note: 设置调度模式</span></span><br><span class="line">    jobGraph.setScheduleMode(streamGraph.getScheduleMode());</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Generate deterministic hashes for the nodes in order to identify them across</span></span><br><span class="line">    <span class="comment">// submission iff they didn't change.</span></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * note: 为每个 SteamNode 生成一个确定的 hash id，如果提交的拓扑没有改变，则每次生成的 hash id 都是一样的</span></span><br><span class="line"><span class="comment">     * note: 这里只要保证 source 的顺序是确定的，就可以保证最后生产的 hash id 不变</span></span><br><span class="line"><span class="comment">     * note: 它是利用 input 节点的 hash 值及该节点在 map 中位置（实际上是 map.size 算的）来计算确定的</span></span><br><span class="line"><span class="comment">     * note: 实现逻辑见 &#123;<span class="doctag">@link</span> StreamGraphHasherV2#traverseStreamGraphAndGenerateHashes(StreamGraph)&#125;</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    Map&lt;Integer, <span class="keyword">byte</span>[]&gt; hashes = defaultStreamGraphHasher.traverseStreamGraphAndGenerateHashes(streamGraph);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Generate legacy version hashes for backwards compatibility</span></span><br><span class="line">    <span class="comment">//note: 这个设置主要是为了防止 hash 机制变化时出现不兼容的情况</span></span><br><span class="line">    List&lt;Map&lt;Integer, <span class="keyword">byte</span>[]&gt;&gt; legacyHashes = <span class="keyword">new</span> ArrayList&lt;&gt;(legacyStreamGraphHashers.size());</span><br><span class="line">    <span class="keyword">for</span> (StreamGraphHasher hasher : legacyStreamGraphHashers) &#123;</span><br><span class="line">        legacyHashes.add(hasher.traverseStreamGraphAndGenerateHashes(streamGraph));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Map&lt;Integer, List&lt;Tuple2&lt;<span class="keyword">byte</span>[], <span class="keyword">byte</span>[]&gt;&gt;&gt; chainedOperatorHashes = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line"></span><br><span class="line">    <span class="comment">//note: 最重要的函数，生成 JobVertex/JobEdge 等，并尽可能地将多个节点 chain 在一起</span></span><br><span class="line">    setChaining(hashes, legacyHashes, chainedOperatorHashes);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//note: 将每个 JobVertex 的入边集合也序列化到该 JobVertex 的 StreamConfig 中 (出边集合已经在 setChaining 的时候写入了)</span></span><br><span class="line">    setPhysicalEdges();</span><br><span class="line"></span><br><span class="line">    <span class="comment">//note: 为每个 JobVertex 指定所属的 SlotSharingGroup 以及设置 CoLocationGroup</span></span><br><span class="line">    setSlotSharingAndCoLocation();</span><br><span class="line"></span><br><span class="line">    <span class="comment">//note: checkpoint相关的配置</span></span><br><span class="line">    configureCheckpointing();</span><br><span class="line"></span><br><span class="line">    <span class="comment">//note: 用户的第三方依赖包就是在这里（cacheFile）传给 JobGraph</span></span><br><span class="line">    JobGraphGenerator.addUserArtifactEntries(streamGraph.getUserArtifacts(), jobGraph);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// set the ExecutionConfig last when it has been finalized</span></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">//note: 将 StreamGraph 的 ExecutionConfig 序列化到 JobGraph 的配置中</span></span><br><span class="line">        jobGraph.setExecutionConfig(streamGraph.getExecutionConfig());</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalConfigurationException(<span class="string">"Could not serialize the ExecutionConfig."</span> +</span><br><span class="line">                <span class="string">"This indicates that non-serializable types (like custom serializers) were registered"</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> jobGraph;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>不过这里有个比较重要的策略，那就是如何进行chain的。</p>
+<p><img src="https://matt33.com/images/flink/3-operator-chain.png" alt="Operator Chain 的示例"></p>
+<p>这是一个简单直观的转换结果图，这样的对比图，对于转换前和转换后，会有一个一眼就可以识别出来的效果。</p>
+<p>在下边的参考链接里有关于chain的源码解读，我总结一下我自己的思考：</p>
+<p>1、从streamGraph的源头开始，逐个节点和逐个边来进行遍历整合。</p>
+<p>2、逐个遍历，还要根据已有的遍历过的节点再进行整合，也就是说这是一个N*N的过程。</p>
+<p>3、先按照是否可以chain在一起来分堆，分好之后再把他们connect起来。分堆之后实际上还要根据配置策略，创建当前这个分堆的配置。</p>
+<p>4、是否可以chain，主要是根据streamEdge。主要代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//note: 是否可以 chain 在一起</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">boolean</span> <span class="title">isChainable</span><span class="params">(StreamEdge edge, StreamGraph streamGraph)</span> </span>&#123;</span><br><span class="line">    StreamNode upStreamVertex = streamGraph.getSourceVertex(edge); <span class="comment">//note: edge 的 source node</span></span><br><span class="line">    StreamNode downStreamVertex = streamGraph.getTargetVertex(edge); <span class="comment">//note: edge 的 sink node</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">//note: 获取输入和输出的 Operator Factory</span></span><br><span class="line">    StreamOperatorFactory&lt;?&gt; headOperator = upStreamVertex.getOperatorFactory();</span><br><span class="line">    StreamOperatorFactory&lt;?&gt; outOperator = downStreamVertex.getOperatorFactory();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> downStreamVertex.getInEdges().size() == <span class="number">1</span> <span class="comment">//note: 下游 Operator 的 Edge 只有一个（如果是多个合并，是无法 Chain 在一起的）</span></span><br><span class="line">            &amp;&amp; outOperator != <span class="keyword">null</span></span><br><span class="line">            &amp;&amp; headOperator != <span class="keyword">null</span></span><br><span class="line">            &amp;&amp; upStreamVertex.isSameSlotSharingGroup(downStreamVertex) <span class="comment">//note: 对应的 slotSharingGroup 一样</span></span><br><span class="line">            &amp;&amp; outOperator.getChainingStrategy() == ChainingStrategy.ALWAYS <span class="comment">//note: out operator 允许 chain 操作</span></span><br><span class="line">            &amp;&amp; (headOperator.getChainingStrategy() == ChainingStrategy.HEAD || <span class="comment">//note: head Operator 允许跟后面的 chain 在一起</span></span><br><span class="line">                headOperator.getChainingStrategy() == ChainingStrategy.ALWAYS)</span><br><span class="line">            &amp;&amp; (edge.getPartitioner() <span class="keyword">instanceof</span> ForwardPartitioner) <span class="comment">//note: partitioner 是 ForwardPartitioner 类型</span></span><br><span class="line">            &amp;&amp; edge.getShuffleMode() != ShuffleMode.BATCH</span><br><span class="line">            &amp;&amp; upStreamVertex.getParallelism() == downStreamVertex.getParallelism() <span class="comment">//note: 并发相等</span></span><br><span class="line">            &amp;&amp; streamGraph.isChainingEnabled(); <span class="comment">//note: StreamGraph 允许 Chain 在一起</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里有两个重要的概念就是 slotSharingGroup  和 partitioner</p>
+<h4 id="slotSharingGroup"><a href="#slotSharingGroup" class="headerlink" title="slotSharingGroup"></a>slotSharingGroup</h4><p>slotSharingGroup用默认或者相同的组名时，job运行启动的slot是最大Parallelism。</p>
+<p>Slot Sharing 是指，来自同一个 Job 且拥有相同 slotSharingGroup（默认：default）名称的不同 Task 的 SubTask 之间可以共享一个 Slot，这使得一个 Slot 有机会持有 Job 的一整条 Pipeline，这也是上文提到的在默认 slotSharing 的条件下 Job 启动所需的 Slot 数和 Job 中 Operator 的最大 parallelism 相等的原因。通过 Slot Sharing 机制可以更进一步提高 Job 运行性能，在 Slot 数不变的情况下增加了 Operator 可设置的最大的并行度，让类似 window 这种消耗资源的 Task 以最大的并行度分布在不同 TM 上，同时像 map、filter 这种较简单的操作也不会独占 Slot 资源，降低资源浪费的可能性。</p>
+<h4 id="Partitioner"><a href="#Partitioner" class="headerlink" title="Partitioner"></a>Partitioner</h4><p>这个 StreamEdge 的属性，在创建 StreamEdge 对象会配置这个属性。</p>
+<p><img src="https://matt33.com/images/flink/3-StreamPartitioner.png" alt="StreamPartitioner 的实现"></p>
+<p>用户没有指定，就会走一个默认的：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//org.apache.flink.streaming.api.graph.StreamGraph</span></span><br><span class="line"><span class="comment">//note: 未指定 partitioner 的话，会为其选择 forward（并发设置相同时） 或 rebalance（并发设置不同时）</span></span><br><span class="line"><span class="keyword">if</span> (partitioner == <span class="keyword">null</span> &amp;&amp; upstreamNode.getParallelism() == downstreamNode.getParallelism()) &#123;</span><br><span class="line">    partitioner = <span class="keyword">new</span> ForwardPartitioner&lt;Object&gt;();</span><br><span class="line">&#125; <span class="keyword">else</span> <span class="keyword">if</span> (partitioner == <span class="keyword">null</span>) &#123;</span><br><span class="line">    partitioner = <span class="keyword">new</span> RebalancePartitioner&lt;Object&gt;();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="其他节点的创建"><a href="#其他节点的创建" class="headerlink" title="其他节点的创建"></a>其他节点的创建</h4><p>分堆完事儿了，配置加上了，graph的下一步就是如何链接这些chain。</p>
+<p>chain本身会他转化为JobVertex节点。</p>
+<p>然后jobVertex节点之间的关联是通过jobEdge进行关联。为了更好协调M对N的关系，还有一个 IntermediateDataSet 的概念需要创建，应对shuffle的策略。</p>
+<p><img src="https://matt33.com/images/flink/3-JobGraph.png" alt="JobGraph"></p>
+<p>执行完 <code>setChaining()</code> 方法后，下面还有几步操作：</p>
+<ol>
+<li><code>setPhysicalEdges()</code>: 将每个 JobVertex 的入边集合也序列化到该 JobVertex 的 StreamConfig 中 (出边集合已经在 setChaining 的时候写入了)；</li>
+<li><code>setSlotSharingAndCoLocation()</code>: 为每个 JobVertex 指定所属的 SlotSharingGroup 以及设置 CoLocationGroup；</li>
+<li><code>configureCheckpointing()</code>: checkpoint相关的配置；</li>
+<li><code>JobGraphGenerator.addUserArtifactEntries()</code>: 用户依赖的第三方包就是在这里（cacheFile）传给 JobGraph；</li>
+</ol>
+<p>比如上边说的checkpoint的设置，在生成jobGraph的时候，会把之前设置的属性根据checkpoint最终的运行原理，去拆分细节，然后在这个细节里，按照flink的优化去分层，逐层细化。说白了，flink的执行计划是分了这么多层次，这个checkpoint也要跟着分这么多层次，每一个层次都是不同的节点类型，落实到实际执行的代码的时候，checkpoint也要去跟着触发执行，他的上下文都是依赖于graph的，对应的执行细节也要跟着变化。</p>
+<p>所以每一层需要什么机制，需要什么类型，就去依次细化，依次注入需要的对象或者hook。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>在不同的层次，每个层次都有自己完整的逻辑，然后再去丰富后边的层次的时候，才能够把逻辑闭环，否则就会需要为了上边层次不完整的缺口去增加冗余的代码，而通常这样的代码或者设计最大的问题不是弥补这一块的成本，而是由此给整体架构带来的维护、功能扩展性的限制，以及架构的脏信息。</p>
+<p>参考：</p>
+<p><a href="https://matt33.com/2019/12/09/flink-job-graph-3/" target="_blank" rel="noopener">Flink Streaming 作业如何转化为 JobGraph | Matt’s Blog</a></p>
+<p><a href="https://www.infoq.cn/article/zml7tccechvany-9jg1h" target="_blank" rel="noopener">Flink Slot详解与Job Execution Graph优化_大数据_王成龙_InfoQ精选文章</a></p>
+<p><a href="https://zhuanlan.zhihu.com/p/22736103" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/22736103</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/flink/" rel="tag"># flink</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/05/05/flink%E5%8E%9F%E7%90%86-streamGraph%E7%9A%84%E7%94%9F%E6%88%90/" rel="next" title="flink原理--streamGraph的生成">
+                <i class="fa fa-chevron-left"></i> flink原理--streamGraph的生成
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/05/05/flink%E5%8E%9F%E7%90%86-executionGraph%E7%9A%84%E7%94%9F%E6%88%90/" rel="prev" title="flink原理--executionGraph的生成">
+                flink原理--executionGraph的生成 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#flink原理–jobGraph的生成"><span class="nav-number">1.</span> <span class="nav-text">flink原理–jobGraph的生成</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#为啥需要jobgraph"><span class="nav-number">1.1.</span> <span class="nav-text">为啥需要jobgraph</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#jobGraph的概念"><span class="nav-number">1.2.</span> <span class="nav-text">jobGraph的概念</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#jobGraph的生成"><span class="nav-number">1.3.</span> <span class="nav-text">jobGraph的生成</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#slotSharingGroup"><span class="nav-number">1.3.1.</span> <span class="nav-text">slotSharingGroup</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Partitioner"><span class="nav-number">1.3.2.</span> <span class="nav-text">Partitioner</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#其他节点的创建"><span class="nav-number">1.3.3.</span> <span class="nav-text">其他节点的创建</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#总结"><span class="nav-number">1.4.</span> <span class="nav-text">总结</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

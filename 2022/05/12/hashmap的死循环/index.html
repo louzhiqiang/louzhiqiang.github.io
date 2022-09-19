@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="基础," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="hashmap的死循环hashmap在1.7版本，有个循环依赖问题，所以导致在并发场景会遇到死循环问题。所以hashmap是非线程安全的，这才有了后来的concurrentHashMap。后者的原理我们稍后来看，先看看这个死锁是咋回事。 自己在剖析这个问题的过程中，其实是在探索并发设计的一些原理，对于后续自己设计并发架构的时候，会有更多细节上的把握。 hashmap的数据结构hashmap本身的结">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hashmap的死循环">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/12/hashmap%E7%9A%84%E6%AD%BB%E5%BE%AA%E7%8E%AF/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="hashmap的死循环hashmap在1.7版本，有个循环依赖问题，所以导致在并发场景会遇到死循环问题。所以hashmap是非线程安全的，这才有了后来的concurrentHashMap。后者的原理我们稍后来看，先看看这个死锁是咋回事。 自己在剖析这个问题的过程中，其实是在探索并发设计的一些原理，对于后续自己设计并发架构的时候，会有更多细节上的把握。 hashmap的数据结构hashmap本身的结">
+<meta property="og:image" content="https://github.com/images/hashmap_1.jpg">
+<meta property="og:image" content="https://github.com/images/hashmap_2.jpg">
+<meta property="og:image" content="https://github.com/images/hashmap_3.jpg">
+<meta property="og:image" content="https://github.com/images/hashmap_4.jpg">
+<meta property="og:image" content="https://github.com/images/hashmap_5.jpg">
+<meta property="og:image" content="https://github.com/images/hashmap_6.jpg">
+<meta property="og:image" content="https://github.com/images/hashmap_7.png">
+<meta property="article:published_time" content="2022-05-12T03:20:58.000Z">
+<meta property="article:modified_time" content="2022-05-13T03:58:36.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="基础">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/hashmap_1.jpg">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/12/hashmap的死循环/"/>
+
+
+
+
+
+  <title>hashmap的死循环 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/12/hashmap%E7%9A%84%E6%AD%BB%E5%BE%AA%E7%8E%AF/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">hashmap的死循环</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-12T11:20:58+08:00">
+                2022-05-12
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/java/" itemprop="url" rel="index">
+                    <span itemprop="name">java</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="hashmap的死循环"><a href="#hashmap的死循环" class="headerlink" title="hashmap的死循环"></a>hashmap的死循环</h2><p>hashmap在1.7版本，有个循环依赖问题，所以导致在并发场景会遇到死循环问题。所以hashmap是非线程安全的，这才有了后来的concurrentHashMap。后者的原理我们稍后来看，先看看这个死锁是咋回事。</p>
+<p>自己在剖析这个问题的过程中，其实是在探索并发设计的一些原理，对于后续自己设计并发架构的时候，会有更多细节上的把握。</p>
+<h3 id="hashmap的数据结构"><a href="#hashmap的数据结构" class="headerlink" title="hashmap的数据结构"></a>hashmap的数据结构</h3><p>hashmap本身的结构是数组 + 链表的方式。数组实际上就是根据key的hash值来的，遇到碰撞，里边的元素因为是按照链表来存放的，新元素会直接追加在头部。这里的hash，就是key的对象的hash。<strong>要把这里跟你写对象的时候会重写的三个关键魔法方法关联一下，一个是hash，一个是equals，一个是toString</strong>。</p>
+<h3 id="PUT方法"><a href="#PUT方法" class="headerlink" title="PUT方法"></a>PUT方法</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> V <span class="title">put</span><span class="params">(K key, V value)</span> </span>&#123;</span><br><span class="line">     <span class="keyword">if</span> (table == EMPTY_TABLE) &#123;</span><br><span class="line">        inflateTable(threshold);</span><br><span class="line">     &#125;</span><br><span class="line">     <span class="keyword">if</span> (key == <span class="keyword">null</span>)</span><br><span class="line">         <span class="keyword">return</span> putForNullKey(value);</span><br><span class="line">     <span class="comment">//根据key获取hash</span></span><br><span class="line">     <span class="keyword">int</span> hash = hash(key);</span><br><span class="line">     <span class="comment">//计算在数组中的下表</span></span><br><span class="line">     <span class="keyword">int</span> i = indexFor(hash, table.length);</span><br><span class="line">     <span class="comment">//变量集合查询相同key的数据，如果已经存在则更新数据</span></span><br><span class="line">     <span class="keyword">for</span> (Entry&lt;K,V&gt; e = table[i]; e != <span class="keyword">null</span>; e = e.next) &#123;</span><br><span class="line">         Object k;</span><br><span class="line">             <span class="keyword">if</span> (e.hash == hash &amp;&amp; ((k = e.key) == key || key.equals(k))) &#123;</span><br><span class="line">             V oldValue = e.value;</span><br><span class="line">             e.value = value;</span><br><span class="line">             e.recordAccess(<span class="keyword">this</span>);</span><br><span class="line">             <span class="comment">//返回已有数据</span></span><br><span class="line">             <span class="keyword">return</span> oldValue;</span><br><span class="line">         &#125;</span><br><span class="line">     &#125;</span><br><span class="line">     modCount++;</span><br><span class="line">     <span class="comment">//如果不存在相同key的元素，则添加新元素</span></span><br><span class="line">     addEntry(hash, key, value, i);</span><br><span class="line">     <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>如果这个元素所在的位置上已经存放有其他元素了，那么在同一个位子上的元素将以链表的形式存放，新加入的元素放在链头，而先前加入的放在链尾。</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">addEntry</span><span class="params">(<span class="keyword">int</span> hash, K key, V value, <span class="keyword">int</span> bucketIndex)</span> </span>&#123;</span><br><span class="line">     <span class="comment">// 当数组的size &gt;= 扩容阈值，触发扩容，size大小会在createEnty和removeEntry的时候改变</span></span><br><span class="line">     <span class="keyword">if</span> ((size &gt;= threshold) &amp;&amp; (<span class="keyword">null</span> != table[bucketIndex])) &#123;</span><br><span class="line">         <span class="comment">// 扩容到2倍大小，后边会跟进这个方法</span></span><br><span class="line">         resize(<span class="number">2</span> * table.length);</span><br><span class="line">         <span class="comment">// 扩容后重新计算hash和index</span></span><br><span class="line">         hash = (<span class="keyword">null</span> != key) ? hash(key) : <span class="number">0</span>;</span><br><span class="line">         bucketIndex = indexFor(hash, table.length);</span><br><span class="line">     &#125;</span><br><span class="line">     <span class="comment">// 创建一个新的链表节点，点进去可以了解到是将新节点添加到了链表的头部</span></span><br><span class="line">     createEntry(hash, key, value, bucketIndex);</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>如果现在size已经超过了threshold，那么就要进行resize操作,新建一个更大尺寸的hash表，然后把数据从老的Hash表中迁移到新的Hash表中。</strong></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">resize</span><span class="params">(<span class="keyword">int</span> newCapacity)</span> </span>&#123;</span><br><span class="line">     Entry[] oldTable = table;</span><br><span class="line">     <span class="keyword">int</span> oldCapacity = oldTable.length;</span><br><span class="line">     <span class="keyword">if</span> (oldCapacity == MAXIMUM_CAPACITY) &#123;</span><br><span class="line">     threshold = Integer.MAX_VALUE;</span><br><span class="line">     <span class="keyword">return</span>;</span><br><span class="line">     &#125;</span><br><span class="line">     <span class="comment">// 创建2倍大小的新数组</span></span><br><span class="line">     Entry[] newTable = <span class="keyword">new</span> Entry[newCapacity];</span><br><span class="line">     <span class="comment">// 将旧数组的链表转移到新数组，就是这个方法导致的hashMap不安全，等下我们进去看一眼</span></span><br><span class="line">     transfer(newTable, initHashSeedAsNeeded(newCapacity));</span><br><span class="line">     table = newTable;</span><br><span class="line">     <span class="comment">// 重新计算扩容阈值(容量*加载因子)</span></span><br><span class="line">     threshold = (<span class="keyword">int</span>)Math.min(newCapacity * loadFactor, MAXIMUM_CAPACITY + <span class="number">1</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">transfer</span><span class="params">(Entry[] newTable, <span class="keyword">boolean</span> rehash)</span> </span>&#123;</span><br><span class="line">     <span class="keyword">int</span> newCapacity = newTable.length;</span><br><span class="line">     <span class="comment">// 遍历旧数组</span></span><br><span class="line">     <span class="keyword">for</span> (Entry&lt;K,V&gt; e : table) &#123;</span><br><span class="line">         <span class="comment">// 遍历链表</span></span><br><span class="line">         <span class="keyword">while</span>(<span class="keyword">null</span> != e) &#123;</span><br><span class="line">             <span class="comment">//获取下一个元素，记录到一个临时变量，以便后面使用</span></span><br><span class="line">             Entry&lt;K,V&gt; next = e.next;</span><br><span class="line">             <span class="keyword">if</span> (rehash) &#123;</span><br><span class="line">                e.hash = <span class="keyword">null</span> == e.key ? <span class="number">0</span> : hash(e.key);</span><br><span class="line">             &#125;</span><br><span class="line">             <span class="comment">// 计算节点在新数组中的下标</span></span><br><span class="line">             <span class="keyword">int</span> i = indexFor(e.hash, newCapacity);</span><br><span class="line">             <span class="comment">// 将旧节点插入到新节点的头部</span></span><br><span class="line">             e.next = newTable[i];</span><br><span class="line">             <span class="comment">//这行才是真正把数据插入新数组中，前面那行代码只是设置当前节点的next</span></span><br><span class="line">             <span class="comment">//这两行代码决定了倒序插入</span></span><br><span class="line">             <span class="comment">//比如：以前同一个位置上是:3，7，后面可能变成了：7、3</span></span><br><span class="line">             newTable[i] = e;</span><br><span class="line">             <span class="comment">//将下一个元素赋值给当前元素，以便遍历下一个元素</span></span><br><span class="line">             e = next;  </span><br><span class="line">         &#125;  </span><br><span class="line">     &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="头插法"><a href="#头插法" class="headerlink" title="头插法"></a>头插法</h3><p>回到这边的这几行代码：</p>
+<figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//获取下一个元素，记录到一个临时变量，以便后面使用</span></span><br><span class="line"> Entry&lt;K,V&gt; next = e.next;  ##1</span><br><span class="line"> <span class="comment">// 计算节点在新数组中的下标</span></span><br><span class="line"> int i = indexFor(e.hash, newCapacity);  ##2</span><br><span class="line"> <span class="comment">// 将旧节点插入到新节点的头部</span></span><br><span class="line"> e.next = newTable[i];   ##3</span><br><span class="line"> <span class="comment">//这行才是真正把数据插入新数组中，前面那行代码只是设置当前节点的next</span></span><br><span class="line"> newTable[i] = e; ##4</span><br><span class="line"> <span class="comment">//将下一个元素赋值给当前元素，以便遍历下一个元素</span></span><br><span class="line"> e = next;  ##5</span><br></pre></td></tr></table></figure>
+
+<p>初始结构如下；</p>
+<p><img src="/images/hashmap_1.jpg" alt=""></p>
+<p>调用put方法需要进行一次扩容，刚开始会创建一个空的数组，大小是以前的2倍，那么数组下边就变成了 0 1 2 3</p>
+<p>第一轮循环：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//next= 7   e = 3  e.next = 7</span></span><br><span class="line"> Entry&lt;K,V&gt; next = e.next;</span><br><span class="line"> <span class="comment">// i=3</span></span><br><span class="line"> <span class="keyword">int</span> i = indexFor(e.hash, newCapacity);</span><br><span class="line"> <span class="comment">//e.next = null ，刚初始化时新数组的元素为null</span></span><br><span class="line"> e.next = newTable[i];</span><br><span class="line"> <span class="comment">//给新数组i位置 赋值 3</span></span><br><span class="line"> newTable[i] = e;</span><br><span class="line"> <span class="comment">// e = 7</span></span><br><span class="line"> e = next;</span><br></pre></td></tr></table></figure>
+
+<p>结果如下：</p>
+<p><img src="/images/hashmap_2.jpg" alt=""></p>
+<p>第二轮循环：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//next= 5   e = 7  e.next = 5</span></span><br><span class="line"> Entry&lt;K,V&gt; next = e.next;</span><br><span class="line"> <span class="comment">// i=3</span></span><br><span class="line"> <span class="keyword">int</span> i = indexFor(e.hash, newCapacity);</span><br><span class="line"> <span class="comment">//e.next = 3 ，此时相同位置上已经有key=3的值了，将该值赋值给当前元素的next</span></span><br><span class="line"> e.next = newTable[i];</span><br><span class="line"> <span class="comment">//给新数组i位置 赋值 7</span></span><br><span class="line"> newTable[i] = e;</span><br><span class="line"> <span class="comment">// e = 5</span></span><br><span class="line"> e = next;</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/hashmap_3.jpg" alt=""></p>
+<p>在遇到相同hash的时候，这个顺序是有可能反过来的。所以这个叫头插法。</p>
+<h3 id="死循环的产生"><a href="#死循环的产生" class="headerlink" title="死循环的产生"></a>死循环的产生</h3><p>假设数据跟元素数据一致，有两个线程：线程1 和 线程2，同时执行put方法，最后同时调用transfer方法。</p>
+<p>线程1 先执行，到  Entry&lt;K,V&gt; next = e.next; 这一行，被挂起了。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//next= 7   e = 3  e.next = 7</span></span><br><span class="line">Entry&lt;K,V&gt; next = e.next;</span><br><span class="line"><span class="keyword">int</span> i = indexFor(e.hash, newCapacity);</span><br><span class="line">e.next = newTable[i];</span><br><span class="line">newTable[i] = e;</span><br><span class="line">e = next;</span><br></pre></td></tr></table></figure>
+
+<p>这个时候还米有写进去数据，新的数组是空的。</p>
+<p>接下来，线程2开始执行，由于线程2运气比较好，没有被中断过，执行完毕了。</p>
+<p><img src="/images/hashmap_4.jpg" alt=""></p>
+<p>过一会儿，线程1被恢复了，重新执行代码。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//next= 7   e = 3  e.next = 7</span></span><br><span class="line">Entry&lt;K,V&gt; next = e.next;</span><br><span class="line"><span class="comment">// i = 3</span></span><br><span class="line"><span class="keyword">int</span> i = indexFor(e.hash, newCapacity);</span><br><span class="line"><span class="comment">// e.next = null，刚初始化时新数组的元素为null</span></span><br><span class="line">e.next = newTable[i];</span><br><span class="line"><span class="comment">// 给新数组i位置 赋值 3</span></span><br><span class="line">newTable[i] = e;</span><br><span class="line"><span class="comment">// e = 7</span></span><br><span class="line">e = next;</span><br></pre></td></tr></table></figure>
+
+<p>1的执行结果如下：</p>
+<p><img src="/images/hashmap_5.jpg" alt=""></p>
+<p>再执行第二轮循环，此时的e=7</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//next= 3   e = 7  e.next = 3</span></span><br><span class="line">Entry&lt;K,V&gt; next = e.next;</span><br><span class="line"><span class="comment">// i = 3</span></span><br><span class="line"><span class="keyword">int</span> i = indexFor(e.hash, newCapacity);</span><br><span class="line"><span class="comment">// e.next = 3，此时相同位置上已经有key=3的值了，将该值赋值给当前元素的next</span></span><br><span class="line">e.next = newTable[i];</span><br><span class="line"><span class="comment">// 给新数组i位置 赋值 7</span></span><br><span class="line">newTable[i] = e;</span><br><span class="line"><span class="comment">// e = 3</span></span><br><span class="line">e = next;</span><br></pre></td></tr></table></figure>
+
+<p>这里特别要说明的是 此时e=7，而e.next为什么是3呢？</p>
+<p>因为hashMap的数据是公共的，还记得线程2中的生成的数据吗？回顾一下上图。</p>
+<p>此时e=7，那么e.next肯定是3。</p>
+<p>经过这轮循环，线程1里的数据如下：</p>
+<p><img src="/images/hashmap_6.jpg" alt=""></p>
+<p>此时由于循环判断还没有退出，判断条件是： while(null != e)，所以要开始第三轮循环：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//next= null   e = 3  e.next = null</span></span><br><span class="line"> Entry&lt;K,V&gt; next = e.next;</span><br><span class="line"> <span class="comment">// i = 3</span></span><br><span class="line"> <span class="keyword">int</span> i = indexFor(e.hash, newCapacity);</span><br><span class="line"> <span class="comment">// e.next = 7，关键的一步，由于第二次循环是 key:7.next = key:3，现在key:3.next = key:7</span></span><br><span class="line"> e.next = newTable[i];</span><br><span class="line"> <span class="comment">// 给新数组i位置 赋值 3</span></span><br><span class="line"> newTable[i] = e;</span><br><span class="line"> <span class="comment">// e = null</span></span><br><span class="line"> e = next;</span><br></pre></td></tr></table></figure>
+
+<p>由于e=null，此时会退出循环，最终线程1的数据会是这种结构：</p>
+<p><img src="/images/hashmap_7.png" alt=""></p>
+<p>ey:3 和 key:7又恢复了刚开始的顺序，但是他们的next会相互引用，构成环形引用。</p>
+<p>注意，此时调用hashmap的get方法获取数据时，<strong>如果只是获取循环链上key:3 和 key:7的数据，是不会有问题的，因为可以找到。</strong> 就怕获取循环链上没有的数据，比如：key:11，key:15等，会进入无限循环中导致CPU使用率飙升。</p>
+<h3 id="如何避免死循环"><a href="#如何避免死循环" class="headerlink" title="如何避免死循环"></a>如何避免死循环</h3><p>为了解决这个问题，jdk1.8把扩容是复制元素到新数组由 头插法 改成了 尾插法 。此外，引入了红黑树，提升遍历节点的效率。但是这样依然不是线程安全的。要避免在多线程的环境中使用HashMap，而应该改成使用ConcurrentHashMap。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/%E5%9F%BA%E7%A1%80/" rel="tag"># 基础</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/05/05/hudi%E6%8E%A2%E7%B4%A2-clustering%E5%8E%9F%E7%90%86/" rel="next" title="hudi探索--clustering原理">
+                <i class="fa fa-chevron-left"></i> hudi探索--clustering原理
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/05/13/flink%E5%8E%9F%E7%90%86-master%E8%AF%A6%E8%A7%A3/" rel="prev" title="flink原理--master详解">
+                flink原理--master详解 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#hashmap的死循环"><span class="nav-number">1.</span> <span class="nav-text">hashmap的死循环</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#hashmap的数据结构"><span class="nav-number">1.1.</span> <span class="nav-text">hashmap的数据结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#PUT方法"><span class="nav-number">1.2.</span> <span class="nav-text">PUT方法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#头插法"><span class="nav-number">1.3.</span> <span class="nav-text">头插法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#死循环的产生"><span class="nav-number">1.4.</span> <span class="nav-text">死循环的产生</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#如何避免死循环"><span class="nav-number">1.5.</span> <span class="nav-text">如何避免死循环</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

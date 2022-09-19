@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="flink," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="flink原理–Async IO的原理异步IO是flink流计算效率提高的关键，很多处理都依赖于这个特性。 动机在大多数情况下，I&#x2F;O 访问是一个耗时的过程，这使得单个算子的 TPS 远低于内存计算，特别是对于流式作业，当低延迟是用户的一个大问题时。启动多个线程可能是解决此问题的一种选择，但缺点很明显：最终用户的编程模型可能会变得更加复杂，因为他们必须在运算符中实现线程模型。此外，他们必须注意与检">
+<meta property="og:type" content="article">
+<meta property="og:title" content="flink原理--Async IO的原理">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/15/flink%E5%8E%9F%E7%90%86-Async-IO%E7%9A%84%E5%8E%9F%E7%90%86/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="flink原理–Async IO的原理异步IO是flink流计算效率提高的关键，很多处理都依赖于这个特性。 动机在大多数情况下，I&#x2F;O 访问是一个耗时的过程，这使得单个算子的 TPS 远低于内存计算，特别是对于流式作业，当低延迟是用户的一个大问题时。启动多个线程可能是解决此问题的一种选择，但缺点很明显：最终用户的编程模型可能会变得更加复杂，因为他们必须在运算符中实现线程模型。此外，他们必须注意与检">
+<meta property="og:image" content="https://cwiki.apache.org/confluence/download/attachments/65870673/future-wait-operator.jpg?version=1&modificationDate=1474192093000&api=v2">
+<meta property="og:image" content="https://cwiki.apache.org/confluence/download/attachments/65870673/async-state-future.jpg?version=1&modificationDate=1474192206000&api=v2">
+<meta property="og:image" content="https://cwiki.apache.org/confluence/download/attachments/65870673/async-task-buffer.jpg?version=1&modificationDate=1474192804000&api=v2">
+<meta property="og:image" content="https://blog.jrwang.me/img/flink/async-io.svg">
+<meta property="og:image" content="https://blog.jrwang.me/img/flink/OrderedStreamElementQueue.svg">
+<meta property="og:image" content="https://blog.jrwang.me/img/flink/UnorderedStreamElementQueue.svg">
+<meta property="og:image" content="https://cwiki.apache.org/confluence/download/attachments/65870673/async-wait-operator.jpg?version=1&modificationDate=1474192916000&api=v2">
+<meta property="article:published_time" content="2022-06-15T12:18:42.000Z">
+<meta property="article:modified_time" content="2022-07-21T08:07:48.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="flink">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cwiki.apache.org/confluence/download/attachments/65870673/future-wait-operator.jpg?version=1&modificationDate=1474192093000&api=v2">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/15/flink原理-Async-IO的原理/"/>
+
+
+
+
+
+  <title>flink原理--Async IO的原理 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/15/flink%E5%8E%9F%E7%90%86-Async-IO%E7%9A%84%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">flink原理--Async IO的原理</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-15T20:18:42+08:00">
+                2022-06-15
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="flink原理–Async-IO的原理"><a href="#flink原理–Async-IO的原理" class="headerlink" title="flink原理–Async IO的原理"></a>flink原理–Async IO的原理</h1><p>异步IO是flink流计算效率提高的关键，很多处理都依赖于这个特性。</p>
+<h2 id="动机"><a href="#动机" class="headerlink" title="动机"></a>动机</h2><p>在大多数情况下，I/O 访问是一个耗时的过程，这使得单个算子的 TPS 远低于内存计算，特别是对于流式作业，当低延迟是用户的一个大问题时。启动多个线程可能是解决此问题的一种选择，但缺点很明显：最终用户的编程模型可能会变得更加复杂，因为他们必须在运算符中实现线程模型。此外，他们必须注意与检查点的协调。</p>
+<p>Flink 基于事件的消息驱动流处理引擎，对于每条消息都会触发一次全流程的处理，因此在与外部存储系统交互时，对于每条消息都需要一次外部请求，对于性能的损耗较大，严重制约了 flink 的吞吐量。</p>
+<p>Flip-12 就是针对这个问题的解决方案，其设计的核心是对原有的每条处理后的消息发送至下游 operator 的执行流程进行改进。其核心实现是引入了一个 AsyncWaitOperator, 在其 processElement/processWatermark 方法中完成对消息的处理。其执行流程是：</p>
+<ol>
+<li>将每条消息封装成一个<code>StreamRecordQueueEntry</code>(其实现了<code>ResultFuture</code>)，放入<code>StreamElementQueue</code>中</li>
+<li>消息与外部系统交互的逻辑放入 AsynInvoke 方法中，将交互执行结果放入<code>StreamRecordQueueEntry</code>中</li>
+<li>启动一个 emitter 线程，从<code>StreamElementQueue</code>中读取已经完成的<code>StreamRecordQueueEntry</code>，将其结果发送至下游 operator 算子</li>
+</ol>
+<h2 id="角色"><a href="#角色" class="headerlink" title="角色"></a>角色</h2><p><strong>AsyncFunction</strong>: Async I/O will be triggered in AsyncFunction.</p>
+<p><strong>AsyncWaitOperator</strong>: An StreamOperator which will invoke AsyncFunction.</p>
+<p><strong>AsyncCollector</strong>: For each input streaming record, an AsyncCollector will be created and passed into user’s callback to get the async i/o result.</p>
+<p><strong>AsyncCollectorBuffer</strong>: A buffer to keep all AsyncCollectors.</p>
+<p><strong>Emitter Thread</strong>: A working thread in AsyncCollectorBuffer, being signalled while some of AsyncCollectors have finished async i/o and emitting results to the following opeartors.</p>
+<h2 id="实现"><a href="#实现" class="headerlink" title="实现"></a>实现</h2><h3 id="Public-Interfaces"><a href="#Public-Interfaces" class="headerlink" title="Public Interfaces"></a>Public Interfaces</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">AsyncDataStream</span> </span>&#123;</span><br><span class="line"> <span class="comment">/**</span></span><br><span class="line"><span class="comment">  * Add an AsyncWaitOperator. The order of output stream records may be reordered.</span></span><br><span class="line"><span class="comment">  *</span></span><br><span class="line"><span class="comment">  * <span class="doctag">@param</span> in Input data stream</span></span><br><span class="line"><span class="comment">  * <span class="doctag">@param</span> func AsyncFunction</span></span><br><span class="line"><span class="comment">  * <span class="doctag">@bufSize</span> The max number of async i/o operation that can be triggered</span></span><br><span class="line"><span class="comment">  * <span class="doctag">@return</span> A new DataStream.</span></span><br><span class="line"><span class="comment">  */</span></span><br><span class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> DataStream&lt;OUT&gt; <span class="title">unorderedWait</span><span class="params">(DataStream&lt;IN&gt; in, AsyncFunction&lt;IN, OUT&gt; func, <span class="keyword">int</span> bufSize)</span></span>;</span><br><span class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> DataStream&lt;OUT&gt; <span class="title">unorderedWait</span><span class="params">(DataStream&lt;IN&gt; in, AsyncFunction&lt;IN, OUT&gt; func)</span></span>;</span><br><span class="line">  </span><br><span class="line"> <span class="comment">/**</span></span><br><span class="line"><span class="comment">  * Add an AsyncWaitOperator. The order of output stream records is guaranteed to be the same as input ones.</span></span><br><span class="line"><span class="comment">  *</span></span><br><span class="line"><span class="comment">  * <span class="doctag">@param</span> func AsyncWaitFunction</span></span><br><span class="line"><span class="comment">  * <span class="doctag">@param</span> func AsyncFunction</span></span><br><span class="line"><span class="comment">  * <span class="doctag">@bufSize</span> The max number of async i/o operation that can be triggered</span></span><br><span class="line"><span class="comment">  * <span class="doctag">@return</span> A new DataStream.</span></span><br><span class="line"><span class="comment">  */</span></span><br><span class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> DataStream&lt;OUT&gt; <span class="title">orderedWait</span><span class="params">(DataStream&lt;IN&gt; in, AsyncFunction&lt;IN, OUT&gt; func, <span class="keyword">int</span> bufSize)</span></span>;</span><br><span class="line"> <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> DataStream&lt;OUT&gt; <span class="title">orderedWait</span><span class="params">(DataStream&lt;IN&gt; in, AsyncFunction&lt;IN, OUT&gt; func)</span></span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>主流程如下：</p>
+<p>The following diagram illustrates how the streaming records are processed while</p>
+<ul>
+<li>arriving at AsyncWaitOperator</li>
+<li>recovering from task failover</li>
+<li>snapshotting state</li>
+<li>being emitted by Emitter Thread</li>
+</ul>
+<p><img src="https://cwiki.apache.org/confluence/download/attachments/65870673/future-wait-operator.jpg?version=1&modificationDate=1474192093000&api=v2" alt=""></p>
+<h4 id="Sequence-Diagram"><a href="#Sequence-Diagram" class="headerlink" title="Sequence Diagram"></a>Sequence Diagram</h4><p><img src="https://cwiki.apache.org/confluence/download/attachments/65870673/async-state-future.jpg?version=1&modificationDate=1474192206000&api=v2" alt=""></p>
+<h3 id="AsyncFunction"><a href="#AsyncFunction" class="headerlink" title="AsyncFunction"></a>AsyncFunction</h3><p>AsyncFunction works as a user function in AsyncWaitOperator which looks like StreamFlatMap operator, having open()/processElement(StreamRecord<IN> record)/processWatermark(Watermark mark).</p>
+<p>For user’s concrete AsyncFunction, the asyncInvoke(IN input, AsyncCollector<OUT> collector) has to be overriden to supply codes to start an async operation.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">AsyncFunction</span>&lt;<span class="title">IN</span>, <span class="title">OUT</span>&gt; <span class="keyword">extends</span> <span class="title">Function</span>, <span class="title">Serializable</span> </span>&#123;</span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Trigger async operation for each stream input.</span></span><br><span class="line"><span class="comment">   * The AsyncCollector should be registered into async client.</span></span><br><span class="line"><span class="comment">   *</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> input Stream Input</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> collector AsyncCollector</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">asyncInvoke</span><span class="params">(IN input, AsyncCollector&lt;OUT&gt; collector)</span> <span class="keyword">throws</span> Exception</span>;</span><br><span class="line">&#125;</span><br><span class="line">  </span><br><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="class"><span class="keyword">class</span> <span class="title">RichAsyncFunction</span>&lt;<span class="title">IN</span>, <span class="title">OUT</span>&gt; <span class="keyword">extends</span> <span class="title">AbstractRichFunction</span></span></span><br><span class="line"><span class="class">    <span class="keyword">implements</span> <span class="title">AsyncFunction</span>&lt;<span class="title">IN</span>, <span class="title">OUT</span>&gt; </span>&#123;</span><br><span class="line">  <span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="keyword">void</span> <span class="title">asyncInvoke</span><span class="params">(IN input, AsyncCollector&lt;OUT&gt; collector)</span> <span class="keyword">throws</span> Exception</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>For each input stream record of AsyncWaitOperator, they will be processed by AsyncFunction.asyncInvoke(IN input, AsyncCollector<OUT> cb). Then <strong>AsyncCollector</strong> will be append into AsyncCollectorBuffer. </p>
+<blockquote>
+<p>AsyncCollectorBuffer 和 AsyncCollector 是关键变量</p>
+</blockquote>
+<h3 id="AsyncCollector"><a href="#AsyncCollector" class="headerlink" title="AsyncCollector"></a>AsyncCollector</h3><p>AsyncCollector is created by AsyncWaitOperator, and passed into AsyncFunction, where it should be added into user’s callback. It acts as a role to <strong>get</strong> <strong>results or errors</strong> from user codes and <strong>notify</strong> the AsyncCollectorBuffer to emit results.</p>
+<p>The functions specific for the user is the <strong>collect</strong>, and they should be called when async operation is done or errors are thrown out.</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">AsyncCollector</span>&lt;<span class="title">OUT</span>&gt; </span>&#123;</span><br><span class="line">  <span class="keyword">private</span> List&lt;OUT&gt; result;</span><br><span class="line">  <span class="keyword">private</span> Throwable error;</span><br><span class="line">  <span class="keyword">private</span> AsyncCollectorBuffer&lt;OUT&gt; buffer;</span><br><span class="line"> </span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Set result</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> result A list of results.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">collect</span><span class="params">(List&lt;OUT&gt; result)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>.result = result;</span><br><span class="line">    buffer.mark(<span class="keyword">this</span>);</span><br><span class="line">  &#125;</span><br><span class="line"> </span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Set error</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> error A Throwable object.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">collect</span><span class="params">(Throwable error)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>.error = error;</span><br><span class="line">    buffer.mark(<span class="keyword">this</span>);</span><br><span class="line">  &#125;</span><br><span class="line"> </span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Get result. Throw RuntimeException while encountering an error.</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@return</span> A List of result.</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@throws</span> RuntimeException RuntimeException wrapping errors from user codes.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> List&lt;OUT&gt; <span class="title">getResult</span><span class="params">()</span> <span class="keyword">throws</span> RuntimeException </span>&#123; ... &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Before calling AsyncFunction.asyncInvoke(IN input, AsyncCollector<OUT> collector), AsyncWaitOperator will try to get an instance of AsyncCollector from AsyncCollectorBuffer. Then it will be taken into user’s callback function. If the buffer is full, it will <strong>wait</strong> until some of ongoing callbacks has finished.</p>
+<p>Once async operation has done, the AsyncCollector.collect() will take results or errors and AsyncCollectorBuffer will be notified.</p>
+<p>AsyncCollector is implemented by FLINK.</p>
+<h3 id="AsyncCollectorBuffer"><a href="#AsyncCollectorBuffer" class="headerlink" title="AsyncCollectorBuffer"></a>AsyncCollectorBuffer</h3><p>AsyncCollectorBuffer keeps all AsyncCollectors, and emit results to the next nodes.</p>
+<p>When AsyncCollector.collect() is called, a mark will be placed in AsyncCollectorBuffer, indicating finished AsyncCollectors. A working thread, named Emitter, will also be <strong>signalled</strong> once a AsyncCollector gets results, and then try to <strong>emit</strong> results depending on the ordered or unordered setting.</p>
+<p><img src="https://cwiki.apache.org/confluence/download/attachments/65870673/async-task-buffer.jpg?version=1&modificationDate=1474192804000&api=v2" alt=""></p>
+<h3 id="顺序性"><a href="#顺序性" class="headerlink" title="顺序性"></a>顺序性</h3><p>异步问题对于数据流要照顾的第一个问题就是数据有序性，结合是否有wartermark，而有两种不同的实现。</p>
+<p>之所以会提供两种输出模式，是因为异步请求的完成时间是不确定的，先发出的请求的完成时间可能会晚于后发出的请求。在 “有序” 的输出模式下，所有计算结果的提交完全和消息的到达顺序一致；而在 “无序” 的输出模式下，计算结果的提交则是和请求的完成顺序相关的，先处理完成的请求的计算结果会先提交。值得注意的是，在使用 “事件时间” 的情况下，“无序”输出模式仍然可以保证 watermark 的正常处理，即在两个 watermark 之间的消息的异步请求结果可能是异步提交的，但在 watermark 之后的消息不能先于该 watermark 之前的消息提交。</p>
+<p>由于异步请求的完成时间不确定，需要设置请求的超时时间，并配置同时进行中的异步请求的最大数量。</p>
+<p><code>AsyncDataStream</code> 在运行时被转换为 <code>AsyncWaitOperator</code> 算子，它是 <code>AbstractUdfStreamOperator</code> 的子类。下面我们来看看 <code>AsyncWaitOperator</code> 的实现原理。</p>
+<p><code>AsyncWaitOperator</code> 算子相比于其它算子的最大不同在于，它的输入和输出并不是同步的。因此，在 <code>AsyncWaitOperator</code> 内部采用了一种 “生产者 - 消费者” 模型，基于一个队列解耦异步计算和计算结果的提交。<code>StreamElementQueue</code> 提供了一种队列的抽象，一个 “消费者” 线程 <code>Emitter</code> 从中取出已完成的计算结果，并提交给下游算子，而异步请求则充当了队列 “生产者” 的角色。基本的处理逻辑如下图所示。</p>
+<p><img src="https://blog.jrwang.me/img/flink/async-io.svg" alt=""></p>
+<p>结合上边基础角色的解读，我们可以知道元素进入算子，然后进入了queue，入队之后会进行asyncFunction.invoke 进行数据处理，处理完之后，就可以继续后边的流程。这个后边的流程是指当前步骤的后续流程。这个细节点，可以让我们实现有序性。以及对于wartermark的处理。</p>
+<p>emitter的处理单调的，他只管拿数据就是了，但是由于中间状态的阻塞方式不一样，是否有序以及如果无序，针对是否有wartermark的处理也都是不一样的。</p>
+<p>这里复杂的实现都在 这个queue的实现上。</p>
+<h4 id="有序"><a href="#有序" class="headerlink" title="有序"></a>有序</h4><p>有序的处理模型比较简单一些：</p>
+<p><img src="https://blog.jrwang.me/img/flink/OrderedStreamElementQueue.svg" alt=""></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">OrderedStreamElementQueue</span> <span class="keyword">implements</span> <span class="title">StreamElementQueue</span> </span>&#123;</span><br><span class="line">	<span class="comment">/** Capacity of this queue. */</span></span><br><span class="line">	<span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">int</span> capacity;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/** Queue for the inserted StreamElementQueueEntries. */</span></span><br><span class="line">	<span class="keyword">private</span> <span class="keyword">final</span> ArrayDeque&lt;StreamElementQueueEntry&lt;?&gt;&gt; queue;</span><br><span class="line"></span><br><span class="line">	<span class="meta">@Override</span></span><br><span class="line">	<span class="function"><span class="keyword">public</span> AsyncResult <span class="title">peekBlockingly</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException </span>&#123;</span><br><span class="line">		lock.lockInterruptibly();</span><br><span class="line">		<span class="keyword">try</span> &#123;</span><br><span class="line">			<span class="comment">//只有队列头部的请求完成后才解除阻塞状态</span></span><br><span class="line">			<span class="keyword">while</span> (queue.isEmpty() || !queue.peek().isDone()) &#123;</span><br><span class="line">				headIsCompleted.await();</span><br><span class="line">			&#125;</span><br><span class="line">			<span class="keyword">return</span> queue.peek();</span><br><span class="line">		&#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">			lock.unlock();</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="meta">@Override</span></span><br><span class="line">	<span class="function"><span class="keyword">public</span> AsyncResult <span class="title">poll</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException </span>&#123;</span><br><span class="line">		lock.lockInterruptibly();</span><br><span class="line"></span><br><span class="line">		<span class="keyword">try</span> &#123;</span><br><span class="line">			<span class="keyword">while</span> (queue.isEmpty() || !queue.peek().isDone()) &#123; </span><br><span class="line">				headIsCompleted.await();</span><br><span class="line">			&#125;</span><br><span class="line">			notFull.signalAll();</span><br><span class="line">			<span class="keyword">return</span> queue.poll();</span><br><span class="line">		&#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">			lock.unlock();</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="meta">@Override</span></span><br><span class="line">	<span class="keyword">public</span> &lt;T&gt; <span class="function"><span class="keyword">boolean</span> <span class="title">tryPut</span><span class="params">(StreamElementQueueEntry&lt;T&gt; streamElementQueueEntry)</span> <span class="keyword">throws</span> InterruptedException </span>&#123;</span><br><span class="line">		lock.lockInterruptibly();</span><br><span class="line"></span><br><span class="line">		<span class="keyword">try</span> &#123;</span><br><span class="line">			<span class="keyword">if</span> (queue.size() &lt; capacity) &#123; <span class="comment">//未达容量上限</span></span><br><span class="line">				addEntry(streamElementQueueEntry);</span><br><span class="line">				<span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">			&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">				<span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">			lock.unlock();</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="无序"><a href="#无序" class="headerlink" title="无序"></a>无序</h4><p><img src="https://blog.jrwang.me/img/flink/UnorderedStreamElementQueue.svg" alt=""></p>
+<p>从上图中可以看出，在 <code>UnorderedStreamElementQueue</code> 内部使用了两个队列，<code>ArrayDeque&lt;Set&lt;StreamElementQueueEntry&lt;?&gt;&gt;&gt; uncompletedQueue</code> 中保存未完成的异步请求计算结果，而 <code>completedQueue</code> 中保存已完成的异步请求计算结果。注意，<code>ArrayDeque&lt;Set&lt;StreamElementQueueEntry&lt;?&gt;&gt;&gt; uncompletedQueue</code> 这个队列中的元素是异步请求计算结果的散列集合，从图中也可以看出， <code>watermarkSet</code> 作为一种特殊的集合，其内部只有一个元素，即 <code>Watermark</code>，充当了不同散列集合之间的分界。这样就保证了在一个 <code>Watermark</code> 之后的异步请求的计算结果不会先于该 <code>Watermark</code> 之前进行提交。<code>firstSet</code> 中完成异步请求的计算结果会被转移到 <code>completedQueue</code> 队列中，<code>firstSet</code> 内部的所有异步请求的计算结果都是可以乱序提交的。</p>
+<p>如果不使用 “事件时间”，那么没有 <code>Watermark</code> 产生，所有的异步请求都会进入 <code>firstSet</code> 中，因而所有的结果都是乱序提交的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">UnorderedStreamElementQueue</span> <span class="keyword">implements</span> <span class="title">StreamElementQueue</span> </span>&#123;</span><br><span class="line">	<span class="comment">/** Queue of uncompleted stream element queue entries segmented by watermarks. */</span></span><br><span class="line">	<span class="keyword">private</span> <span class="keyword">final</span> ArrayDeque&lt;Set&lt;StreamElementQueueEntry&lt;?&gt;&gt;&gt; uncompletedQueue;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/** Queue of completed stream element queue entries. */</span></span><br><span class="line">	<span class="keyword">private</span> <span class="keyword">final</span> ArrayDeque&lt;StreamElementQueueEntry&lt;?&gt;&gt; completedQueue;</span><br><span class="line"></span><br><span class="line">	<span class="comment">/** First (chronologically oldest) uncompleted set of stream element queue entries. */</span></span><br><span class="line">	<span class="keyword">private</span> Set&lt;StreamElementQueueEntry&lt;?&gt;&gt; firstSet;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// Last (chronologically youngest) uncompleted set of stream element queue entries. New</span></span><br><span class="line">	<span class="comment">// stream element queue entries are inserted into this set.</span></span><br><span class="line">	<span class="keyword">private</span> Set&lt;StreamElementQueueEntry&lt;?&gt;&gt; lastSet;</span><br><span class="line"></span><br><span class="line">	<span class="meta">@Override</span></span><br><span class="line">	<span class="keyword">public</span> &lt;T&gt; <span class="function"><span class="keyword">boolean</span> <span class="title">tryPut</span><span class="params">(StreamElementQueueEntry&lt;T&gt; streamElementQueueEntry)</span> <span class="keyword">throws</span> InterruptedException </span>&#123;</span><br><span class="line">		lock.lockInterruptibly();</span><br><span class="line">		<span class="keyword">try</span> &#123;</span><br><span class="line">			<span class="keyword">if</span> (numberEntries &lt; capacity) &#123;</span><br><span class="line">				addEntry(streamElementQueueEntry);</span><br><span class="line">				<span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">			&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">				<span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">			&#125;</span><br><span class="line">		&#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">			lock.unlock();</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="meta">@Override</span></span><br><span class="line">	<span class="function"><span class="keyword">public</span> AsyncResult <span class="title">poll</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException </span>&#123;</span><br><span class="line">		lock.lockInterruptibly();</span><br><span class="line">		<span class="keyword">try</span> &#123;</span><br><span class="line">			<span class="comment">//等待 completedQueue 中的元素</span></span><br><span class="line">			<span class="keyword">while</span> (completedQueue.isEmpty()) &#123;</span><br><span class="line">				hasCompletedEntries.await();</span><br><span class="line">			&#125;</span><br><span class="line">			numberEntries--;</span><br><span class="line">			notFull.signalAll();</span><br><span class="line">			<span class="keyword">return</span> completedQueue.poll();</span><br><span class="line">		&#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">			lock.unlock();</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">//异步请求完成的回调</span></span><br><span class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onCompleteHandler</span><span class="params">(StreamElementQueueEntry&lt;?&gt; streamElementQueueEntry)</span> <span class="keyword">throws</span> InterruptedException </span>&#123;</span><br><span class="line">		lock.lockInterruptibly();</span><br><span class="line">		<span class="keyword">try</span> &#123;</span><br><span class="line">			<span class="comment">//如果完成的异步请求在 firstSet 中，那么就将 firstSet 中已完成的异步请求转移到 completedQueue 中</span></span><br><span class="line">			<span class="keyword">if</span> (firstSet.remove(streamElementQueueEntry)) &#123;</span><br><span class="line">				completedQueue.offer(streamElementQueueEntry);</span><br><span class="line">				<span class="keyword">while</span> (firstSet.isEmpty() &amp;&amp; firstSet != lastSet) &#123;</span><br><span class="line">					<span class="comment">//如果firset中所有的异步请求都完成了，那么就从 uncompletedQueue 获取下一个集合作为 firstSet</span></span><br><span class="line">					firstSet = uncompletedQueue.poll();</span><br><span class="line">					Iterator&lt;StreamElementQueueEntry&lt;?&gt;&gt; it = firstSet.iterator();</span><br><span class="line">					<span class="keyword">while</span> (it.hasNext()) &#123;</span><br><span class="line">						StreamElementQueueEntry&lt;?&gt; bufferEntry = it.next();</span><br><span class="line"></span><br><span class="line">						<span class="keyword">if</span> (bufferEntry.isDone()) &#123;</span><br><span class="line">							completedQueue.offer(bufferEntry);</span><br><span class="line">							it.remove();</span><br><span class="line">						&#125;</span><br><span class="line">					&#125;</span><br><span class="line">				&#125;</span><br><span class="line">				hasCompletedEntries.signalAll();</span><br><span class="line">			&#125;</span><br><span class="line">		&#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">			lock.unlock();</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">private</span> &lt;T&gt; <span class="function"><span class="keyword">void</span> <span class="title">addEntry</span><span class="params">(StreamElementQueueEntry&lt;T&gt; streamElementQueueEntry)</span> </span>&#123;</span><br><span class="line">		<span class="keyword">assert</span>(lock.isHeldByCurrentThread());</span><br><span class="line"></span><br><span class="line">		<span class="keyword">if</span> (streamElementQueueEntry.isWatermark()) &#123;</span><br><span class="line">			<span class="comment">//如果是watermark，就要构造一个只包含这个 watermark 的 set 加入到 uncompletedQueue 队列中</span></span><br><span class="line">			lastSet = <span class="keyword">new</span> HashSet&lt;&gt;(capacity);</span><br><span class="line">			<span class="keyword">if</span> (firstSet.isEmpty()) &#123;</span><br><span class="line">				firstSet.add(streamElementQueueEntry);</span><br><span class="line">			&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">				Set&lt;StreamElementQueueEntry&lt;?&gt;&gt; watermarkSet = <span class="keyword">new</span> HashSet&lt;&gt;(<span class="number">1</span>);</span><br><span class="line">				watermarkSet.add(streamElementQueueEntry);</span><br><span class="line">				uncompletedQueue.offer(watermarkSet);</span><br><span class="line">			&#125;</span><br><span class="line">			uncompletedQueue.offer(lastSet);</span><br><span class="line">		&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">			<span class="comment">//正常记录，加入lastSet中</span></span><br><span class="line">			lastSet.add(streamElementQueueEntry);</span><br><span class="line">		&#125;</span><br><span class="line"></span><br><span class="line">		<span class="comment">//设置异步请求完成后的回调</span></span><br><span class="line">		streamElementQueueEntry.onComplete(</span><br><span class="line">			(StreamElementQueueEntry&lt;T&gt; value) -&gt; &#123;</span><br><span class="line">				<span class="keyword">try</span> &#123;</span><br><span class="line">					onCompleteHandler(value);</span><br><span class="line">				&#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">				&#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">					operatorActions.failOperator(<span class="keyword">new</span> Exception(<span class="string">"Could not complete the "</span> +</span><br><span class="line">						<span class="string">"stream element queue entry: "</span> + value + <span class="string">'.'</span>, t));</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;,</span><br><span class="line">			executor);</span><br><span class="line"></span><br><span class="line">		numberEntries++;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="容错"><a href="#容错" class="headerlink" title="容错"></a>容错</h2><p>在异步调用模式下，可能会同时有很多个请求正在处理中。因而在进行快照的时候，需要将异步调用尚未完成，以及结果尚未提交给下游的消息加入到状态中。在恢复的时候，从状态总取出这些消息，再重新处理一遍。为了保证 exactly-once 特性，对于异步调用已经完成，且结果已经由 emitter 提交给下游的消息就无需保存在快照中。</p>
+<h3 id="State-and-Checkpoint"><a href="#State-and-Checkpoint" class="headerlink" title="State and Checkpoint"></a>State and Checkpoint</h3><p>All input StreamRecords will be kept in <strong>state</strong>. Instead of storing each input stream records into state one by one while processing, AsyncWaitOperator will put all input stream records in AsyncCollectorBuffer into state while snapshotting operator state. Old data in the state will be cleared before persisting those records.</p>
+<p>When all barriers have arrived at the operator, checkpoint can be carried out immediately.</p>
+<h3 id="Failover"><a href="#Failover" class="headerlink" title="Failover"></a>Failover</h3><p>While restoring the operator’s state, the operator will scan all elements in the state, get AsyncCollectors, call AsyncFunction.asyncInvoke() and insert them back into AsyncCollectorBuffer.</p>
+<p><img src="https://cwiki.apache.org/confluence/download/attachments/65870673/async-wait-operator.jpg?version=1&modificationDate=1474192916000&api=v2" alt=""></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">AsyncWaitOperator</span>&lt;<span class="title">IN</span>, <span class="title">OUT</span>&gt;</span></span><br><span class="line"><span class="class">		<span class="keyword">extends</span> <span class="title">AbstractUdfStreamOperator</span>&lt;<span class="title">OUT</span>, <span class="title">AsyncFunction</span>&lt;<span class="title">IN</span>, <span class="title">OUT</span>&gt;&gt;</span></span><br><span class="line"><span class="class">		<span class="keyword">implements</span> <span class="title">OneInputStreamOperator</span>&lt;<span class="title">IN</span>, <span class="title">OUT</span>&gt;, <span class="title">OperatorActions</span> </span>&#123;</span><br><span class="line">	<span class="comment">/** Recovered input stream elements. */</span></span><br><span class="line">	<span class="keyword">private</span> <span class="keyword">transient</span> ListState&lt;StreamElement&gt; recoveredStreamElements;</span><br><span class="line"></span><br><span class="line">	<span class="meta">@Override</span></span><br><span class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">initializeState</span><span class="params">(StateInitializationContext context)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">		<span class="keyword">super</span>.initializeState(context);</span><br><span class="line">		recoveredStreamElements = context</span><br><span class="line">			.getOperatorStateStore()</span><br><span class="line">			.getListState(<span class="keyword">new</span> ListStateDescriptor&lt;&gt;(STATE_NAME, inStreamElementSerializer));</span><br><span class="line"></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="meta">@Override</span></span><br><span class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">open</span><span class="params">()</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">		<span class="keyword">super</span>.open();</span><br><span class="line">		</span><br><span class="line">		<span class="comment">//......</span></span><br><span class="line"></span><br><span class="line">		<span class="comment">// 状态恢复的时候，从状态中取出所有为完成的消息，重新处理一遍</span></span><br><span class="line">		<span class="keyword">if</span> (recoveredStreamElements != <span class="keyword">null</span>) &#123;</span><br><span class="line">			<span class="keyword">for</span> (StreamElement element : recoveredStreamElements.get()) &#123;</span><br><span class="line">				<span class="keyword">if</span> (element.isRecord()) &#123;</span><br><span class="line">					processElement(element.&lt;IN&gt;asRecord());</span><br><span class="line">				&#125;</span><br><span class="line">				<span class="keyword">else</span> <span class="keyword">if</span> (element.isWatermark()) &#123;</span><br><span class="line">					processWatermark(element.asWatermark());</span><br><span class="line">				&#125;</span><br><span class="line">				<span class="keyword">else</span> <span class="keyword">if</span> (element.isLatencyMarker()) &#123;</span><br><span class="line">					processLatencyMarker(element.asLatencyMarker());</span><br><span class="line">				&#125;</span><br><span class="line">				<span class="keyword">else</span> &#123;</span><br><span class="line">					<span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"Unknown record type "</span> + element.getClass() +</span><br><span class="line">						<span class="string">" encountered while opening the operator."</span>);</span><br><span class="line">				&#125;</span><br><span class="line">			&#125;</span><br><span class="line">			recoveredStreamElements = <span class="keyword">null</span>;</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">	<span class="meta">@Override</span></span><br><span class="line">	<span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">snapshotState</span><span class="params">(StateSnapshotContext context)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">		<span class="keyword">super</span>.snapshotState(context);</span><br><span class="line"></span><br><span class="line">		<span class="comment">//先清除状态</span></span><br><span class="line">		ListState&lt;StreamElement&gt; partitionableState =</span><br><span class="line">			getOperatorStateBackend().getListState(<span class="keyword">new</span> ListStateDescriptor&lt;&gt;(STATE_NAME, inStreamElementSerializer));</span><br><span class="line">		partitionableState.clear();</span><br><span class="line"></span><br><span class="line">		<span class="comment">//将所有未完成处理请求对应的消息加入状态中</span></span><br><span class="line">		Collection&lt;StreamElementQueueEntry&lt;?&gt;&gt; values = queue.values();</span><br><span class="line">		<span class="keyword">try</span> &#123;</span><br><span class="line">			<span class="keyword">for</span> (StreamElementQueueEntry&lt;?&gt; value : values) &#123;</span><br><span class="line">				partitionableState.add(value.getStreamElement());</span><br><span class="line">			&#125;</span><br><span class="line"></span><br><span class="line">			<span class="comment">// add the pending stream element queue entry if the stream element queue is currently full</span></span><br><span class="line">			<span class="keyword">if</span> (pendingStreamElementQueueEntry != <span class="keyword">null</span>) &#123;</span><br><span class="line">				partitionableState.add(pendingStreamElementQueueEntry.getStreamElement());</span><br><span class="line">			&#125;</span><br><span class="line">		&#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">			partitionableState.clear();</span><br><span class="line">			<span class="keyword">throw</span> <span class="keyword">new</span> Exception(<span class="string">"Could not add stream element queue entries to operator state "</span> +</span><br><span class="line">				<span class="string">"backend of operator "</span> + getOperatorName() + <span class="string">'.'</span>, e);</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>注意：<strong>AsyncFunction不能多线程调用</strong></p>
+<p>在这里我们要明确指出的一个常见的误区是，<code>AsyncFunction</code>不是以多线程方式调用的。只有一个<code>AsyncFunction</code>实例，它被调用来处理流相应分区的每个记录。除非<code>asyncInvoke(...)</code>方法快速返回并依赖回调（被客户端依赖），否则结果将是不正确的异步I/O。</p>
+<p>例如，如下模式导致阻塞的<code>asyncInvoke(...)</code>函数，从而导致异步行为失效：</p>
+<ul>
+<li><p>使用的数据库客户端进行查询时，一直阻塞直到收到返回结果</p>
+</li>
+<li><p>阻塞/等待异步客户端在<code>asyncInvoke(...)</code>方法返回的future-type的对象</p>
+</li>
+</ul>
+</blockquote>
+<p>参考：</p>
+<p><a href="https://cyq89051127.github.io/2019/11/11/Flink-Async-IO%E6%BA%90%E7%A0%81%E5%88%86%E6%9E%90/" target="_blank" rel="noopener">Flink Async-IO 源码分析 - 柴永强的博客 | Chai Blog</a></p>
+<p><a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65870673" target="_blank" rel="noopener">https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=65870673</a></p>
+<p><a href="http://flink.iteblog.com/dev/stream/asyncio.html" target="_blank" rel="noopener">http://flink.iteblog.com/dev/stream/asyncio.html</a></p>
+<p><a href="https://nightlies.apache.org/flink/flink-docs-master/docs/dev/datastream/operators/asyncio/" target="_blank" rel="noopener">https://nightlies.apache.org/flink/flink-docs-master/docs/dev/datastream/operators/asyncio/</a></p>
+<p><a href="https://blog.jrwang.me/2019/flink-source-code-async-io/" target="_blank" rel="noopener">https://blog.jrwang.me/2019/flink-source-code-async-io/</a></p>
+<p><a href="https://zhuanlan.zhihu.com/p/268898593" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/268898593</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/flink/" rel="tag"># flink</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/06/15/flink%E5%8E%9F%E7%90%86-JM%E7%9A%84HA%E5%AE%9E%E7%8E%B0/" rel="next" title="flink原理--JM的HA实现">
+                <i class="fa fa-chevron-left"></i> flink原理--JM的HA实现
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/06/20/DDL%E7%9A%84%E5%AE%9E%E7%8E%B0/" rel="prev" title="DDL的实现">
+                DDL的实现 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#flink原理–Async-IO的原理"><span class="nav-number">1.</span> <span class="nav-text">flink原理–Async IO的原理</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#动机"><span class="nav-number">1.1.</span> <span class="nav-text">动机</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#角色"><span class="nav-number">1.2.</span> <span class="nav-text">角色</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#实现"><span class="nav-number">1.3.</span> <span class="nav-text">实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Public-Interfaces"><span class="nav-number">1.3.1.</span> <span class="nav-text">Public Interfaces</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Sequence-Diagram"><span class="nav-number">1.3.1.1.</span> <span class="nav-text">Sequence Diagram</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#AsyncFunction"><span class="nav-number">1.3.2.</span> <span class="nav-text">AsyncFunction</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#AsyncCollector"><span class="nav-number">1.3.3.</span> <span class="nav-text">AsyncCollector</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#AsyncCollectorBuffer"><span class="nav-number">1.3.4.</span> <span class="nav-text">AsyncCollectorBuffer</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#顺序性"><span class="nav-number">1.3.5.</span> <span class="nav-text">顺序性</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#有序"><span class="nav-number">1.3.5.1.</span> <span class="nav-text">有序</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#无序"><span class="nav-number">1.3.5.2.</span> <span class="nav-text">无序</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#容错"><span class="nav-number">1.4.</span> <span class="nav-text">容错</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#State-and-Checkpoint"><span class="nav-number">1.4.1.</span> <span class="nav-text">State and Checkpoint</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Failover"><span class="nav-number">1.4.2.</span> <span class="nav-text">Failover</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

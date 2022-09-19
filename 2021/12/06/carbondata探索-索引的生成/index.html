@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="carbondata," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="carbondata索引数据的生成carbondata查询数据快的第一大原因是索引。他有丰富的索引种类来覆盖他的查询。所有索引的共同点都是通过索引可以定位到数据具体的block。 种类IndexWriter是实际的索引写入类，是一个抽象类，他的实现类主要如下：  上边的两个实现主要是bloomfilter和lucene的索引添加。 还有一个是secondIndex，主要是用来过滤blocklet的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="carbondata探索-索引的生成">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/06/carbondata%E6%8E%A2%E7%B4%A2-%E7%B4%A2%E5%BC%95%E7%9A%84%E7%94%9F%E6%88%90/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="carbondata索引数据的生成carbondata查询数据快的第一大原因是索引。他有丰富的索引种类来覆盖他的查询。所有索引的共同点都是通过索引可以定位到数据具体的block。 种类IndexWriter是实际的索引写入类，是一个抽象类，他的实现类主要如下：  上边的两个实现主要是bloomfilter和lucene的索引添加。 还有一个是secondIndex，主要是用来过滤blocklet的">
+<meta property="og:image" content="https://github.com/images/carbon_index_1.png">
+<meta property="og:image" content="https://github.com/images/carbon_index_2.png">
+<meta property="article:published_time" content="2021-12-06T04:33:28.000Z">
+<meta property="article:modified_time" content="2022-06-22T06:11:26.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="carbondata">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/carbon_index_1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/06/carbondata探索-索引的生成/"/>
+
+
+
+
+
+  <title>carbondata探索-索引的生成 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/06/carbondata%E6%8E%A2%E7%B4%A2-%E7%B4%A2%E5%BC%95%E7%9A%84%E7%94%9F%E6%88%90/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">carbondata探索-索引的生成</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-12-06T12:33:28+08:00">
+                2021-12-06
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="carbondata索引数据的生成"><a href="#carbondata索引数据的生成" class="headerlink" title="carbondata索引数据的生成"></a>carbondata索引数据的生成</h2><p>carbondata查询数据快的第一大原因是索引。他有丰富的索引种类来覆盖他的查询。所有索引的共同点都是通过索引可以定位到数据具体的block。</p>
+<h3 id="种类"><a href="#种类" class="headerlink" title="种类"></a>种类</h3><p>IndexWriter是实际的索引写入类，是一个抽象类，他的实现类主要如下：</p>
+<p><img src="/images/carbon_index_1.png" alt="carbon_index_1"></p>
+<p>上边的两个实现主要是bloomfilter和lucene的索引添加。</p>
+<p>还有一个是secondIndex，主要是用来过滤blocklet的。</p>
+<p>而在表本身添加的索引中，还包括table级别的b+Tree以及文件级别的B+ Tree、Min-Max索引、inverted index。</p>
+<p>疑问：二级索引到底存了啥？</p>
+<p>每一种索引的生成都是通过什么来生成的。</p>
+<p>以上问题我们在分析完源码之后回过头来看。</p>
+<p>根据索引级别，可以分为CG 和 FG</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">enum</span> IndexLevel &#123;</span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Coarse Grain Index, index is of blocklet level</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  CG,</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Fine Grain Index, index is of row level</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  FG</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这两个是内部经常用到的两个索引，分别是过滤不同级别文件块的。</p>
+<p>CoarseGrainIndex  在包 org.apache.carbondata.core.index.dev.cgindex ，实现了Index<Blocklet> 接口，这里就包含了他的主要操作。接口如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * An entity which can store and retrieve index data.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="meta">@InterfaceAudience</span>.Internal</span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">Index</span>&lt;<span class="title">T</span> <span class="keyword">extends</span> <span class="title">Blocklet</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * It is called to load the index to memory or to initialize it.</span></span><br><span class="line"><span class="comment">   * 加载到内存里</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">init</span><span class="params">(IndexModel indexModel)</span> <span class="keyword">throws</span> IOException</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Prune the table with resolved filter expression.</span></span><br><span class="line"><span class="comment">   * It returns the list of blocklets where these filters can exist.</span></span><br><span class="line"><span class="comment">   * 根据filter条件剪枝</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function">List&lt;T&gt; <span class="title">prune</span><span class="params">(FilterResolverIntf filterExp, SegmentProperties segmentProperties,</span></span></span><br><span class="line"><span class="function"><span class="params">      FilterExecutor filterExecutor, CarbonTable table)</span> <span class="keyword">throws</span> IOException</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Prune the table with filter expression. It returns the list of</span></span><br><span class="line"><span class="comment">   * blocklets where these filters can exist.</span></span><br><span class="line"><span class="comment">   * filter条件是expression的剪枝</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function">List&lt;T&gt; <span class="title">prune</span><span class="params">(Expression filter, SegmentProperties segmentProperties,</span></span></span><br><span class="line"><span class="function"><span class="params">      CarbonTable carbonTable, FilterExecutor filterExecutor)</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Prune the indexes for finding the row count. It returns a Map of</span></span><br><span class="line"><span class="comment">   * blocklet path and the row count</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">long</span> <span class="title">getRowCount</span><span class="params">(Segment segment, List&lt;PartitionSpec&gt; partitions)</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Prune the indexes for finding the row count for each block. It returns a Map of</span></span><br><span class="line"><span class="comment">   * blocklet path and the row count</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function">Map&lt;String, Long&gt; <span class="title">getRowCountForEachBlock</span><span class="params">(Segment segment, List&lt;PartitionSpec&gt; partitions,</span></span></span><br><span class="line"><span class="function"><span class="params">      Map&lt;String, Long&gt; blockletToRowCountMap)</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// TODO Move this method to Abstract class</span></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Validate whether the current segment needs to be fetching the required data</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">boolean</span> <span class="title">isScanRequired</span><span class="params">(FilterResolverIntf filterExp)</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Validate Partition info, to check if any partitions is dropped</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">boolean</span> <span class="title">validatePartitionInfo</span><span class="params">(List&lt;PartitionSpec&gt; partitions)</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Clear complete index table and release memory.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">clear</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * clears all the resources</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">void</span> <span class="title">finish</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Returns number of records information that are stored in Index.</span></span><br><span class="line"><span class="comment">   * Driver multi-thread block pruning happens based on the number of rows in Index.</span></span><br><span class="line"><span class="comment">   * So Indexes can have multiple rows if they store information of multiple files.</span></span><br><span class="line"><span class="comment">   * so, this number of entries is used to represent how many files information a Index contains</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">int</span> <span class="title">getNumberOfEntries</span><span class="params">()</span></span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>而 这个抽象类实现的索引基本就是carbondata目前包含的全部索引：</p>
+<p><img src="/images/carbon_index_2.png" alt="carbon_index_2"></p>
+<p>BlockIndex和BlockletIndex就是CGIndex的两个经典实现。还有一个就是bloom也属于cg。而FineGrainIndex的经典实现就一个，那就是LuceneFineGrainIndex。</p>
+<p>LuceneFineGrainIndex最终也是返回命中的blocklet，但是这个blocklet是FineGrainBlockLet，这里是可以直接命中到row的。因为里边存储了命中的每一个page以及page里的rowId  用bitSet存储的。</p>
+<p>BlockletIndex 是 继承自 BlockIndex。</p>
+<p>BlockletMinMaxIndex是一个blocklet内，所有列的最大值和最小值。</p>
+<p>在生成数据的类  CarbonFactDataWriterImplV3 中  方法  writeBlockletToFile 是用来写入blocklet数据的。而在这个方法中，有一行关键的添加索引方法，如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">blockletIndex.add(</span><br><span class="line">    CarbonMetadataUtil.getBlockletIndex(</span><br><span class="line">        encodedBlocklet, model.getSegmentProperties().getMeasures()));</span><br></pre></td></tr></table></figure>
+
+<p>这里 getBlockletIndex 就是在创建两个重要的索引，如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">BlockletBTreeIndex blockletBTreeIndex = <span class="keyword">new</span> BlockletBTreeIndex();</span><br><span class="line">blockletBTreeIndex.setStart_key(DEPRECATED_MDK);</span><br><span class="line">blockletBTreeIndex.setEnd_key(DEPRECATED_MDK);</span><br><span class="line">BlockletIndex blockletIndex = <span class="keyword">new</span> BlockletIndex();</span><br><span class="line">blockletIndex.setMin_max_index(blockletMinMaxIndex);</span><br><span class="line">blockletIndex.setB_tree_index(blockletBTreeIndex);</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>DEPRECATED_MDK 代表是废弃，也就是按照字面意思，目前carbondata关于MDK是废弃的状态。</p>
+</blockquote>
+<p>目前在文件中的存储的索引主要是 blockletMinMaxIndex。</p>
+<p>倒排索引，主要是存储在page级别，而且主要存储形式并不是BitSet，而是一个int[]。</p>
+<p>倒排索引生成的代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">int</span>[] uncompressIndex(<span class="keyword">int</span>[] indexData, <span class="keyword">int</span>[] indexMap) &#123;</span><br><span class="line">  <span class="keyword">int</span> actualSize = indexData.length;</span><br><span class="line">  <span class="keyword">int</span> mapLength = indexMap.length;</span><br><span class="line">  <span class="keyword">if</span> (indexMap.length == <span class="number">0</span>) &#123;</span><br><span class="line">    <span class="keyword">return</span> indexData;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">int</span> value : indexMap) &#123;</span><br><span class="line">    actualSize += indexData[value + <span class="number">1</span>] - indexData[value] - <span class="number">1</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">int</span>[] indexes = <span class="keyword">new</span> <span class="keyword">int</span>[actualSize];</span><br><span class="line">  <span class="keyword">int</span> k = <span class="number">0</span>;</span><br><span class="line">  <span class="keyword">int</span> oldIndex = <span class="number">0</span>;</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; indexData.length; i++) &#123;</span><br><span class="line">    <span class="keyword">int</span> index = Arrays.binarySearch(indexMap, oldIndex, mapLength, i);</span><br><span class="line">    <span class="keyword">if</span> (index &gt; -<span class="number">1</span>) &#123;</span><br><span class="line">      oldIndex = index;</span><br><span class="line">      <span class="keyword">for</span> (<span class="keyword">int</span> j = indexData[indexMap[index]]; j &lt;= indexData[indexMap[index] + <span class="number">1</span>]; j++) &#123;</span><br><span class="line">        indexes[k] = j;</span><br><span class="line">        k++;</span><br><span class="line">      &#125;</span><br><span class="line">      i++;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      indexes[k] = indexData[i];</span><br><span class="line">      k++;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> indexes;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>TODO 以上这段代码还有没明确的。</p>
+</blockquote>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/carbondata/" rel="tag"># carbondata</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/12/03/carbondata%E6%8E%A2%E7%B4%A2-Event%E4%BD%BF%E7%94%A8/" rel="next" title="carbondata探索-Event使用">
+                <i class="fa fa-chevron-left"></i> carbondata探索-Event使用
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/12/13/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-Paxos/" rel="prev" title="分布式算法--Paxos">
+                分布式算法--Paxos <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#carbondata索引数据的生成"><span class="nav-number">1.</span> <span class="nav-text">carbondata索引数据的生成</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#种类"><span class="nav-number">1.1.</span> <span class="nav-text">种类</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

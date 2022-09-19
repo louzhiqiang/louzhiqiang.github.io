@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="spark," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="问题 ： spark设置1个exe * 5个core  和 5个exe * 1个core的区别是啥这个问题起来是一个1*5 &#x3D; 5*1的样子，但是实际上是完全的两个概念。先用一个简单直接的方式来看一下区别。 提交一个任务，spark实际使用的内存是多少呢？ spark内存管理有静态内存管理和统一内存管理两种。在spark 1.5版本之后都已经是统一内存管理方式了。如果想用回静态内存管理方式，可以使">
+<meta property="og:type" content="article">
+<meta property="og:title" content="spark的executor数量和core的数量设置">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2020/10/17/spark%E7%9A%84executor%E6%95%B0%E9%87%8F%E5%92%8Ccore%E7%9A%84%E6%95%B0%E9%87%8F%E8%AE%BE%E7%BD%AE/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="问题 ： spark设置1个exe * 5个core  和 5个exe * 1个core的区别是啥这个问题起来是一个1*5 &#x3D; 5*1的样子，但是实际上是完全的两个概念。先用一个简单直接的方式来看一下区别。 提交一个任务，spark实际使用的内存是多少呢？ spark内存管理有静态内存管理和统一内存管理两种。在spark 1.5版本之后都已经是统一内存管理方式了。如果想用回静态内存管理方式，可以使">
+<meta property="article:published_time" content="2020-10-17T10:34:28.000Z">
+<meta property="article:modified_time" content="2020-10-17T13:46:54.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="spark">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2020/10/17/spark的executor数量和core的数量设置/"/>
+
+
+
+
+
+  <title>spark的executor数量和core的数量设置 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2020/10/17/spark%E7%9A%84executor%E6%95%B0%E9%87%8F%E5%92%8Ccore%E7%9A%84%E6%95%B0%E9%87%8F%E8%AE%BE%E7%BD%AE/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">spark的executor数量和core的数量设置</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2020-10-17T18:34:28+08:00">
+                2020-10-17
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+                  ， 
+                
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/spark/" itemprop="url" rel="index">
+                    <span itemprop="name">spark</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="问题-：-spark设置1个exe-5个core-和-5个exe-1个core的区别是啥"><a href="#问题-：-spark设置1个exe-5个core-和-5个exe-1个core的区别是啥" class="headerlink" title="问题 ： spark设置1个exe * 5个core  和 5个exe * 1个core的区别是啥"></a>问题 ： spark设置1个exe * 5个core  和 5个exe * 1个core的区别是啥</h2><p>这个问题起来是一个1*5 = 5*1的样子，但是实际上是完全的两个概念。先用一个简单直接的方式来看一下区别。</p>
+<p>提交一个任务，spark实际使用的内存是多少呢？</p>
+<p>spark内存管理有静态内存管理和统一内存管理两种。在spark 1.5版本之后都已经是统一内存管理方式了。如果想用回静态内存管理方式，可以使用参数  <strong>spark.memory.useLegacyMode</strong> ，他默认是false的。</p>
+<p><strong>静态内存管理内存计算公式</strong>：<br>ExecutionMemory = systemMemory *spark.shuffle.memoryFraction*spark.shuffle.safetyFraction=executor-memory*0.2*0.8<br>storageMemory = systemMemory*spark.storage.memoryFraction*spark.storage.safetyFraction=executor-memory*0.6*0.9</p>
+<p>至于参数 spark.storage.memoryFraction 和 spark.storage.safetyFraction 以及 spark.shuffle.memoryFraction 和 spark.shuffle.safetyFraction 的含义，参考笔记 spark内存使用划分。</p>
+<p><strong>统一内存管理内存计算公式</strong>：</p>
+<p>预留内存reservedMemory=300M</p>
+<p>假设spark 应用分配的executor内存为systemMemory=2G可(通过参数–executor-memory 2g设置)，systemMemory实际值要比设置executor-memory的稍小。</p>
+<p>（ExecutionMemory + storageMemory） = (systemMemory-reservedMemory)* spark.memory.fraction =(2048-300)*0.6=1048.8M （实际会比该值稍小）。</p>
+<p>storageMemory= (systemMemory-reservedMemory) * spark.memory.fraction * spark.memory.storageFraction=(2048-300) * 0.6 * 0.5=524.4M。</p>
+<p>以上公式都是针对一个executor内部的内存划分。</p>
+<p><strong>spark在yarn上的内存使用：</strong><br>相关参数：</p>
+<p>spark在yarn上的分配单位是container。spark任务的三种节点：executor 、 driver 、am  三种节点都会有memory 、memoryOverhead 的概念，其中memoryOverhead 的大小是 max(384 , memory * 0.1)</p>
+<hr>
+<p>executor-memory/spark.executor.memory 控制 executor 的堆的大小，但是 JVM 本身也会占用一定的堆空间，比如内部的 String 或者直接 byte buffer，spark.yarn.XXX.memoryOverhead属性决定向 YARN 请求的每个 executor 或dirver或am 的额外堆内存大小，默认值为 max(384, 0.1 * spark.executor.memory)<br>在 executor 执行的时候配置过大的 memory 经常会导致过长的GC延时，64G是推荐的一个 executor 内存大小的上限。<br>HDFS client 在大量并发线程时存在性能问题。大概的估计是每个 executor 中最多5个并行的 task 就可以占满写入带宽。</p>
+<p>Yarn 的几个关键参数：</p>
+<p>yarn.app.mapreduce.am.resource.mb：AM能够申请的最大内存，默认值为1024MB<br>yarn.nodemanager.resource.memory-mb：nodemanager能够申请的最大内存，默认值为8192MB<br>yarn.scheduler.minimum-allocation-mb：调度时一个container能够申请的最小资源，默认值为1024MB<br>yarn.scheduler.maximum-allocation-mb：调度时一个container能够申请的最大资源，默认值为8192MB<br>yarn.scheduler.increment-allocation-mb ：container内存增量，每次增加申请的内存是该值的整数倍，默认值为1G</p>
+<p><strong>spark on yarn的计算公式：</strong></p>
+<p>1、spark on yarn申请的container数=num-executors+1  （AM会占用一个container，一个executor占用 一个container）</p>
+<p>2、executor需要申请的总内存:total=executor-memory+max(executor-memory*0.1,384)</p>
+<p>3、executor所在container实际申请的内存分两种情况：</p>
+<ul>
+<li>total &lt;= yarn.scheduler.minimum-allocation-mb，则实际分配内存大小为yarn.scheduler.minimum-allocation-mb</li>
+<li>total &gt; yarn.scheduler.minimum-allocation-mb，则实际分配内存大小为yarn.scheduler.minimum-allocation-mb+( total-yarn.scheduler.minimum-allocation-mb)取 yarn.scheduler.increment-allocation-mb的整数倍。也就是  yarn.scheduler.minimum-allocation-mb + ceil(( total-yarn.scheduler.minimum-allocation-mb) / yarn.scheduler.increment-allocation-mb)</li>
+</ul>
+<p>举个例子：<br>executor-memory=2g driver-memory=1g  executor-num = 2<br>而 yarn.scheduler.minimum-allocation-mb=2G，yarn.scheduler.increment-allocation-mb=1G<br>那么总的内存使用应该是7168M。是这么算的：（2*1024 + 1024） *  2 +  2048 = 8g</p>
+<p>由此可见：spark真正使用的内存跟core没多大关系，只跟executor-memory的大小以及executor-num  还有 yarn的相关参数有关。</p>
+<h3 id="那在一个executor里，设置一个core和设置5个core有什么区别吗？"><a href="#那在一个executor里，设置一个core和设置5个core有什么区别吗？" class="headerlink" title="那在一个executor里，设置一个core和设置5个core有什么区别吗？"></a>那在一个executor里，设置一个core和设置5个core有什么区别吗？</h3><p>如果是设置5个e(executor,简称e)，那么就需要5个container，这5个e是独立的，jvm都是独立的，相当于5个进程。而5个c是一个e里的5个线程，他们是共用一个jvm的资源的，所需要的对象、内存、堆外内存等都会共享，换句话说，基于jvm的配置都会共享。</p>
+<p>在e里，每个core会执行一个task。如果你设置的e是5，c是5，那么当前总共的running状态的task应该是25个。而每个task的执行结果就是生成了目标rdd的一个partition。</p>
+<p>rdd在计算的时候，每个分区都会起一个task，所以rdd的分区数目决定了总的task数目。如果总的task的数目，不能整除可并行的最大task数量，那么就会有余数，那么最后一轮任务，就会只有余数数量的任务在实际跑任务，其余任务都是在空转。</p>
+<p>cpu的core数量，每个executor可以占用一个或者多个core。但是，我们会经常遇见一种情况，就是一个executor占用多个core，但是总的cpu使用率并不高，因为一个executor并不总能充分利用多核的能力。这个时候可以考虑让这个executor占用更少的core，同时worker下增加更多的executor，或者一台host下增加更多的worker，来增加并行执行的executor的数量，从而增加cpu的使用效率。但是增加executor需要考虑好内存消耗，因为一台机器的内存分配给越多的execuror，那么每个executor就会只能得到更少的内存，那就会出现过多的 spill over（数据会刷磁盘），甚至outOfMemory。</p>
+<p>partition和parallelism，前者指的是分片的数量，每一次task只能处理一个partition的数量，每个partition的数据量越大，会出现内存压力，同时也会出现无法充分利用诸多executor并行的问题。分片太大则会出现执行效率的问题。这个时候一般要综合来看各种情况，比如看gc的时间，看所有task的执行时间是否平均，然后看cpu的使用率和带宽使用情况。gc如果频率很高甚至时间很长的话，说明处理过程中，有大对象。如果不想简单暴力地通过增加内存来解决的话，这个时候要去检查处理过程中，涉及的每个步骤了。如果task执行时间不平均，一般就是数据倾斜的可能性较大。数据倾斜，个性化问题，个性化追踪。如果cpu很高或者带宽很高，这个比较复杂，可以看看是不是任务数据块很小，或者shuffle的原因等等，多跑任务，发现问题，解决问题，积累经验，也就摸清楚这块的路子了。parallelism则指的是在 RDD 进行 reduce 类操作的时候，默认返回数据的 paritition 数量（而在进行 map 类操作的时候，partition 数量通常取自 parent RDD 中较大的一个，而且也不会涉及 shuffle，因此这个 parallelism 的参数没有影响）。</p>
+<p>举例：<br>1、查看spark的job，任务运行特别慢，发现cpu运行很慢，尝试减少executor占用cpu core的数量，增加并行的executor数量，同时配合增加分片，整体上增加了cpu的运行效率，加快了处理速度。<br>2、发现某个job很容易发生内存溢出，我们就增大分片数量，从而减少了每片数据的规模，同时还减少并行的excutor数量，这样相同的内存总量分配给了更少的executor，也就是每个executor有了更多可用的资源，整体速度不一定会更快，但是出错的概率会小很多。<br>3、小文件的问题，初始的input很容易察觉，但是运行过程中的小文件问题容易被忽略。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">随着参数和配置的变化，性能的瓶颈是变化的，分析问题的时候要切记。</span><br></pre></td></tr></table></figure>
+
+<p>外记：<br>spark的参数配置实际上会有多种方式，比如在命令行添加参数配置，还有通过sparkConf来配置，还有环境变量。一般这三种方式的使用方式如下：1、设置环境变量，这种方式主要用在和环境、机器硬件相关的配置。2、命令行参数，用于不同次的运行会发生变化的参数。3、sparkConf对象配置，这种配置通常是application级别的配置，一般不改变。  基于这样的原则添加配置会比较好维护，也比较易懂。<br>一般在调整机器资源的时候，任务总的core数量基本持平就好，因为cpu数量是基本持平的。<br>针对memory的调优，最好的检测使用内存的方式就是创建rdd，然后都放到cache里去，就能知道使用了多少内存。</p>
+<p>-XX:+UseCompressedOops 这个选项可以压缩指针，由8字节减少到4字节。</p>
+<blockquote>
+<p>问题：压缩指针的代价是啥</p>
+</blockquote>
+<p>reduce task的内存，主要是shuffle环节的时候，需要预估准确。常见的方式是增大 level of parallelism。有时候，明明内存是够的，但是性能上不去，这个时候可以看一下shuffle的内存是否充足，要可以去调节shuffle在总内存的占比。</p>
+<p>注意原始input的大小，很多操作即使在增加了partition或者parallelism的数量之后，也不一定能得到缓解。这个时候还是要从全局角度会开始入手问题。比如，有些操作就是需要把全量数据都load到内存里，这种情况，基本也就只能通过增加机器或者单个机器的内存才能得以缓解的。</p>
+<p>gc调优：<br>-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps gc信息的打印。要记得默认 60% 的 executor 内存可以被用来作为 RDD 的缓存，因此只有 40% 的内存可以被用来作为对象创建的空间，这一点可以通过设置 spark.storage.memoryFraction 改变。如果有很多小对象创建，但是这些对象在不完全 GC 的过程中就可以回收，那么增大 Eden 区会有一定帮助。如果有任务从 HDFS 拷贝数据，内存消耗有一个简单的估算公式——比如 HDFS 的 block size 是 64MB，工作区内有 4 个 task 拷贝数据，而解压缩一个 block 要增大 3 倍大小，那么估算内存消耗就是：4<em>3</em>64MB。另外，工作中遇到过这样的一个问题：GC 默认情况下有一个限制，默认是 GC 时间不能超过 2% 的 CPU 时间，但是如果大量对象创建（在 Spark 里很容易出现，代码模式就是一个 RDD 转下一个 RDD），就会导致大量的 GC 时间，从而出现 “OutOfMemoryError: GC overhead limit exceeded”，对于这个，可以通过设置-XX:-UseGCOverheadLimit 关掉它。</p>
+<p><strong>序列化和传输</strong>：</p>
+<p>在 Spark UI 上能够看到序列化占用总时间开销的比例，如果这个比例高的话可以考虑优化内存使用和序列化。Data Serialization，默认使用的是 Java Serialization，这个程序员最熟悉，但是性能、空间表现都比较差。还有一个选项是 Kryo Serialization，更快，压缩率也更高，但是并非支持任意类的序列化。</p>
+<p>Data Locality。数据和代码要放到一起才能处理，通常代码总比数据要小一些，因此把代码送到各处会更快。Data Locality 是数据和处理的代码在屋里空间上接近的程度：PROCESS_LOCAL（同一个 JVM）、NODE_LOCAL（同一个 node，比如数据在 HDFS 上，但是和代码在同一个 node）、NO_PREF、RACK_LOCAL（不在同一个 server，但在同一个机架）、ANY。当然优先级从高到低，但是如果在空闲的 executor 上面没有未处理数据了，那么就有两个选择：</p>
+<ul>
+<li>（1）要么等如今繁忙的 CPU 闲下来处理尽可能 “本地” 的数据，</li>
+<li>（2）要么就不等直接启动 task 去处理相对远程的数据。</li>
+</ul>
+<p>默认当这种情况发生 Spark 会等一会儿（spark.locality），即策略（1），如果繁忙的 CPU 停不下来，就会执行策略（2）。<br>代码里对大对象的引用。这个主要是注意对于对象序列化引出来的开销。<br>任务上除了要考虑之前说的那些，一般能不shuffle就不shuffle，如果一定要，那就尽量减少shuffle的规模。<br>Repartition。运算过程中数据量时大时小，选择合适的 partition 数量关系重大，如果太多 partition 就导致有很多小任务和空任务产生；如果太少则导致运算资源没法充分利用，必要时候可以使用 repartition 来调整，不过它也不是没有代价的，其中一个最主要代价就是 shuffle。再有一个常见问题是数据大小差异太大，这种情况主要是数据的 partition 的 key 其实取值并不均匀造成的（默认使用 HashPartitioner），需要改进这一点，比如重写 hash 算法。测试的时候想知道 partition 的数量可以调用 rdd.partitions().size() 获知。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/spark/" rel="tag"># spark</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2020/10/17/%E5%86%99%E7%BB%99%E8%87%AA%E5%B7%B1%E7%9A%84%E4%B8%80%E4%BA%9B%E8%AF%9D/" rel="next" title="写给自己的一些话">
+                <i class="fa fa-chevron-left"></i> 写给自己的一些话
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2020/10/18/hudi%E5%92%8Cdelta%E7%9A%84%E5%8A%9F%E8%83%BD%E5%AF%B9%E6%AF%94/" rel="prev" title="hudi和delta的功能对比">
+                hudi和delta的功能对比 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#问题-：-spark设置1个exe-5个core-和-5个exe-1个core的区别是啥"><span class="nav-number">1.</span> <span class="nav-text">问题 ： spark设置1个exe * 5个core  和 5个exe * 1个core的区别是啥</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#那在一个executor里，设置一个core和设置5个core有什么区别吗？"><span class="nav-number">1.1.</span> <span class="nav-text">那在一个executor里，设置一个core和设置5个core有什么区别吗？</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

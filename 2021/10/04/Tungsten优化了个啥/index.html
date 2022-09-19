@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="spark," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="Tungsten优化了个啥Tungsten 又叫钨丝计划，因为spark是用scala语言开发的，所以最终运行在jvm上的代码存在着各方面的限制和弊端，使得spark在性能上还有很大的提升空间。它主要围绕内核引擎做了三方面的改进：内存管理机制（memory management and binary processing）、缓存敏感计算（cache-aware computation）和全阶段代码">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Tungsten优化了个啥">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/04/Tungsten%E4%BC%98%E5%8C%96%E4%BA%86%E4%B8%AA%E5%95%A5/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="Tungsten优化了个啥Tungsten 又叫钨丝计划，因为spark是用scala语言开发的，所以最终运行在jvm上的代码存在着各方面的限制和弊端，使得spark在性能上还有很大的提升空间。它主要围绕内核引擎做了三方面的改进：内存管理机制（memory management and binary processing）、缓存敏感计算（cache-aware computation）和全阶段代码">
+<meta property="og:image" content="https://github.com/images/ts_1.png">
+<meta property="og:image" content="https://github.com/images/ts_2.png">
+<meta property="og:image" content="https://github.com/images/ts_3.png">
+<meta property="og:image" content="https://github.com/images/ts_4.png">
+<meta property="og:image" content="https://github.com/images/ts_5.png">
+<meta property="article:published_time" content="2021-10-04T13:24:08.000Z">
+<meta property="article:modified_time" content="2022-05-13T03:52:16.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="spark">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/ts_1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/04/Tungsten优化了个啥/"/>
+
+
+
+
+
+  <title>Tungsten优化了个啥 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/04/Tungsten%E4%BC%98%E5%8C%96%E4%BA%86%E4%B8%AA%E5%95%A5/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Tungsten优化了个啥</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-04T21:24:08+08:00">
+                2021-10-04
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+                  ， 
+                
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/spark/" itemprop="url" rel="index">
+                    <span itemprop="name">spark</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="Tungsten优化了个啥"><a href="#Tungsten优化了个啥" class="headerlink" title="Tungsten优化了个啥"></a>Tungsten优化了个啥</h2><p>Tungsten 又叫钨丝计划，因为spark是用scala语言开发的，所以最终运行在jvm上的代码存在着各方面的限制和弊端，使得spark在性能上还有很大的提升空间。它主要围绕内核引擎做了三方面的改进：内存管理机制（memory management and binary processing）、缓存敏感计算（cache-aware computation）和全阶段代码生成（WSCG，Whole Stage Code Generation）。</p>
+<h3 id="内存管理机制"><a href="#内存管理机制" class="headerlink" title="内存管理机制"></a>内存管理机制</h3><p>要讲Tungsten的内存管理机制，首先就要把spark本身的内存管理先讲清楚。</p>
+<p>spark为数据存储和计算执行提供了统一的内存管理接口memoryManager。针对memoryManager的实现主要有staticMemoryManager 和UnifiedMemoryManager。</p>
+<p>在spark1.6之前，spark采用的是staticMemoryManager，在1.6之后，采用的是UnifiedMemoryManager。代码上两者都保留，可以通过参数spark.memory.useLegacyMode进行配置。</p>
+<p>相比静态，统一内存管理方式中存储内存和计算内存能够共享同一个空间，并且可以动态地使用彼此的空闲区域。</p>
+<ul>
+<li>静态的方式往往无法高效地适用于所有的应用类型。</li>
+<li>静态内存管理方式一般都需要调整相关参数，对于用户的spark内核知识要求很高。</li>
+<li>静态的方式也容易造成内存资源的浪费。</li>
+</ul>
+<blockquote>
+<p>spark中，序列化的对象是字节流的形式，其占用的内存大小可直接计算，而对于非序列化的对象，其占用的内存是通过周期性地采样近似估算而得到的，并不是实时计算出来的。这种方法降低了时间开销，但是有可能误差较大，导致某一时刻的实际内存有可能远远超出预期。而且回收也是一样的问题，因为不是实时回收的，而是依赖于gc。综上，spark并不能准确记录实际可用的堆内内存，也就无法完全避免内存溢出的异常。</p>
+</blockquote>
+<p>memoryManager通过内存池机制管理内存。在具体实现上，memeryPool是一个抽象类，内部定义了_poolSize（内存大小）以及其他5个操作的方法（poolSize、memoryFree、memoryUsed、incrementPoolSize、decrementPoolSize），MemoryPool类的构造函数MemoryPool(lock : Object) 会通过Object构造参数来实现同步加锁的目的。</p>
+<p>memoryPool的具体实现有StorageMemoryPool 和 ExecuteMemoryPool 两种，再根据堆内和堆外的内存模式，那么实际实现memorlPool就有四个：OnHeapStorageMemoryPool、OffHeapStorageMemoryPool、OnHeapExecutionMemoryPool、OffHeapExecutionMemoryPool。</p>
+<p>内存池中都是由内存页组成的，可以通过参数配置大小：spark.buffer.pageSize，如果不配置，这个值会自己计算得到，最小1M，最大64M。</p>
+<p>spark对于内存的使用，为了代码的稳定运行，防止内存溢出，一般会设置安全界限，也就是会设置一个安全使用的比例。</p>
+<h4 id="存储内存"><a href="#存储内存" class="headerlink" title="存储内存"></a>存储内存</h4><p>入口是StorageMemeoryPool，上边已经提到过基本使用，这里要提两点：</p>
+<p>1、当需要给计算执行层”借“内存时，StorageMemoryPool中的freeSpaceToShrinkPool方法提供了”shrink（收缩）”存储内存区可用内存来支持。该方法最终仍然是调用MemoryStore的evictBlocksToFreeSpace方法。</p>
+<blockquote>
+<p>借内存有专用的方式或者路子，这种方式是扩展性的思考的一种体现。</p>
+</blockquote>
+<p>2、存储内存淘汰规则：</p>
+<ul>
+<li>被淘汰的旧block要与新的block的内存模式相同。</li>
+<li>新旧block不能属于同一个rdd，防止循环淘汰。</li>
+<li>旧block所属rdd不能处于被读状态，避免引发一致性问题。</li>
+<li>LRU淘汰。</li>
+</ul>
+<blockquote>
+<p>针对于淘汰策略，参考的角度是基于所有使用对象相关来参考的。</p>
+</blockquote>
+<h4 id="执行内存"><a href="#执行内存" class="headerlink" title="执行内存"></a>执行内存</h4><p>执行内存使用最复杂的就是关于shuffle的内存使用实现。</p>
+<blockquote>
+<p><font color="red">注意：关于内存基础还没有写完，最近会补充上。</font></p>
+</blockquote>
+<h3 id="Unsafe-Row：二进制数据结构"><a href="#Unsafe-Row：二进制数据结构" class="headerlink" title="Unsafe Row：二进制数据结构"></a>Unsafe Row：二进制数据结构</h3><p>Unsafe Row 是一种字节数组，它可以用来存储下图所示 Schema 为（userID，name，age，gender）的用户数据条目。总的来说，所有字段都会按照 Schema 中的顺序安放在数组中。其中，定长字段的值会直接安插到字节中，而变长字段会先在 Schema 的相应位置插入偏移地址，再把字段长度和字段值存储到靠后的元素中。</p>
+<blockquote>
+<p>这个改进看起来更像是列存的方式，按照列存的特性，整体的优点也跟列存一样。</p>
+</blockquote>
+<p><img src="/images/ts_1.png" alt="Tungsten_1"></p>
+<p>跟原有的对象存储相比，优点如下：</p>
+<ul>
+<li>存储开销：实际数据存储都是以小字段为大多数，实际数据长度都比较短，但是对象本身的存储就占据比较可观的数字。比如，一个4字节长度的字符串，按照对象存储需要40多个字节，其中包括 12 个字节的对象头信息、8 字节的哈希编码、8 字节的字段值存储和另外 20 个字节的其他开销。如果按照列存的方式，对象存储需要的很多信息就直接省略了。</li>
+<li>垃圾回收效率：基于上边的那个原因，由于对象减少了，jvm的gc回收效率自然就高了很多。如果按照原先的方式，对象生成的数量会比较庞大，数据条数越多，这个数量越客观，对于gc的压力也是更大的。</li>
+</ul>
+<p>UnsafeRow，字节数组的存储方式在消除存储开销的同时，仅用一个数组对象就能轻松完成一条数据的封装，显著降低 GC 压力。</p>
+<h3 id="基于内存页的内存管理"><a href="#基于内存页的内存管理" class="headerlink" title="基于内存页的内存管理"></a>基于内存页的内存管理</h3><p>原先spark对于堆内和堆外是不能互相使用的，也就是用了堆内就只能用堆内，用了堆外也就只能用堆外，在代码上是没有兼容的，也就是在代码上就能区分出来使用的是什么内存。</p>
+<p>为了统一管理 Off Heap 和 On Heap 内存空间，Tungsten 定义了统一的 <strong>128 位内存地址</strong>，简称 Tungsten 地址。Tungsten 地址分为两部分：前 64 位预留给 Java Object，后 64 位是偏移地址 Offset。但是，同样是 128 位的 Tungsten 地址，Off Heap 和 On Heap 两块内存空间在寻址方式上截然不同。</p>
+<p>对于 On Heap 空间的 Tungsten 地址来说，前 64 位存储的是 JVM 堆内对象的引用或者说指针，后 64 位 Offset 存储的是数据在该对象内的偏移地址。而 Off Heap 空间则完全不同，在堆外的空间中，由于 Spark 是通过 Java Unsafe API 直接管理操作系统内存，不存在内存对象的概念，因此<strong>前 64 位存储的是 null 值</strong>，后 64 位则用于在堆外空间中<strong>直接寻址</strong>操作系统的内存空间。</p>
+<p>显然，在 Tungsten 模式下，管理 On Heap 会比 Off Heap 更加复杂。这是因为，在 On Heap 内存空间寻址堆内数据必须经过两步：第一步，通过前 64 位的 Object 引用来定位 JVM 对象；第二步，结合 Offset 提供的偏移地址在堆内内存空间中找到所需的数据。</p>
+<p>JVM 对象地址与偏移地址的关系，就好比是数组的起始地址与数组元素偏移地址之间的关系。给定起始地址和偏移地址之后，系统就可以迅速地寻址到数据元素。因此，在上面的两个步骤中，如何通过 Object 引用来定位 JVM 对象就是关键了。接下来，我们就重点解释这个环节。</p>
+<p><img src="/images/ts_2.png" alt="ts_2"></p>
+<p>Tungsten 使用一种叫做页表（Page Table）的数据结构，来记录从 Object 引用到 JVM 对象地址的映射。页表中记录的是一个又一个内存页（Memory Page），内存页实际上就是一个 JVM 对象而已。只要给定 64 位的 Object 引用，Tungsten 就能通过页表轻松拿到 JVM 对象地址，从而完成寻址。</p>
+<p>Tungsten针对很多底层都做了重写的实现，比如hashmap的实现，跟原有java的实现的区别就比较大。原有java的实现如下图：</p>
+<p><img src="/images/ts_3.png" alt="ts_3"></p>
+<p>Java 标准库采用数组加链表的方式来实现 HashMap.</p>
+<p>这个结构的特点是写入友好，但是访问低效。对象比较多，开销比较大，对gc不友好。由于访问低效，对于cpu缓存命中率不友好。但是这种随机访问，写入时候可以较少内存碎片。</p>
+<p><img src="/images/ts_4.png" alt="ts_4"></p>
+<ul>
+<li>数组中存储的不是指针了，而是Object 引用外加 Offset 的 128 位地址。也就是数组+内存页的实现方式。</li>
+<li>Tungsten HashMap 的存储单元是内存页，内存页本质上是 Java Object，一个内存页可以存储多个数据条目。</li>
+<li>内存页本质上是 JVM 对象，其内部使用连续空间来存储数据，内存页加偏移量可以精准地定位到每一个数据元素。数组都是连续存储，顺序访问，顺序内存访问会大幅提升 CPU cache 利用率，减少 CPU 中断，显著提升 CPU 利用率。</li>
+</ul>
+<h3 id="WSCG"><a href="#WSCG" class="headerlink" title="WSCG"></a>WSCG</h3><p>WSCG指的是在同一个 Stage 内部，把多个 RDD 的 compute 函数捏合成一个，然后把这一个函数一次性地作用在输入数据上。不过，这种捏合方式采用的是迭代器嵌套的方式。</p>
+<h4 id="火山迭代模型"><a href="#火山迭代模型" class="headerlink" title="火山迭代模型"></a>火山迭代模型</h4><p>在wscg之前，spark是使用火山迭代模型进行的计算调用。迭代器嵌套的计算模式会涉及两种操作：一个是内存数据的随机存取，另一个是虚函数的调用，也就是迭代模型中每个节点的next指针部分。这两种操作都是随机读取操作，会降低cpu的缓存命中率，降低cpu的工作效率。</p>
+<p>VI模型这种计算模式依托AST语法数，对所有操作符（如过滤、投影）的计算进行了统一的封装，所有操作符都要实现VI模型的迭代器抽象。简单来说就是，所有操作符都需要实现hasNext和next方法。这种链式调用，扩展性很灵活，任何一个算子只要实现了迭代器抽象，都可以加入到语法数中参与计算。</p>
+<p>VI模型为了方便操作符之间的数据交换，对所有操作符的输出也做了统一的封装。</p>
+<h4 id="wscg的代码生成"><a href="#wscg的代码生成" class="headerlink" title="wscg的代码生成"></a>wscg的代码生成</h4><p>基于以上VI模型的缺点，wscg主要通过类似“手写代码”的生成，来避免VI模型中的虚函数调用和数据的频繁调用。说白了就是一次性函数生成，一次性数据引入调用，对于cpu利用率的提升达到了极致。</p>
+<p>手写代码的生成主要分为两个步骤：</p>
+<ol>
+<li>从父节点到子节点，递归调用doProduce，生成代码框架。</li>
+<li>从子节点到父节点，递归调用doConsume，向框架填充每一个操作符的运算逻辑。</li>
+</ol>
+<p><img src="/images/ts_5.png" alt="ts_5"></p>
+<p>首先，在 Stage 顶端节点也就是 Project 之上，添加 <strong>WholeStageCodeGen</strong> 节点。WholeStageCodeGen 节点通过调用 doExecute 来触发整个代码生成过程的计算。doExecute 会递归调用子节点的 doProduce 函数，直到遇到 Shuffle Boundary 为止。这里，Shuffle Boundary 指的是 Shuffle 边界，要么是数据源，要么是上一个 Stage 的输出。在叶子节点（也就是 Scan）调用的 doProduce 函数会先把手写代码的框架生成出来，如图中右侧蓝色部分的代码。</p>
+<p>然后，Scan 中的 doProduce 会反向递归调用每个父节点的 doConsume 函数。不同操作符在执行 doConsume 函数的过程中，会把关系表达式转化成 Java 代码，然后把这份代码像做“完形填空”一样，嵌入到刚刚的代码框架里。比如图中橘黄色的 doConsume 生成的 if 语句，其中包含了判断地区是否为北京的条件，以及紫色的 doConsume 生成了获取必需字段 userId 的 Java 代码。</p>
+<p>就这样，Tungsten 利用 <strong>CollapseCodegenStages</strong> 规则，经过两层递归调用把 Catalyst 输出的 Spark Plan 加工成了一份“手写代码”，并把这份手写代码会交付给 DAGScheduler。拿到代码之后，DAGScheduler 再去协调自己的两个小弟 TaskScheduler 和 SchedulerBackend，完成分布式任务调度。</p>
+<p>总结起来就是先深度进去用来建立框架，然后再反向出来构建代码里的细节。这个框架的思想，我想应该是来自于AST的特点，本身catalyst解析完就是一个AST，那么基于这个AST直接产出就是最直接省事儿的方式。而本身sql就有是有框架的特点的，那么AST也同样有这个特点。</p>
+<blockquote>
+<p>Tungsten的优化也都是遵循了计算机以往优化的哪些规律，只是由于过于底层的操作，优化起来需要对spark本身的代码足够了解。</p>
+<p>这些优化规律跟计算机本身在内存和cpu上的优化都是有借鉴经验的。</p>
+</blockquote>
+<p>以上是看完极客时间课程进行的归纳还有经典语句的摘抄，后续会把《spark sql内核解析》的部分也总结上来。</p>
+<p>参考：</p>
+<p><a href="https://time.geekbang.org/column/article/369604" target="_blank" rel="noopener">https://time.geekbang.org/column/article/369604</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/spark/" rel="tag"># spark</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/10/04/spark%E5%8E%9F%E7%90%86-%E5%86%85%E5%AD%98/" rel="next" title="spark原理-内存">
+                <i class="fa fa-chevron-left"></i> spark原理-内存
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/10/05/spark%E5%8E%9F%E7%90%86-catalyst%E9%80%BB%E8%BE%91%E8%AE%A1%E5%88%92/" rel="prev" title="spark原理--catalyst逻辑计划">
+                spark原理--catalyst逻辑计划 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Tungsten优化了个啥"><span class="nav-number">1.</span> <span class="nav-text">Tungsten优化了个啥</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#内存管理机制"><span class="nav-number">1.1.</span> <span class="nav-text">内存管理机制</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#存储内存"><span class="nav-number">1.1.1.</span> <span class="nav-text">存储内存</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#执行内存"><span class="nav-number">1.1.2.</span> <span class="nav-text">执行内存</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Unsafe-Row：二进制数据结构"><span class="nav-number">1.2.</span> <span class="nav-text">Unsafe Row：二进制数据结构</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#基于内存页的内存管理"><span class="nav-number">1.3.</span> <span class="nav-text">基于内存页的内存管理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#WSCG"><span class="nav-number">1.4.</span> <span class="nav-text">WSCG</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#火山迭代模型"><span class="nav-number">1.4.1.</span> <span class="nav-text">火山迭代模型</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#wscg的代码生成"><span class="nav-number">1.4.2.</span> <span class="nav-text">wscg的代码生成</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

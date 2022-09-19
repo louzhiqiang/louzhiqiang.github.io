@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="spark," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="Spark的动态分配spark的静态资源分配，在大部分开发人员使用的时候，无法确认到底应该分配多少资源这事儿。 所以，spark为了解决这个痛点，发明了动态资源分配。  这是spark的官方定义。  不同的是spark.dynamicAllocation.shuffleTracking.enabled和spark.shuffle.service.enabled这两个参数的设置，那么这两个参数是干嘛">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Spark的动态分配">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/08/31/Spark%E7%9A%84%E5%8A%A8%E6%80%81%E5%88%86%E9%85%8D/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="Spark的动态分配spark的静态资源分配，在大部分开发人员使用的时候，无法确认到底应该分配多少资源这事儿。 所以，spark为了解决这个痛点，发明了动态资源分配。  这是spark的官方定义。  不同的是spark.dynamicAllocation.shuffleTracking.enabled和spark.shuffle.service.enabled这两个参数的设置，那么这两个参数是干嘛">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220112_3992dda4-736e-11ec-a8ac-fa163eb4f6be.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220112_39ae7f82-736e-11ec-a8ac-fa163eb4f6be.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220112_3a218838-736e-11ec-a8ac-fa163eb4f6be.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220112_3a4d6552-736e-11ec-a8ac-fa163eb4f6be.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220112_3a6f6d5a-736e-11ec-a8ac-fa163eb4f6be.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220112_3a9ebc36-736e-11ec-a8ac-fa163eb4f6be.png">
+<meta property="article:published_time" content="2022-08-31T12:03:10.000Z">
+<meta property="article:modified_time" content="2022-08-31T12:41:26.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="spark">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220112_3992dda4-736e-11ec-a8ac-fa163eb4f6be.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/08/31/Spark的动态分配/"/>
+
+
+
+
+
+  <title>Spark的动态分配 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/08/31/Spark%E7%9A%84%E5%8A%A8%E6%80%81%E5%88%86%E9%85%8D/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Spark的动态分配</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-08-31T20:03:10+08:00">
+                2022-08-31
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="Spark的动态分配"><a href="#Spark的动态分配" class="headerlink" title="Spark的动态分配"></a>Spark的动态分配</h1><p>spark的静态资源分配，在大部分开发人员使用的时候，无法确认到底应该分配多少资源这事儿。</p>
+<p>所以，spark为了解决这个痛点，发明了动态资源分配。</p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220112_3992dda4-736e-11ec-a8ac-fa163eb4f6be.png" alt="img"></p>
+<p>这是spark的官方定义。</p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220112_39ae7f82-736e-11ec-a8ac-fa163eb4f6be.png" alt="img"></p>
+<p>不同的是spark.dynamicAllocation.shuffleTracking.enabled和spark.shuffle.service.enabled这两个参数的设置，那么这两个参数是干嘛用的？先提前透露一下，就是为了管理shuffle文件的，为什仫这么说呢？</p>
+<p><strong>请注意看allow executors to be removed这句话</strong>！也就是说动态分配可能会增减executor个数，如果你的作业中有shuffle存在的话，当减少executor个数的时候，那么shuffle文件就会被删除，可是这个时候下游怎么拉数据呀，任务不就嗝屁了吗！！</p>
+<p>为了避免shuffle文件被删除导致嗝屁的情况出现，就有了一个external shuffle service这么一个外部shuffle服务。</p>
+<p>Executor的申请：</p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220112_3a218838-736e-11ec-a8ac-fa163eb4f6be.png" alt="img"></p>
+<p>executor动态分配管理器，ExecutorAllocationManager。是在sparkContext里边的。</p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220112_3a4d6552-736e-11ec-a8ac-fa163eb4f6be.png" alt="img"></p>
+<p>1、首先该均衡代理会基于一个初始executor数，结合当前任务的负载情况动态调整executor个数。那么这个初始值一般是我们提交作业的时候指定的，也就是–num-executors，当然也有一个配置参数spark.dynamicAllocation.initialExecutors来控制</p>
+<p>2、在作业运行的过程当中，会通过SparkListener来监测executor情况，如果说有executor是处于空闲的状态，而且超过了一定的时间就会被代理给发起kill请求。这个一定的空闲期由spark.dynamicAllocation.executorIdleTimeout来设置。</p>
+<p>3、如果说在运行的过程当中，仍然有任务处于pending的状态，而且这个等待的时间超过一定的阈值后，该代理就会新增executor个数（至于新增多少个，是有一个算法的，注释里说是呈指数级增长）。那么这个等待时间的阈值可以通过spark.dynamicAllocation.schedulerBacklogTimeout来设置。</p>
+<p>其实从上面这个概要里就已经把前面的问题给解答了（即动态分配的实现和spark是怎么知道什么时候该加资源了，还是该减资源了）。那么我们再来看一下是spark对这个增减executor个数的公式是如何计算的：</p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220112_3a6f6d5a-736e-11ec-a8ac-fa163eb4f6be.png" alt="img"></p>
+<p>核心逻辑就在这个方法内，红框内的注释给我们介绍了该方法的作用：<strong>即更新executor个数并把该结果值同步给集群管理器，其中有一个maxNumExecutorNeeded方法是来计算当前负载下所需要的最大executor个数（有一个向上取整的操作）</strong></p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220112_3a9ebc36-736e-11ec-a8ac-fa163eb4f6be.png" alt="img"></p>
+<p>其中numRunningOrPendingTasks代表了task总数(无论是在执行的还是处于等待的)，然后用该值会去乘以一个系数(通过spark.dynamicAllocation.executorAllocationRatio来控制，默认是1)，最后再除以一个executor最大并行度并向上取整得到该值。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/spark/" rel="tag"># spark</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/08/30/hive-%E5%90%84%E7%A7%8Dby%E7%9A%84%E5%8C%BA%E5%88%AB/" rel="next" title="hive 各种by的区别">
+                <i class="fa fa-chevron-left"></i> hive 各种by的区别
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/08/31/%E9%9D%A2%E8%AF%95%E7%82%B9%E5%87%86%E5%A4%87/" rel="prev" title="面试点准备">
+                面试点准备 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Spark的动态分配"><span class="nav-number">1.</span> <span class="nav-text">Spark的动态分配</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

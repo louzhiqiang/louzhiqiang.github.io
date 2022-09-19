@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="spark," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="spark原理–catalyst观察了一下最近spark版本的迭代，优化目标基本都在spark sql上，可见现在spark sql的地位已经越来越重要。而在spark sql中，catalyst就是不得不说的一个重要部分。 Spark SQL 端到端的完整优化流程主要包括两个阶段：Catalyst 优化器和 Tungsten。其中，Catalyst 优化器又包含逻辑优化和物理优化两个阶段。 下边">
+<meta property="og:type" content="article">
+<meta property="og:title" content="spark原理--catalyst逻辑计划">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/05/spark%E5%8E%9F%E7%90%86-catalyst%E9%80%BB%E8%BE%91%E8%AE%A1%E5%88%92/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="spark原理–catalyst观察了一下最近spark版本的迭代，优化目标基本都在spark sql上，可见现在spark sql的地位已经越来越重要。而在spark sql中，catalyst就是不得不说的一个重要部分。 Spark SQL 端到端的完整优化流程主要包括两个阶段：Catalyst 优化器和 Tungsten。其中，Catalyst 优化器又包含逻辑优化和物理优化两个阶段。 下边">
+<meta property="og:image" content="https://github.com/images/catalyst_1.png">
+<meta property="og:image" content="https://github.com/images/catalyst_2.png">
+<meta property="og:image" content="https://github.com/images/catalyst_3.png">
+<meta property="og:image" content="https://github.com/images/catalyst_4.png">
+<meta property="og:image" content="https://github.com/images/catalyst_5.png">
+<meta property="og:image" content="https://github.com/images/catalyst_6.png">
+<meta property="article:published_time" content="2021-10-05T11:16:10.000Z">
+<meta property="article:modified_time" content="2022-05-13T03:51:30.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="spark">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/catalyst_1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/05/spark原理-catalyst逻辑计划/"/>
+
+
+
+
+
+  <title>spark原理--catalyst逻辑计划 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/05/spark%E5%8E%9F%E7%90%86-catalyst%E9%80%BB%E8%BE%91%E8%AE%A1%E5%88%92/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">spark原理--catalyst逻辑计划</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-05T19:16:10+08:00">
+                2021-10-05
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+                  ， 
+                
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/spark/" itemprop="url" rel="index">
+                    <span itemprop="name">spark</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="spark原理–catalyst"><a href="#spark原理–catalyst" class="headerlink" title="spark原理–catalyst"></a>spark原理–catalyst</h2><p>观察了一下最近spark版本的迭代，优化目标基本都在spark sql上，可见现在spark sql的地位已经越来越重要。而在spark sql中，catalyst就是不得不说的一个重要部分。</p>
+<p>Spark SQL 端到端的完整优化流程主要包括两个阶段：Catalyst 优化器和 Tungsten。其中，Catalyst 优化器又包含逻辑优化和物理优化两个阶段。</p>
+<p>下边这幅图会贯穿始终，请来回回忆，谨记一下。</p>
+<p><img src="/images/catalyst_1.png" alt="catalyst_1"></p>
+<h4 id="逻辑优化"><a href="#逻辑优化" class="headerlink" title="逻辑优化"></a>逻辑优化</h4><p>Catalyst 逻辑优化阶段分为两个环节：逻辑计划解析和逻辑计划优化。在逻辑计划解析中，Catalyst 把“Unresolved Logical Plan”转换为“Analyzed Logical Plan”；在逻辑计划优化中，Catalyst 基于一些既定的启发式规则（Heuristics Based Rules），把“Analyzed Logical Plan”转换为“Optimized Logical Plan”。</p>
+<blockquote>
+<p>这里的启发式规则就是RBO</p>
+</blockquote>
+<p><img src="/images/catalyst_2.png" alt="catalyst_2"></p>
+<p>在逻辑计划解析环节，Catalyst 就是要结合 DataFrame 的 Schema 信息，来确认计划中的表名、字段名、字段类型与实际数据是否一致。完成确认之后，Catalyst 会生成“Analyzed Logical Plan”。</p>
+<blockquote>
+<p>在逻辑计划就已经把元信息加载进来，进行合法性校验。</p>
+</blockquote>
+<p><strong>对于同样一种计算逻辑，实现方式可以有多种，按照不同的顺序对算子做排列组合，我们就可以演化出不同的实现方式。最好的方式就是，我们遵循”能省则省，能拖则拖“的开发原则，去选择所有实现方式中最优的那个。</strong></p>
+<p>catalyst针对这样的状况，也有自己的步骤，在Analyzed Logical Plan之后，就会根据启发式规则优化，转换为Optimized Logical Plan。</p>
+<p><img src="/images/catalyst_3.png" alt="catalyst_3"></p>
+<p>这个规则如果量化出来会很多，因为一个规则只能对应一个场景，这个场景是sql语句的上下文的含义。那么catalyst有多少规则呢？catalyst针对规则是有管理的，这个管理和使用是密不可分的，怎么使用以及怎么管理以及代码应该怎么设计都是完全相关的。</p>
+<p>在最新的spark 3.0的版本中，catalyst的优化规则有81个，而这些规则会根据场景可以划分成27组，每组会有多个规则。这些规则主要的角度有三个：</p>
+<ul>
+<li><p>谓词下推（Predicate Pushdown）：主要围绕着过滤条件，一般会下推到离数据源最近的地方，从而可以给数据源的数据过滤提供条件，减少源数据。下推之前都会把条件重新优化一遍，转化成效率更高的方式和常规条件变更。</p>
+<blockquote>
+<p>下推之后其实对于我们在存储源上的索引就可以挂钩了，对于效率提升就有着手点了。</p>
+</blockquote>
+</li>
+<li><p>列裁剪（Column Pruning）：扫描数据源的时候，只读取那些与查询相关的字段。</p>
+</li>
+<li><p>常量替换（Constant Folding）：一次计算，换取后边更多次重复的计算成本。</p>
+</li>
+</ul>
+<p>那catalyst是怎么应用这些规则的呢？</p>
+<p>不管是逻辑计划还是物理计划，都是继承自QueryPlan。而QueryPlan的父类就是TreeNode，TreeNode就是语法树中对于节点的抽象。TreeNode有个属性children，类型是seq[TreeNode]，这样就能构成一个树了。同时，treeNode中还定义了很多高阶函数，其中高阶函数transformDown的形参就是各种优化规则，方法还是返回TreeNode。而且这个规则会把当前整棵树都进行规则的应用。</p>
+<p>而规则的应用主要就是靠节点类型匹配。匹配上了，就可以应用这个规则。</p>
+<blockquote>
+<p>这个模式是可以在我们实际的代码中或者架构中，可以借鉴引用的。</p>
+</blockquote>
+<h4 id="Cache-Manager-优化"><a href="#Cache-Manager-优化" class="headerlink" title="Cache Manager 优化"></a>Cache Manager 优化</h4><p>这个部分其实主要就是对已经解析过的部分，进行缓存，防止重复解析。遇到复杂的sql，这个过程会更加突显收益。具体来说，Cache Manager 维护了一个 Mapping 映射字典，字典的 Key 是逻辑计划，Value 是对应的 Cache 元信息。当 Catalyst 尝试对逻辑计划做优化时，会先尝试对 Cache Manager 查找，看看当前的逻辑计划或是逻辑计划分支，是否已经被记录在 Cache Manager 的字典里。如果在字典中可以查到当前计划或是分支，Catalyst 就用 InMemoryRelation 节点来替换整个计划或是计划的一部分，从而充分利用已有的缓存数据做优化。</p>
+<blockquote>
+<p>spark为什么使用偏函数来定义规则？</p>
+<p>与偏函数对应的一个定义就是我们数学意义上的函数，一个输入自变量x对应一个输出因变量y，也就是y 可以表示成x 的一个特定的运算，并且这个运算关系是确定的，但是scala 中的偏函数它表示的是一种匹配关系，有点类似if else if … else ，只有匹配上了才有对应的值，否则输出的就是默认值。<br>Spark 之所以用偏函数，而不是普通函数来定义 Catalyst 的优化规则，是因为规则是预先定义的，不可能满足所有的情况，所以需要一个兜底，而这正好满足偏函数的特点。</p>
+</blockquote>
+<h4 id="物理优化"><a href="#物理优化" class="headerlink" title="物理优化"></a>物理优化</h4><p>逻辑优化的每一步仅仅是从逻辑上表明 Spark SQL 需要“做什么”，并没有从执行层面说明具体该“怎么做”。因此，为了把逻辑计划交付执行，Catalyst 还需要把 Optimized Logical Plan 转换为物理计划。物理计划比逻辑计划更具体，它明确交代了 Spark SQL 的每一步具体该怎么执行。</p>
+<p><img src="/images/catalyst_4.png" alt="catalyst_4"></p>
+<p>物理阶段的优化是从逻辑优化阶段输出的 Optimized Logical Plan 开始的,为了让查询计划（Query Plan）变得可操作、可执行，Catalyst 的物理优化阶段（Physical Planning）可以分为两个环节：优化 Spark Plan 和生成 Physical Plan。</p>
+<ul>
+<li><p>在优化 Spark Plan 的过程中，Catalyst 基于既定的优化策略（Strategies），把逻辑计划中的关系操作符一一映射成物理操作符，生成 Spark Plan。</p>
+<blockquote>
+<p>这一步理解的含义主要是把优化之后的TreeNode转化成可以执行的sparkPlan。这个转化是根据每种TreeNode节点类型去定义的，每种类型都单独定义一个transfer方法。</p>
+</blockquote>
+</li>
+<li><p>在生成 Physical Plan 过程中，Catalyst 再基于事先定义的 Preparation Rules，对 Spark Plan 做进一步的完善、生成可执行的 Physical Plan。</p>
+<blockquote>
+<p>这个规则也同上边逻辑规则的优化规则是一样的，也是这种规则使用方式。</p>
+</blockquote>
+<p>从数量上来说，Catalyst 有 14 类优化策略，其中有 6 类和流计算有关，剩下的 8 类适用于所有的计算场景，如批处理、数据分析、机器学习和图计算，当然也包括流计算。因此，我们只需了解这 8 类优化策略。</p>
+<p><img src="/images/catalyst_5.png" alt="catalyst_5"></p>
+<p>所有优化策略在转换方式上都大同小异，都是使用基于模式匹配的偏函数（Partial Functions），把逻辑计划中的操作符平行映射为 Spark Plan 中的物理算子。比如，BasicOperators 策略直接把 Project、Filter、Sort 等逻辑操作符平行地映射为物理操作符。其他策略的优化过程也类似，因此，在优化 Spark Plan 这一环节，咱们只要抓住一个“典型”策略，掌握它的转换过程即可。</p>
+<p>在spark plan 转化为 physical plan 过程中，也会经过一些规则的优化。</p>
+<p><img src="/images/catalyst_6.png" alt="catalyst_6"></p>
+<p>这个转换过程，实际上也是因为spark plan在转化为phycial plan的过程中，有一些处理过程需要先决条件，但是spark plan只是决定了使用什么策略，而在实际执行过程中可能会更细节一些，续页哦更具体的执行步骤来串联起来对应的缓解，尤其是shuffle相关的策略。那么这时候就要引入一些规则来细化这些点。</p>
+</li>
+</ul>
+<blockquote>
+<p>Spark 的 join策略是有五种，主要是两种数据分发方式（广播和shuffle）和3中join机制（Hash Joins 、Sort Merge Joins 和 Nested Loop Joins）的组合。但是按照这种组合，应该有六种，但是实际上只有5种，分别是：shuffle sort merge join（SMJ）、 shuffle hash join（SHJ）、Cartesian Product Join （CPJ）和 Broadcast Nested Loop Join （BNLJ）、Broadcast Hash Join（BHJ）。没有Broadcast sort merge join。这是为什么呢？</p>
+<p>broadcast广播模式下，排序没啥必要吧，因为本身被广播的数据集就比较小，hash join和NLJ完全够用了。而且SMJ本身就是针对大表关联大表设计的join算法。</p>
+</blockquote>
+<p>后续会参考《spark sql 内核解析》来补充细节的逻辑。</p>
+<p>参考：</p>
+<p><a href="https://time.geekbang.org/column/article/367832" target="_blank" rel="noopener">https://time.geekbang.org/column/article/367832</a></p>
+<p><a href="https://time.geekbang.org/column/article/369519" target="_blank" rel="noopener">https://time.geekbang.org/column/article/369519</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/spark/" rel="tag"># spark</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/10/04/Tungsten%E4%BC%98%E5%8C%96%E4%BA%86%E4%B8%AA%E5%95%A5/" rel="next" title="Tungsten优化了个啥">
+                <i class="fa fa-chevron-left"></i> Tungsten优化了个啥
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/10/09/spark3%E7%9A%84%E4%BC%98%E5%8C%96%E7%82%B9%E6%9C%89%E5%93%AA%E4%BA%9B/" rel="prev" title="spark3的优化点有哪些">
+                spark3的优化点有哪些 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#spark原理–catalyst"><span class="nav-number">1.</span> <span class="nav-text">spark原理–catalyst</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#逻辑优化"><span class="nav-number">1.0.1.</span> <span class="nav-text">逻辑优化</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Cache-Manager-优化"><span class="nav-number">1.0.2.</span> <span class="nav-text">Cache Manager 优化</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#物理优化"><span class="nav-number">1.0.3.</span> <span class="nav-text">物理优化</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

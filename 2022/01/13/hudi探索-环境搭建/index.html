@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="hudi," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="hudi探索–环境搭建开始琢磨一下hudi，对比着carbon很多东西是可以一起看下，效率应该会好很多。 因为要做flink基于hudi的构建，所以还是要先把基础操作摸排一遍。 环境 spark 2.4.8  hive 1.2.2  hadoop 2.7.3  hudi 0.10.0  flink 1.14.0   hello word下载了0.10.0 自己构建了hudi的jar包。 1mvn">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hudi探索--环境搭建">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/01/13/hudi%E6%8E%A2%E7%B4%A2-%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="hudi探索–环境搭建开始琢磨一下hudi，对比着carbon很多东西是可以一起看下，效率应该会好很多。 因为要做flink基于hudi的构建，所以还是要先把基础操作摸排一遍。 环境 spark 2.4.8  hive 1.2.2  hadoop 2.7.3  hudi 0.10.0  flink 1.14.0   hello word下载了0.10.0 自己构建了hudi的jar包。 1mvn">
+<meta property="og:image" content="https://github.com/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_1.png">
+<meta property="og:image" content="https://github.com/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_2.png">
+<meta property="og:image" content="https://github.com/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_3.png">
+<meta property="og:image" content="https://github.com/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_4.png">
+<meta property="og:image" content="https://github.com/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_5.png">
+<meta property="og:image" content="https://github.com/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_6.png">
+<meta property="og:image" content="https://github.com/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_7.png">
+<meta property="og:image" content="https://github.com/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_8.png">
+<meta property="og:image" content="https://github.com/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_9.png">
+<meta property="og:image" content="https://github.com/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_10.png">
+<meta property="article:published_time" content="2022-01-13T09:49:09.000Z">
+<meta property="article:modified_time" content="2022-05-13T03:50:08.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="hudi">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/01/13/hudi探索-环境搭建/"/>
+
+
+
+
+
+  <title>hudi探索--环境搭建 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/01/13/hudi%E6%8E%A2%E7%B4%A2-%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">hudi探索--环境搭建</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-01-13T17:49:09+08:00">
+                2022-01-13
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="hudi探索–环境搭建"><a href="#hudi探索–环境搭建" class="headerlink" title="hudi探索–环境搭建"></a>hudi探索–环境搭建</h2><p>开始琢磨一下hudi，对比着carbon很多东西是可以一起看下，效率应该会好很多。</p>
+<p>因为要做flink基于hudi的构建，所以还是要先把基础操作摸排一遍。</p>
+<h3 id="环境"><a href="#环境" class="headerlink" title="环境"></a>环境</h3><ul>
+<li><p>spark 2.4.8</p>
+</li>
+<li><p>hive 1.2.2</p>
+</li>
+<li><p>hadoop 2.7.3</p>
+</li>
+<li><p>hudi 0.10.0</p>
+</li>
+<li><p>flink 1.14.0</p>
+</li>
+</ul>
+<h3 id="hello-word"><a href="#hello-word" class="headerlink" title="hello word"></a>hello word</h3><p>下载了0.10.0 自己构建了hudi的jar包。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mvn clean package -DskipTests -DskipITs</span><br></pre></td></tr></table></figure>
+
+<p>构建完之后会在 hudi-0.10.0/packaging 目录下有所有构建好的模块的jar包。</p>
+<p>我这边首先基于sparksql来运行基础的功能，比如建表，insert，查询。</p>
+<p>spark-sql的脚本命令如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">spark-sql \</span><br><span class="line">  --jars /Users/os/hudi-0.10.0/packaging/hudi-spark-bundle/target/hudi-spark-bundle_2.11-0.10.0.jar \</span><br><span class="line">  --conf mapreduce.job.user.classpath.first="true" \</span><br><span class="line">  --conf 'spark.serializer=org.apache.spark.serializer.KryoSerializer' \</span><br><span class="line">  --conf 'spark.sql.extensions=org.apache.spark.sql.hudi.HoodieSparkSessionExtension'</span><br></pre></td></tr></table></figure>
+
+<p>这里稍微提一下官方的使用：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">spark-sql --packages org.apache.hudi:hudi-spark-bundle_2.11:0.10.0,org.apache.spark:spark-avro_2.11:2.4.4 \</span><br><span class="line">--conf 'spark.serializer=org.apache.spark.serializer.KryoSerializer' \</span><br><span class="line">--conf 'spark.sql.extensions=org.apache.spark.sql.hudi.HoodieSparkSessionExtension'</span><br></pre></td></tr></table></figure>
+
+<p>这里 packages 的方式，会去下载对应的jar包。所以官方给的这个方式其实是一种快捷的方式，不用自己构建，挺方便的。不过如果想自己琢磨原理，很可能会去看源码、debug之类的，这种方式就不是很方便了，所以我这边自己运行的话还是用了 –jars 的方式。</p>
+<p>在使用上述脚本运行的时候，遇到了一个avro的报错：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">java.lang.NoSuchMethodError: org.apache.avro.Schema.createUnion</span><br></pre></td></tr></table></figure>
+
+<p>经过排查这是avro代码包冲突引起的，我自己的spark目录中，avro的版本是1.7.5，而hudi的官方构建中使用的版本是1.8.2 。我这边删除了我1.7.5版本的jar包就解决了这个问题。</p>
+<p>运行了demo中的创建表语句：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">create</span> <span class="keyword">table</span> hudi_cow_nonpcf_tbl (<span class="keyword">uuid</span> <span class="built_in">int</span>,<span class="keyword">name</span> <span class="keyword">string</span>,price <span class="keyword">double</span>) <span class="keyword">using</span> hudi;</span><br></pre></td></tr></table></figure>
+
+<p>跟踪了一下日志：</p>
+<p><img src="/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_1.png" alt="hudi_初始探索_1"></p>
+<p>上图就是hudi的一个元数据格式，里边有基础的schema结构，比如 cols 下就是所有的列，比如：</p>
+<ul>
+<li><p>_hoodie_commit_time:最新记录提交时间</p>
+</li>
+<li><p>_hoodie_commit_seqno:在增量拉取中用于在单次摄取中创建多个窗口</p>
+</li>
+<li><p>_hoodie_record_key:Hudi记录主键，用来处理更新和删除</p>
+</li>
+<li><p>_hoodie_partition_path:分区路径</p>
+</li>
+<li><p>_hoodie_file_name:存储记录的文件名</p>
+</li>
+</ul>
+<p>除了上边几列，剩下的列就是业务数据。</p>
+<p>此外还有bucketCols、sortCols、skewedInfo、partitionKeys、parameters、privileges等，此外还会记录数据来源构建类型，比如如果走的是spark路径，还会记录spark的版本。</p>
+<p>建完表之后就是load数据到表里。</p>
+<p><a href="https://chowdera.com/2021/04/20210408141010453x.html" target="_blank" rel="noopener">Apache Hudi核心概念一网打尽 - 文章整合</a></p>
+<p>写入的sql也是官网demo里的：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">insert</span> <span class="keyword">into</span> hudi_cow_nonpcf_tbl <span class="keyword">select</span> <span class="number">1</span> <span class="keyword">as</span> <span class="keyword">uuid</span>, <span class="string">'a1'</span> <span class="keyword">as</span> <span class="keyword">name</span>, <span class="number">10</span> <span class="keyword">as</span> price;</span><br></pre></td></tr></table></figure>
+
+<p>观察了一下日志，从这里先自己去猜测一些蛛丝马迹，让自己可以主动思考hudi的实现，这样在后续逐渐了解hudi的过程中，就可以弥补自己的思维缺陷。</p>
+<p><img src="/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_2.png" alt="hudi_初始探索_2"></p>
+<p>这里看到 table.HoodieTableMetaClient 是hudi元数据的入口。</p>
+<p>table.HoodieTableConfig 是表的配置入口，会读取根目录下的 .hoodie/hoodie.properties</p>
+<p>timeline.HoodieActiveTimeline 这个类的作用在上边的文章有提交，hudi的事务会用到一个timeline，全序时间定义，有了他就可以对提交操作有一个比较灵活的把握，也就是任何时间任何操作的追溯都可以实现了。</p>
+<p><img src="/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_3.png" alt="hudi_初始探索_3"></p>
+<p>command.InsertIntoHoodieTableCommand command模式的insert命令被触发，这个跟carbondata的方式是一样的。不过这个写数据的入口应该也是多个的。InsertCommand也只是其中一个。</p>
+<p><img src="/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_4.png" alt="hudi_初始探索_4"></p>
+<p><em>Hudi 使用Avro</em> 模式来存储、管理和演进表的schema。</p>
+<blockquote>
+<p>TODO 为什么使用avro模式？有啥优点？使用普通的json来存储，会有什么问题吗？</p>
+</blockquote>
+<p><img src="/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_5.png" alt="hudi_初始探索_5"></p>
+<p>这里初始化了 embedded.EmbeddedTimelineService  这个就是timeline服务，上述的文章中已经说明了timeline的基础作用，那么在真正的使用过程中，每种情况都应该有自己的细节实现。</p>
+<blockquote>
+<p>TODO timeline的实现原理。</p>
+</blockquote>
+<p>这里用到了javalin，A simple web framework for Java and Kotlin  <a href="https://javalin.io/" target="_blank" rel="noopener">参考</a></p>
+<p>view.FileSystemViewManager hudi读取数据的关键类，这里的view使用是一个比较核心的组件，在hudi的灵活读取方式的实现中，有举足轻重的地位。</p>
+<blockquote>
+<p>TODO view的实现原理</p>
+</blockquote>
+<p><img src="/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_6.png" alt="hudi__初始探索__6"></p>
+<p>这里针对hudi.HoodieSparkSqlWriter 有两个关键性的配置：Config.inlineCompactionEnabled  和 Config.asyncClusteringEnabled 需要跟踪一下影响。</p>
+<blockquote>
+<p>TODO 看上边那句</p>
+</blockquote>
+<p><img src="/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_7.png" alt="hudi__初始探索__7"></p>
+<p>这里主要是在table.HoodieTableMetaClient中加载了Active commit timeline，而这个time是for当前这个目录的，所以关注一下这个意思，timeline可以跟着目录来走，也就是hudi的很多管理也应该是跟着目录。所以 <strong>hudi怎么管理目录和文件 会是一个比较中心的思想。</strong></p>
+<p>instants 就是 timeline.HoodieActiveTimeline 中的一个对象，上边的那个文章中有针对它的说明。</p>
+<p><img src="/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_8.png" alt="hudi初始探索8"></p>
+<p>view.FileSystemViewManager: Creating View Manager with storage type :REMOTE_FIRST 这句没太看懂</p>
+<blockquote>
+<p>TODO 通过view manager 去看一下 storage type的种类 以及 不同种类的区别。</p>
+</blockquote>
+<p>client.AbstractHoodieWriteClient 生成了一个写入的insant，状态是 REQUESTED</p>
+<p><img src="/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_9.png" alt="hudi初始探索9"></p>
+<p>建立了一个内存view，去读取 instants，然后就可以读取到文件。</p>
+<p>util.ClusteringUtils: Found 0 files in pending clustering operations 这一行看起来像是在更新clustering，这块可以跟踪一下实现，pending的是什么。</p>
+<p><img src="/images/hudi_%E5%88%9D%E5%A7%8B%E6%8E%A2%E7%B4%A2_10.png" alt="hudi初始探索10"></p>
+<p>这快看起来是文件写入之后的事务commit变更。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">22/01/13 20:37:55 INFO timeline.HoodieActiveTimeline: Loaded instants upto : Option&#123;val=[==&gt;20220113203754098__commit__INFLIGHT]&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个时候就是instants的下一个状态   INFLIGHT</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">22/01/13 20:37:55 INFO commit.UpsertPartitioner: For partitionPath :  Small Files =&gt; [SmallFile &#123;location=HoodieRecordLocation &#123;instantTime=20220113172855437, fileId=1712345c-4e91-4677-a051-8d459ade3858-0&#125;, sizeBytes=434707&#125;]</span><br><span class="line">22/01/13 20:37:55 INFO commit.UpsertPartitioner: Assigning 1 inserts to new update bucket 0</span><br><span class="line">22/01/13 20:37:55 INFO commit.UpsertPartitioner: Total insert buckets for partition path  =&gt; [(InsertBucket &#123;bucketNumber=0, weight=1.0&#125;,1.0)]</span><br><span class="line">22/01/13 20:37:55 INFO commit.UpsertPartitioner: Total Buckets :1, buckets info =&gt; &#123;0=BucketInfo &#123;bucketType=UPDATE, fileIdPrefix=1712345c-4e91-4677-a051-8d459ade3858-0, partitionPath=&#125;&#125;,</span><br><span class="line">Partition to insert buckets =&gt; &#123;=[(InsertBucket &#123;bucketNumber=0, weight=1.0&#125;,1.0)]&#125;,</span><br><span class="line">UpdateLocations mapped to buckets =&gt;&#123;1712345c-4e91-4677-a051-8d459ade3858-0=0&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这几行也比较关键，这里列出来一个TODO，看看详细的hudi写入数据的实现。</p>
+<blockquote>
+<p>TODO</p>
+</blockquote>
+<p>commit处理的时候，会有这样一行日志：</p>
+<p>22/01/13 20:37:56 INFO hudi.HoodieSparkSqlWriter$: Proceeding to commit the write.</p>
+<p>这里发现了一行警告：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">189:02  WARN: Timeline-server-based markers are not supported for HDFS: base path hdfs://localhost:9000/user/hive/warehouse/hudi_demo.db/hudi_cow_nonpcf_tbl.  Falling back to direct markers.</span><br></pre></td></tr></table></figure>
+
+<p>这里涉及的应该是marker的使用。</p>
+<blockquote>
+<p>TODO</p>
+</blockquote>
+<p><a href="https://www.modb.pro/db/106336" target="_blank" rel="noopener">Apache Hudi内核之文件标记机制深入解析 - 墨天轮</a></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">22/01/13 20:37:56 INFO fs.FSUtils: Removed directory at hdfs://localhost:9000/user/hive/warehouse/hudi_demo.db/hudi_cow_nonpcf_tbl/.hoodie/.temp/20220113203754098</span><br><span class="line">22/01/13 20:37:56 INFO client.AbstractHoodieWriteClient: Auto cleaning is enabled. Running cleaner now</span><br><span class="line">22/01/13 20:37:56 INFO client.AbstractHoodieWriteClient: Scheduling cleaning at instant time :20220113203756894</span><br></pre></td></tr></table></figure>
+
+<p>上边的日志是在清理现场</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">22/01/13 20:37:56 INFO service.RequestHandler: Syncing view as client passed last known instant 20220113203754098 as last known instant but server has the following last instant on timeline :Option&#123;val=[20220113172855437__commit__COMPLETED]&#125;</span><br><span class="line">22/01/13 20:37:56 INFO timeline.HoodieActiveTimeline: Loaded instants upto : Option&#123;val=[20220113203754098__commit__COMPLETED]&#125;</span><br></pre></td></tr></table></figure>
+
+<p>提交commit。</p>
+<blockquote>
+<p>TODO 明确hudi事务的实现机制。</p>
+</blockquote>
+<h4 id="读操作"><a href="#读操作" class="headerlink" title="读操作"></a>读操作</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">22/01/14 14:15:43 INFO hudi.DefaultSource: Is bootstrapped table =&gt; false, tableType is: COPY_ON_WRITE, queryType is: snapshot</span><br><span class="line">22/01/14 14:15:43 INFO hudi.DefaultSource: Loading Base File Only View  with options :Map(hoodie.datasource.query.type -&gt; snapshot, serialization.format -&gt; 1, path -&gt; hdfs://localhost:9000/user/hive/warehouse/hudi_demo.db/hudi_cow_nonpcf_tbl)</span><br></pre></td></tr></table></figure>
+
+<p>读操作会根据表类型的不同，而有不同的数据读取方式。后续会针对COW和MOR两者做不同的解读。</p>
+<blockquote>
+<p>TODO</p>
+</blockquote>
+<h4 id="目录结构"><a href="#目录结构" class="headerlink" title="目录结构"></a>目录结构</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">drwxr-xr-x   -  0 2022-01-13 20:37 /user/hive/warehouse/hudi_demo.db/hudi_cow_nonpcf_tbl/.hoodie</span><br><span class="line">-rw-r--r--   1  96 2022-01-13 17:28 /user/hive/warehouse/hudi_demo.db/hudi_cow_nonpcf_tbl/.hoodie_partition_metadata</span><br><span class="line">-rw-r--r--   1  434724 2022-01-13 20:37 /user/hive/warehouse/hudi_demo.db/hudi_cow_nonpcf_tbl/1712345c-4e91-4677-a051-8d459ade3858-0_0-20-19_20220113203754098.parquet</span><br><span class="line">-rw-r--r--   1  434707 2022-01-13 17:28 /user/hive/warehouse/hudi_demo.db/hudi_cow_nonpcf_tbl/1712345c-4e91-4677-a051-8d459ade3858-0_0-7-7_20220113172855437.parquet</span><br></pre></td></tr></table></figure>
+
+<p>元数据都是跟目录存储在一起的，这也就是说，hudi也是可以跟carbon一样，通过迁移这个目录，就可以实现数据的迁移，然后在server上执行refresh table 就可以刷新当前表的载入。</p>
+<p>目录里最后的文件名称，是整个文件组织的关键，所以还是要弄清楚这个文件名称的组成。目前只知道最后一组数字是commit的事务id。</p>
+<p>出来的数据如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">20220114143757408    20220114143757408_0_2    uuid:1        1712345c-4e91-4677-a051-8d459ade3858-0_0-22-21_20220114143757408.parquet    1    a2    10.0</span><br></pre></td></tr></table></figure>
+
+<p>第一个字段就是事务id，每条数据都会有一个这个事务id。第四个字段是文件名称。是最终数据所在的文件名称。第二个字段是还需要单独确认一下，最后一个字段的意思是update的次数。是实际会产生变更的次数。（还没有从源码上确认，目前只是观察出来的）</p>
+<p>上边数据中，在uuid:1 后边其实还有一个字段  _hoodie_partition_path ，但是这个字段的值是null，所以没看出来。因为没有指定分区。稍后会测试一下分区。</p>
+<h4 id="update操作"><a href="#update操作" class="headerlink" title="update操作"></a>update操作</h4><p>hudi的update操作比较多样化，这个多样化是指针对不同的设置，hudi的策略是不一样的，这个需要提前熟悉一下。</p>
+<p>spark-sql直接update，有两种方式：</p>
+<ol>
+<li>直接update</li>
+</ol>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">update</span> hudi_cow_pt_tbl <span class="keyword">set</span> <span class="keyword">name</span> = <span class="string">'a1_1'</span>, ts = <span class="number">1001</span> <span class="keyword">where</span> <span class="keyword">id</span> = <span class="number">1</span>;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p> 这种方式要求必须指定 preCombineField</p>
+</blockquote>
+<p>如果没有指定 preCombineField，会报错 org.apache.hudi.exception.HoodieException: (Part -) field not found in record. Acceptable fields were :[uuid, name, price] 原因是因为找不到 preCombineField 设置。</p>
+<ol start="2">
+<li>merge into</li>
+</ol>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">MERGE</span> <span class="keyword">INTO</span> tableIdentifier <span class="keyword">AS</span> target_alias</span><br><span class="line"><span class="keyword">USING</span> (sub_query | tableIdentifier) <span class="keyword">AS</span> source_alias</span><br><span class="line"><span class="keyword">ON</span> &lt;merge_condition&gt;</span><br><span class="line">[ <span class="keyword">WHEN</span> <span class="keyword">MATCHED</span> [ <span class="keyword">AND</span> &lt;condition&gt; ] <span class="keyword">THEN</span> &lt;matched_action&gt; ]</span><br><span class="line">[ <span class="keyword">WHEN</span> <span class="keyword">MATCHED</span> [ <span class="keyword">AND</span> &lt;condition&gt; ] <span class="keyword">THEN</span> &lt;matched_action&gt; ]</span><br><span class="line">[ <span class="keyword">WHEN</span> <span class="keyword">NOT</span> <span class="keyword">MATCHED</span> [ <span class="keyword">AND</span> &lt;condition&gt; ]  <span class="keyword">THEN</span> &lt;not_matched_action&gt; ]</span><br><span class="line"></span><br><span class="line">&lt;merge_condition&gt; =A equal <span class="built_in">bool</span> condition</span><br><span class="line">&lt;matched_action&gt;  =</span><br><span class="line">  <span class="keyword">DELETE</span>  |</span><br><span class="line">  <span class="keyword">UPDATE</span> <span class="keyword">SET</span> *  |</span><br><span class="line">  <span class="keyword">UPDATE</span> <span class="keyword">SET</span> column1 = expression1 [, column2 = expression2 ...]</span><br><span class="line">&lt;not_matched_action&gt;  =</span><br><span class="line">  <span class="keyword">INSERT</span> *  |</span><br><span class="line">  <span class="keyword">INSERT</span> (column1 [, column2 ...]) <span class="keyword">VALUES</span> (value1 [, value2 ...])</span><br><span class="line"><span class="comment">-- 以上贴出来 模型语法，来说明怎么写这个语句。</span></span><br><span class="line"><span class="comment">-- 下边给出来一个case</span></span><br><span class="line"><span class="comment">-- source table using hudi for testing merging into non-partitioned table</span></span><br><span class="line"><span class="keyword">create</span> <span class="keyword">table</span> merge_source (<span class="keyword">id</span> <span class="built_in">int</span>, <span class="keyword">name</span> <span class="keyword">string</span>, price <span class="keyword">double</span>, ts <span class="built_in">bigint</span>) <span class="keyword">using</span> hudi</span><br><span class="line">tblproperties (primaryKey = <span class="string">'id'</span>, preCombineField = <span class="string">'ts'</span>);</span><br><span class="line"><span class="keyword">insert</span> <span class="keyword">into</span> merge_source <span class="keyword">values</span> (<span class="number">1</span>, <span class="string">"old_a1"</span>, <span class="number">22.22</span>, <span class="number">900</span>), (<span class="number">2</span>, <span class="string">"new_a2"</span>, <span class="number">33.33</span>, <span class="number">2000</span>), (<span class="number">3</span>, <span class="string">"new_a3"</span>, <span class="number">44.44</span>, <span class="number">2000</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">merge</span> <span class="keyword">into</span> hudi_mor_tbl <span class="keyword">as</span> target</span><br><span class="line"><span class="keyword">using</span> merge_source <span class="keyword">as</span> <span class="keyword">source</span></span><br><span class="line"><span class="keyword">on</span> target.id = source.id</span><br><span class="line"><span class="keyword">when</span> <span class="keyword">matched</span> <span class="keyword">then</span> <span class="keyword">update</span> <span class="keyword">set</span> *</span><br><span class="line"><span class="keyword">when</span> <span class="keyword">not</span> <span class="keyword">matched</span> <span class="keyword">then</span> <span class="keyword">insert</span> *</span><br><span class="line">;</span><br><span class="line"></span><br><span class="line"><span class="comment">-- source table using parquet for testing merging into partitioned table</span></span><br><span class="line"><span class="keyword">create</span> <span class="keyword">table</span> merge_source2 (<span class="keyword">id</span> <span class="built_in">int</span>, <span class="keyword">name</span> <span class="keyword">string</span>, flag <span class="keyword">string</span>, dt <span class="keyword">string</span>, hh <span class="keyword">string</span>) <span class="keyword">using</span> parquet;</span><br><span class="line"><span class="keyword">insert</span> <span class="keyword">into</span> merge_source2 <span class="keyword">values</span> (<span class="number">1</span>, <span class="string">"new_a1"</span>, <span class="string">'update'</span>, <span class="string">'2021-12-09'</span>, <span class="string">'10'</span>), (<span class="number">2</span>, <span class="string">"new_a2"</span>, <span class="string">'delete'</span>, <span class="string">'2021-12-09'</span>, <span class="string">'11'</span>), (<span class="number">3</span>, <span class="string">"new_a3"</span>, <span class="string">'insert'</span>, <span class="string">'2021-12-09'</span>, <span class="string">'12'</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">merge</span> <span class="keyword">into</span> hudi_cow_pt_tbl <span class="keyword">as</span> target</span><br><span class="line"><span class="keyword">using</span> (</span><br><span class="line">  <span class="keyword">select</span> <span class="keyword">id</span>, <span class="keyword">name</span>, <span class="string">'1000'</span> <span class="keyword">as</span> ts, flag, dt, hh <span class="keyword">from</span> merge_source2</span><br><span class="line">) <span class="keyword">source</span></span><br><span class="line"><span class="keyword">on</span> target.id = source.id</span><br><span class="line"><span class="keyword">when</span> <span class="keyword">matched</span> <span class="keyword">and</span> flag != <span class="string">'delete'</span> <span class="keyword">then</span></span><br><span class="line"> <span class="keyword">update</span> <span class="keyword">set</span> <span class="keyword">id</span> = source.id, <span class="keyword">name</span> = source.name, ts = source.ts, dt = source.dt, hh = source.hh</span><br><span class="line"><span class="keyword">when</span> <span class="keyword">matched</span> <span class="keyword">and</span> flag = <span class="string">'delete'</span> <span class="keyword">then</span> <span class="keyword">delete</span></span><br><span class="line"><span class="keyword">when</span> <span class="keyword">not</span> <span class="keyword">matched</span> <span class="keyword">then</span></span><br><span class="line"> <span class="keyword">insert</span> (<span class="keyword">id</span>, <span class="keyword">name</span>, ts, dt, hh) <span class="keyword">values</span>(source.id, source.name, source.ts, source.dt, source.hh)</span><br><span class="line">;</span><br><span class="line"></span><br><span class="line"><span class="comment">-- 我实践过过的实现如下：</span></span><br><span class="line"><span class="keyword">merge</span> <span class="keyword">into</span> hudi_cow_nonpcf_tbl <span class="keyword">as</span> target</span><br><span class="line"><span class="keyword">using</span> (</span><br><span class="line">  <span class="keyword">select</span> <span class="number">1</span> <span class="keyword">as</span> <span class="keyword">uuid</span>, <span class="string">'a4'</span> <span class="keyword">as</span> <span class="keyword">name</span>, <span class="number">100</span> <span class="keyword">as</span> price</span><br><span class="line">) <span class="keyword">source</span></span><br><span class="line"><span class="keyword">on</span> target.uuid = source.uuid</span><br><span class="line"><span class="keyword">when</span> <span class="keyword">matched</span> <span class="keyword">then</span> <span class="keyword">update</span> <span class="keyword">set</span> *</span><br><span class="line"><span class="keyword">when</span> <span class="keyword">not</span> <span class="keyword">matched</span> <span class="keyword">then</span> <span class="keyword">insert</span> *</span><br><span class="line">;</span><br></pre></td></tr></table></figure>
+
+<p>如果是set，必须要求source里的字段跟目标表的字段一致，否则会报字段不一致的错误。</p>
+<p>使用merge into的update, 会看到下边比较重要的一些日志点：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">22/01/14 16:29:38 INFO client.AbstractHoodieWriteClient: Scheduling Rollback at instant time :20220114162938216</span><br><span class="line">22/01/14 16:29:38 INFO timeline.HoodieActiveTimeline: Loaded instants upto : Option&#123;val=[==&gt;20220114162938216__rollback__REQUESTED]&#125;</span><br><span class="line">22/01/14 16:29:38 INFO rollback.BaseRollbackPlanActionExecutor: Requesting Rollback with instant time [==&gt;20220114162938216__rollback__REQUESTED]</span><br><span class="line">22/01/14 16:29:38 INFO timeline.HoodieActiveTimeline: Loaded instants upto : Option&#123;val=[==&gt;20220114162938216__rollback__REQUESTED]&#125;</span><br><span class="line">22/01/14 16:29:38 INFO timeline.HoodieActiveTimeline: Checking for file exists ?hdfs://localhost:9000/user/hive/warehouse/hudi_demo.db/hudi_cow_nonpcf_tbl/.hoodie/20220114162938216.rollback.requested</span><br><span class="line">22/01/14 16:29:39 INFO timeline.HoodieActiveTimeline: Create new file for toInstant ?hdfs://localhost:9000/user/hive/warehouse/hudi_demo.db/hudi_cow_nonpcf_tbl/.hoodie/20220114162938216.rollback.inflight</span><br><span class="line">22/01/14 16:29:39 INFO rollback.BaseRollbackActionExecutor: Deleting instant=[==&gt;20220114162354772__commit__REQUESTED]</span><br><span class="line">22/01/14 16:29:39 INFO timeline.HoodieActiveTimeline: Deleting instant [==&gt;20220114162354772__commit__REQUESTED]</span><br><span class="line">22/01/14 16:29:39 INFO timeline.HoodieActiveTimeline: Removed instant [==&gt;20220114162354772__commit__REQUESTED]</span><br><span class="line">22/01/14 16:29:39 INFO rollback.BaseRollbackActionExecutor: Deleted pending commit [==&gt;20220114162354772__commit__REQUESTED]</span><br><span class="line">22/01/14 16:29:39 INFO rollback.CopyOnWriteRollbackActionExecutor: Time(in ms) taken to finish rollback 2</span><br><span class="line">22/01/14 16:29:39 INFO rollback.BaseRollbackActionExecutor: Rolled back inflight instant 20220114162354772</span><br><span class="line">22/01/14 16:29:39 INFO rollback.BaseRollbackActionExecutor: Index rolled back for commits [==&gt;20220114162354772__commit__REQUESTED]</span><br><span class="line">22/01/14 16:29:39 INFO timeline.HoodieActiveTimeline: Checking for file exists ?hdfs://localhost:9000/user/hive/warehouse/hudi_demo.db/hudi_cow_nonpcf_tbl/.hoodie/20220114162938216.rollback.inflight</span><br><span class="line">22/01/14 16:29:39 INFO timeline.HoodieActiveTimeline: Create new file for toInstant ?hdfs://localhost:9000/user/hive/warehouse/hudi_demo.db/hudi_cow_nonpcf_tbl/.hoodie/20220114162938216.rollback</span><br><span class="line">22/01/14 16:29:39 INFO rollback.BaseRollbackActionExecutor: Rollback of Commits [20220114162354772] is complete</span><br><span class="line">133:55  WARN: Timeline-server-based markers are not supported for HDFS: base path hdfs://localhost:9000/user/hive/warehouse/hudi_demo.db/hudi_cow_nonpcf_tbl.  Falling back to direct markers.</span><br></pre></td></tr></table></figure>
+
+<p>这一段主要是关于rollback的设计，也就是merge into操作触发的事务跟之前insert触发的操作是不一样的。这里的流程要细致地追加一下。</p>
+<p><a href="https://cloud.tencent.com/developer/article/1812246" target="_blank" rel="noopener">Apache Hudi Rollback实现分析 - 云+社区 - 腾讯云</a></p>
+<blockquote>
+<p>这里涉及的点主要是rollback的加入时机，rollback的执行，rollback的成本。</p>
+</blockquote>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">22/01/14 16:29:40 INFO commit.UpsertPartitioner: For partitionPath :  Small Files =&gt; [SmallFile &#123;location=HoodieRecordLocation &#123;instantTime=20220114153815495, fileId=1712345c-4e91-4677-a051-8d459ade3858-0&#125;, sizeBytes=434733&#125;]</span><br><span class="line">22/01/14 16:29:40 INFO commit.UpsertPartitioner: Assigning 1 inserts to new update bucket 0</span><br><span class="line">22/01/14 16:29:40 INFO commit.UpsertPartitioner: Total insert buckets for partition path  =&gt; [(InsertBucket &#123;bucketNumber=0, weight=1.0&#125;,1.0)]</span><br><span class="line">22/01/14 16:29:40 INFO commit.UpsertPartitioner: Total Buckets :1, buckets info =&gt; &#123;0=BucketInfo &#123;bucketType=UPDATE, fileIdPrefix=1712345c-4e91-4677-a051-8d459ade3858-0, partitionPath=&#125;&#125;,</span><br><span class="line">Partition to insert buckets =&gt; &#123;=[(InsertBucket &#123;bucketNumber=0, weight=1.0&#125;,1.0)]&#125;,</span><br><span class="line">UpdateLocations mapped to buckets =&gt;&#123;1712345c-4e91-4677-a051-8d459ade3858-0=0&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这块其实还是hudi写入中对于bucket的隐式引用，这块可以归结为hudi的写入专题，到时候就明白这几行日志的意思了。</p>
+<h4 id="删除数据"><a href="#删除数据" class="headerlink" title="删除数据"></a>删除数据</h4><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">delete</span> <span class="keyword">from</span> hudi_cow_nonpcf_tbl <span class="keyword">where</span> <span class="keyword">uuid</span>=<span class="number">2</span>;</span><br></pre></td></tr></table></figure>
+
+<p>删除操作的sql是比较简单的，但是他的操作还是比较多，我在本地的测试中，这样一条简单的删除，日志唰唰地就看不到顶了。所以delete的流程跟其他更新的流程，差异比较大。</p>
+<blockquote>
+<p>TODO DELETE流程探索</p>
+</blockquote>
+<h4 id="insert-overwrite"><a href="#insert-overwrite" class="headerlink" title="insert overwrite"></a>insert overwrite</h4><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">insert</span> overwrite <span class="keyword">table</span> hudi_cow_pt_tbl <span class="keyword">select</span> <span class="number">10</span>, <span class="string">'a10'</span>, <span class="number">1100</span>;</span><br></pre></td></tr></table></figure>
+
+<p>这种情况会覆盖表里所有的数据。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/hudi/" rel="tag"># hudi</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/01/12/carbondata%E6%8E%A2%E7%B4%A2-mv%E7%94%9F%E6%88%90/" rel="next" title="carbondata探索--mv生成">
+                <i class="fa fa-chevron-left"></i> carbondata探索--mv生成
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/01/25/hudi%E6%8E%A2%E7%B4%A2-sql%E6%89%A7%E8%A1%8C%E5%85%A5%E6%B9%96/" rel="prev" title="hudi探索--sql执行入湖">
+                hudi探索--sql执行入湖 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#hudi探索–环境搭建"><span class="nav-number">1.</span> <span class="nav-text">hudi探索–环境搭建</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#环境"><span class="nav-number">1.1.</span> <span class="nav-text">环境</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#hello-word"><span class="nav-number">1.2.</span> <span class="nav-text">hello word</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#读操作"><span class="nav-number">1.2.1.</span> <span class="nav-text">读操作</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#目录结构"><span class="nav-number">1.2.2.</span> <span class="nav-text">目录结构</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#update操作"><span class="nav-number">1.2.3.</span> <span class="nav-text">update操作</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#删除数据"><span class="nav-number">1.2.4.</span> <span class="nav-text">删除数据</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#insert-overwrite"><span class="nav-number">1.2.5.</span> <span class="nav-text">insert overwrite</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

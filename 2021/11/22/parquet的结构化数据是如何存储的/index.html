@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="列存," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="parquet是如何支持结构化数据存储的Apache Parquet 是由 Twitter 和 Cloudera 最先发起并合作开发的列存项目，也是 2010 年 Google 发表的 Dremel 论文中描述的内部列存格式的开源实现。和一些传统的列式存储（C-Store、MonetDB 等）系统相比，Dremel&#x2F;Parquet 最大的贡献是支持嵌套格式数据（Nested Data）的列式存储。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="parquet的结构化数据是如何存储的">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/11/22/parquet%E7%9A%84%E7%BB%93%E6%9E%84%E5%8C%96%E6%95%B0%E6%8D%AE%E6%98%AF%E5%A6%82%E4%BD%95%E5%AD%98%E5%82%A8%E7%9A%84/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="parquet是如何支持结构化数据存储的Apache Parquet 是由 Twitter 和 Cloudera 最先发起并合作开发的列存项目，也是 2010 年 Google 发表的 Dremel 论文中描述的内部列存格式的开源实现。和一些传统的列式存储（C-Store、MonetDB 等）系统相比，Dremel&#x2F;Parquet 最大的贡献是支持嵌套格式数据（Nested Data）的列式存储。">
+<meta property="og:image" content="https://github.com/images/parquet_format_1.jpeg">
+<meta property="og:image" content="https://github.com/images/parquet_format_2.jpeg">
+<meta property="og:image" content="https://github.com/images/parquet_format_3.jpeg">
+<meta property="og:image" content="https://github.com/images/parquet_format_4.jpeg">
+<meta property="og:image" content="https://github.com/images/parquet_format_5.jpeg">
+<meta property="article:published_time" content="2021-11-22T02:27:39.000Z">
+<meta property="article:modified_time" content="2022-05-13T03:50:50.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="列存">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/parquet_format_1.jpeg">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/11/22/parquet的结构化数据是如何存储的/"/>
+
+
+
+
+
+  <title>parquet的结构化数据是如何存储的 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/11/22/parquet%E7%9A%84%E7%BB%93%E6%9E%84%E5%8C%96%E6%95%B0%E6%8D%AE%E6%98%AF%E5%A6%82%E4%BD%95%E5%AD%98%E5%82%A8%E7%9A%84/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">parquet的结构化数据是如何存储的</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-11-22T10:27:39+08:00">
+                2021-11-22
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="parquet是如何支持结构化数据存储的"><a href="#parquet是如何支持结构化数据存储的" class="headerlink" title="parquet是如何支持结构化数据存储的"></a>parquet是如何支持结构化数据存储的</h2><p>Apache Parquet 是由 Twitter 和 Cloudera 最先发起并合作开发的列存项目，也是 2010 年 Google 发表的 Dremel 论文中描述的内部列存格式的开源实现。和一些传统的列式存储（C-Store、MonetDB 等）系统相比，Dremel/Parquet 最大的贡献是支持嵌套格式数据（Nested Data）的列式存储。嵌套格式可以很自然的描述互联网和科学计算等领域的数据，Dremel/Parquet “原生” 的支持嵌套格式数据减少了规则化、重新组合这些大规模数据的代价。</p>
+<p>Parquet 的设计与计算框架、数据模型以及编程语言无关，可以与任意项目集成，因此应用广泛。目前已经是 Hadoop 大数据生态圈列式存储的事实标准。</p>
+<blockquote>
+<p>基于这一点，目前很多存储引擎都是扩展自parquet，而这些系统也都享受了parquet带来的技术特点，比如支持复杂的嵌套数据存储。</p>
+</blockquote>
+<h3 id="模型"><a href="#模型" class="headerlink" title="模型"></a>模型</h3><p>理解parquet的数据存储之前，先了解一下模型，这是存储的基础，后边关于底层结构的存储也要基于这个模型，如果没有结合模型去思考，那么底层的复杂数据存储的解决方案也不能很好的理解。</p>
+<p>而且基于这个模型，有很多点都是可以顺带思考以及优化出来的，所以要充分理解模型。</p>
+<p>Parquet 采用了一个类似 Google Protobuf 的协议来描述存储数据的 schema。如下是 Parquet 数据 schema 的一个简单示例：</p>
+<figure class="highlight protobuf"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">message</span> <span class="title">AddressBook</span> </span>&#123;</span><br><span class="line">  <span class="keyword">required</span> <span class="built_in">string</span> owner;</span><br><span class="line">  <span class="keyword">repeated</span> <span class="built_in">string</span> ownerPhoneNumbers;</span><br><span class="line">  <span class="keyword">repeated</span> <span class="keyword">group</span> contacts &#123;</span><br><span class="line">    <span class="keyword">required</span> <span class="built_in">string</span> name;</span><br><span class="line">    <span class="keyword">optional</span> <span class="built_in">string</span> phoneNumber;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>schema 的最上层是 message，里面可以包含一系列字段。每个字段都拥有 3 个属性：重复性（repetition）、类型（type）以及名称（name）。字段类型可以是一个 group 或者原子类型（如 int、boolean、string 等），group 可以用来表示数据的嵌套结构。字段的重复性有三种情况：</p>
+<ul>
+<li>required：有且只有一次</li>
+<li>optional：0 或 1 次</li>
+<li>repeated：0 或多次</li>
+</ul>
+<p>这个模型我理解是有一种另类的抽象，从另一个角度把集合的概念描述出来了。所以它实际上也可以表示常见的集合。一些复杂的数据类型如：Map、List 和 Set 也可以用重复的字段（repeated fields） + groups 来表达，因此也就不用再单独定义这些类型。</p>
+<blockquote>
+<p>这也是他后续可以不用管其上层的实现，而可以有很好的延展性，可以支持很复杂的结构存储，因为他有自己的一套抽象。如果他依赖了某一种现有语言的抽象去实现那些复杂实现，那也就直接把自己框在那个部分，在那个语言的先天实现上，如果存在某种缺陷，他想去弥补或者扩展实现，依赖的先决条件都是复杂很多的，这个时候对于扩展性都是受限的。</p>
+</blockquote>
+<p>所以，一个好的系统，在一开始的时候，就充分考虑了工程上的扩展性以及生态上扩展性，两者都决定了他后续发展的活力。</p>
+<p>表达list如下：</p>
+<p><img src="/images/parquet_format_1.jpeg" alt="parquet_format_1"></p>
+<p>表达map如下：</p>
+<p><img src="/images/parquet_format_2.jpeg" alt="parquet_format_2"></p>
+<p>Dremel/Parquet 中，提出以树状层级的形式组织 schema 中的字段（Field），树的叶子结点对应一个原子类型字段，这样这个模型能同时覆盖扁平结构和嵌套结构数据（扁平结构只是嵌套结构的一种特例）。嵌套字段的完整路径使用简单的点分符号表示，如，contacts. name。</p>
+<p>所以上边说的模型是可以折射为这个树状结构。</p>
+<p><img src="/images/parquet_format_3.jpeg" alt="parquet_format_3"></p>
+<h3 id="嵌套数据存储"><a href="#嵌套数据存储" class="headerlink" title="嵌套数据存储"></a>嵌套数据存储</h3><p>对于嵌套数据存储，要根据上边的模型，明确存储结构以及要能够根据这部分存储进行还原，也就是不能破坏数据原本的结构。在原本的存储中，如果只存储value是不能解决刚才说的还原的。这里还涉及null值的解析等边缘问题。</p>
+<blockquote>
+<p>parquet中数据存储，是只存储叶子节点。深层次的字段是把层级字段也都展示出来的。</p>
+</blockquote>
+<p>Dremel 提出了 <strong><font color="red">Repetition Level（重复级别）和 Definition Level（定义级别）</font></strong>两个概念，用以解决这个问题。并实现了记录中任意一个字段的恢复都不需要依赖其它字段，且可以对任意字段子集按原始嵌套格式进行重建。</p>
+<blockquote>
+<p>一个字段的恢复不需要依赖其他字段，也就是当前这个字段中存储信息已经足够可以恢复这个字段整个链路上的信息，这个点很关键。但是这个点是已经集合schema进行解读。</p>
+<p>可以对任意字段子集按照嵌套格式进行重建，这代表整个恢复链路的过程，是可以扩展出来一些优化的，否则恢复算法就只能按照叶子节点一层一层解决，而这里实现最大的一点，我猜测应该跟这个数据模型的层次有关。后续可以看一下恢复数据的源码。</p>
+</blockquote>
+<p>下边根据一个实际的case来解读一下这俩定义：</p>
+<p><img src="/images/parquet_format_4.jpeg" alt="parquet_format_4"></p>
+<h4 id="Repetition-Level"><a href="#Repetition-Level" class="headerlink" title="Repetition Level"></a>Repetition Level</h4><p>用以表示在该字段路径上哪个节点进行了重复.</p>
+<p>这里的关键字是 重复的节点，就是父类节点下的分支，就属于重复节点。比如 A.B.C和A.B.D 这里的重复节点是A.B ，那么r的取值就是按照B来算的。</p>
+<blockquote>
+<p> 这里的重复是非null值的重复。</p>
+</blockquote>
+<p>根结点的重复暗含了记录的重复，也即 r=0 代表新记录的开始。</p>
+<p>required 和 optional 字段不需要 repetition level，只有可重复的字段需要。上述 Code 字段的 repetition levels 范围为 0-2。</p>
+<p>当我们从上往下扫描 r1 记录，首先遇到 Code 的值是”en-us“，由于它之前没有该字段路径相关的字段出现，因此 r=0；其次遇到”en“，是 <strong>Language 层级重复</strong>导致的，r=2；最后遇到”en-gb“，是 <strong>Name 层级重复</strong>导致的，因此 r=1。所以，Code 字段的 repetition levels 在 r1 记录中是”0,2,1“。</p>
+<p>r1 记录中的第二个重复 Name，由于其不包含 Code 字段，<strong>为了区分”en-gb“值是来自记录中的第三个 Name 而不是第二个</strong>，我们需要在”en“和”en-gb“之间插入一个值 “null”。由于它是 Name 级重复的，因此它的 r=1。另外还需要注意一些隐含信息，比如<strong>Code 是 required 字段类型，因此一旦 Code 出现未定义，则隐含表明其上级 Language 也肯定未定义。</strong></p>
+<h4 id="Definition-Levels"><a href="#Definition-Levels" class="headerlink" title="Definition Levels"></a><strong>Definition Levels</strong></h4><p>用以表示该字段路径上有多少可选的字段实际进行了定义。</p>
+<blockquote>
+<p>关键字：可选的字段 （optional 和 repeated 类型）。 第二个是多少？也就是从根路径到当前这个字段，总共有多少个可选字段？因为针对required字段，是只要出现了，链路上的字段是一定会存在的。</p>
+</blockquote>
+<p>回到上边的那个图，光有 Repetition Levels 尚无法完全保留嵌套结构信息，考虑上面图中 r1 记录的 Backward 字段。由于 r1 中未定义 Backward 字段，因此我们插入一个 “null” 并设置 r=0。但 Backward 的上级 Links 字段在 r1 中显式的进行了定义，null 和 r=0 无法再表达出这一层信息。因此需要额外再添加 Definition Levels 定义记录可选字段出现的个数，Backward 的路径上出现 1 个可选字段 Links，因此它的 d=1。</p>
+<p>这个就是d值的由来，如果没有d值，上边说的links这个整个节点可能就直接丢掉了。比如上边图片中的country这个字段，如果第二个name里表示country的时候没有说d的值，那么并不知道他是不是有中间的language这个节点。</p>
+<blockquote>
+<p>而这样定义的话，就能明确达到一个目的：任意一个字段的恢复都不需要依赖其它字段，且可以对任意字段子集按原始嵌套格式进行重建。</p>
+</blockquote>
+<p>有了 Definition Levels 我们就可以清楚的知道该值出现在字段路径的第几层，对未定义字段的 null 和字段实际的值为 null 也能进行区分。只有 optional 和 repeated 字段需要 Definition Levels 定义，因为 required 字段已经隐含了字段肯定被定义（这可以减少 Definition Levels 需要描述的数字，并在一定程度上节省后续的存储空间）。另外一些其他的隐含信息：<strong>如果 Definition Levels 小于路径中 optional + repeated 字段的数量，则该字段的值肯定为 null；Definition Levels 的值为 0 隐含了 Repeated Levels 也为 0（路径中没有 optional/repeated 字段或整个路径未定义）。</strong></p>
+<p>下边针对文章开头的示例给出一个R和D的展示：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">AddressBook &#123;</span><br><span class="line">  contacts: &#123;</span><br><span class="line">    phoneNumber: &quot;555 987 6543&quot;</span><br><span class="line">  &#125;</span><br><span class="line">  contacts: &#123;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line">AddressBook &#123;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/parquet_format_5.jpeg" alt="parquet_format_5"></p>
+<p>在思考中，要把数据还原的过程在脑子中过一遍，这样也能把很多逻辑的缝隙填满。</p>
+<p>而实际工程中的读取实现，后续会单独罗列一张来看数据读取过程是怎么实现的。通过存储结构来看怎么优化查询，以及对于扩展性的考虑。</p>
+<blockquote>
+<p>parquet中对于这r和d的存储是很少量的，因为都是屈指可数的大小，只需要几个bit就够了。更何况，有些字段还并不需要这两个值。</p>
+</blockquote>
+<hr>
+<p>参考：</p>
+<p><a href="https://zhuanlan.zhihu.com/p/341572070" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/341572070</a></p>
+<p><a href="https://www.infoq.cn/article/in-depth-analysis-of-parquet-column-storage-format" target="_blank" rel="noopener">https://www.infoq.cn/article/in-depth-analysis-of-parquet-column-storage-format</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/%E5%88%97%E5%AD%98/" rel="tag"># 列存</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/10/30/%E3%80%8A%E5%85%B3%E4%BA%8ESQL%E8%A7%A3%E6%9E%90%E4%BB%A5%E5%8F%8ASQL%E5%9C%A8spark%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8%E3%80%8B%E5%88%86%E4%BA%AB/" rel="next" title="《关于SQL解析以及SQL在spark中的应用》分享">
+                <i class="fa fa-chevron-left"></i> 《关于SQL解析以及SQL在spark中的应用》分享
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/11/26/carbondata%E6%8E%A2%E7%B4%A2-%E7%8E%AF%E5%A2%83%E5%AE%89%E8%A3%85/" rel="prev" title="carbondata探索-环境安装">
+                carbondata探索-环境安装 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#parquet是如何支持结构化数据存储的"><span class="nav-number">1.</span> <span class="nav-text">parquet是如何支持结构化数据存储的</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#模型"><span class="nav-number">1.1.</span> <span class="nav-text">模型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#嵌套数据存储"><span class="nav-number">1.2.</span> <span class="nav-text">嵌套数据存储</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Repetition-Level"><span class="nav-number">1.2.1.</span> <span class="nav-text">Repetition Level</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Definition-Levels"><span class="nav-number">1.2.2.</span> <span class="nav-text">Definition Levels</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

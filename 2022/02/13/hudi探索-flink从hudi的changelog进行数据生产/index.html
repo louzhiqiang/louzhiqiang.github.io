@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="hudi," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="hudi探索–flink从hudi的changelog进行数据生产在数据生产中，我们都希望流式数据生产可以实现端到端的全流程，也就是希望从A到B到C的生成，但是中间不能再增加个什么消息中间件之类的，否则这套服务就会变得臃肿。而flink cdc的诞生，从开始就是以变化事件来触发变更作为场景切入，完成了oltp到数仓的链接，但是数仓内部多层次的生产还没有完成，这部分还是通过消息中间件来链接，而这好像">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hudi探索--flink从hudi的changelog进行数据生产">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/02/13/hudi%E6%8E%A2%E7%B4%A2-flink%E4%BB%8Ehudi%E7%9A%84changelog%E8%BF%9B%E8%A1%8C%E6%95%B0%E6%8D%AE%E7%94%9F%E4%BA%A7/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="hudi探索–flink从hudi的changelog进行数据生产在数据生产中，我们都希望流式数据生产可以实现端到端的全流程，也就是希望从A到B到C的生成，但是中间不能再增加个什么消息中间件之类的，否则这套服务就会变得臃肿。而flink cdc的诞生，从开始就是以变化事件来触发变更作为场景切入，完成了oltp到数仓的链接，但是数仓内部多层次的生产还没有完成，这部分还是通过消息中间件来链接，而这好像">
+<meta property="og:image" content="https://github.com/images/hudi_tansuo_1.png">
+<meta property="article:published_time" content="2022-02-13T06:56:40.000Z">
+<meta property="article:modified_time" content="2022-05-13T03:48:58.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="hudi">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/hudi_tansuo_1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/02/13/hudi探索-flink从hudi的changelog进行数据生产/"/>
+
+
+
+
+
+  <title>hudi探索--flink从hudi的changelog进行数据生产 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/02/13/hudi%E6%8E%A2%E7%B4%A2-flink%E4%BB%8Ehudi%E7%9A%84changelog%E8%BF%9B%E8%A1%8C%E6%95%B0%E6%8D%AE%E7%94%9F%E4%BA%A7/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">hudi探索--flink从hudi的changelog进行数据生产</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-02-13T14:56:40+08:00">
+                2022-02-13
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="hudi探索–flink从hudi的changelog进行数据生产"><a href="#hudi探索–flink从hudi的changelog进行数据生产" class="headerlink" title="hudi探索–flink从hudi的changelog进行数据生产"></a>hudi探索–flink从hudi的changelog进行数据生产</h2><p>在数据生产中，我们都希望流式数据生产可以实现端到端的全流程，也就是希望从A到B到C的生成，但是中间不能再增加个什么消息中间件之类的，否则这套服务就会变得臃肿。而flink cdc的诞生，从开始就是以变化事件来触发变更作为场景切入，完成了oltp到数仓的链接，但是数仓内部多层次的生产还没有完成，这部分还是通过消息中间件来链接，而这好像跳出了框架，也缩小了flink-cdc的愿景。然而如果仓库里的数据本身就是支持cdc格式的话，那么一切是不是就可以直接顺下来了，全部都靠flink的内部机制 + 一个支持cdc格式的存储，这事儿是不是就能统一解决了呢？</p>
+<p>事实也是这样的，hudi底层本身就是这么存储的，因为hudi从创建之初就在挑战大数据仓库跟oltp技术栈的融合，而这样的方式就是让我们有更多的思考入口可以接纳这套架构，从底层基础知识的构建上，也越来越趋向于统一，在接受门槛上，相对来说更低了。这一点其实对于一个技术的推广更加方便，也更容易，因为大家的学习成本降低了，学习成就感更强了。</p>
+<p>以上是背景嗑，下边说一下代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="string">'changelog.enabled'</span>=<span class="string">'true'</span>,</span><br><span class="line"><span class="string">'read.streaming.enabled'</span>=<span class="string">'true'</span>,</span><br></pre></td></tr></table></figure>
+
+<p>上边两个是flink sql，创建hudi表时候的配置，这个要求前置表在创建的时候，写入这个两个配置，而且表类型要是MERGE_ON_READ， 至于为什么一定要是MERGE_ON_READ,我目前没有很好的捋清楚这部分思路，稍后会补充上。</p>
+<p>前置表如果都增加了这样的设置，那么后续的flink任务可以直接用insert某个数据源的方式，就可以直接构建起来任务，这样整体就达成了咱们在背景中所表达的愿景。</p>
+<p><img src="/images/hudi_tansuo_1.png" alt="hudi_tansuo_1"></p>
+<blockquote>
+<p>1、为什么是MERGE_ON_READ   2、hudi的写入中，这俩配置的成本是什么？</p>
+<p>本身数据直接写入且以log的形式进行追加，这个形式跟mor的格式就是息息相关的，所以直接用mor格式就是顺势而为。</p>
+<p>在hudi的写入中，配置了上边写的两个参数，就是需要表支持cdc数据的存取，然后支持流式读取，也是让数据的读取从log中去兼容，如果不这么配置，那么读取的就不是cdc格式的数据，而是最终的结果数据，这样对于数据变化这个角度就没有意义。</p>
+</blockquote>
+<p>下边从流程上我们重新接续一下，包括怎么读取数据的以及中间可能涉及的源码部分。</p>
+<p>首先代码上，我们是这么写的：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line">EnvironmentSettings env = EnvironmentSettings.newInstance()</span><br><span class="line">                .inStreamingMode()</span><br><span class="line">                .useBlinkPlanner()</span><br><span class="line">                .build();</span><br><span class="line">        StreamExecutionEnvironment fsEnv = StreamExecutionEnvironment.getExecutionEnvironment();</span><br><span class="line">        fsEnv.enableCheckpointing(<span class="number">4000</span>);</span><br><span class="line">        fsEnv.getConfig().setAutoWatermarkInterval(<span class="number">1000</span>);</span><br><span class="line">        fsEnv.setStreamTimeCharacteristic(TimeCharacteristic.ProcessingTime);</span><br><span class="line">        <span class="comment">//EmbeddedRocksDBStateBackend rocks = new EmbeddedRocksDBStateBackend(true);</span></span><br><span class="line">        <span class="comment">//Configuration configuration = new Configuration();</span></span><br><span class="line">        <span class="comment">//configuration.set(</span></span><br><span class="line">        <span class="comment">//        RocksDBOptions.TIMER_SERVICE_FACTORY,</span></span><br><span class="line">        <span class="comment">//        EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB);</span></span><br><span class="line">        <span class="comment">//rocks.configure(configuration, Thread.currentThread().getContextClassLoader());</span></span><br><span class="line">        <span class="comment">//fsEnv.setStateBackend(rocks);</span></span><br><span class="line"></span><br><span class="line">        StreamTableEnvironment tableEnvironment = StreamTableEnvironment.create(fsEnv, env);</span><br><span class="line"></span><br><span class="line">        String catalogName = <span class="string">"eadp_catalog"</span>;</span><br><span class="line">        String hiveConfDir = <span class="string">"/Users/service/hive_service/hive/conf/"</span>;</span><br><span class="line">        String defaultDatabase = <span class="string">"hudi_demo"</span>;</span><br><span class="line">        HiveCatalog hiveCatalog = <span class="keyword">new</span> HiveCatalog(catalogName, defaultDatabase, hiveConfDir);</span><br><span class="line"></span><br><span class="line">        tableEnvironment.registerCatalog(catalogName, hiveCatalog);</span><br><span class="line">        tableEnvironment.useCatalog(catalogName);</span><br><span class="line"></span><br><span class="line">        String tableNameHudi = <span class="string">"test_source_from_hudi"</span>;</span><br><span class="line"></span><br><span class="line">        String createHudiTable = String.format(<span class="string">"create table if not exists %s ( "</span> +</span><br><span class="line">                <span class="string">"`id` BIGINT PRIMARY KEY NOT ENFORCED ,"</span> +</span><br><span class="line">                <span class="string">"`price` double"</span> +</span><br><span class="line">                <span class="string">") WITH ( "</span> +</span><br><span class="line">                <span class="string">"'connector'='hudi',"</span> +</span><br><span class="line">                <span class="string">"'table.type' = 'MERGE_ON_READ',"</span> +</span><br><span class="line">                <span class="string">"'path' = 'hdfs://localhost:9000/user/hive/warehouse/hudi_demo.db/%s',"</span> +</span><br><span class="line">                <span class="string">"'preCombineField' = 'id',"</span> +</span><br><span class="line">                <span class="string">"'read.start-commit' = '20210316134557',"</span> +</span><br><span class="line">                <span class="string">"'changelog.enabled'='true',"</span> +</span><br><span class="line">                <span class="string">"'read.streaming.enabled'='true',"</span> +</span><br><span class="line">                <span class="string">"'read.streaming.check-interval' = '4'"</span> +</span><br><span class="line">                <span class="string">")"</span>, tableNameHudi, tableNameHudi);</span><br><span class="line">        tableEnvironment.executeSql(<span class="string">"drop table if exists "</span> + tableNameHudi);</span><br><span class="line">        tableEnvironment.executeSql(createHudiTable);</span><br><span class="line"></span><br><span class="line">        String sql = <span class="string">"insert into "</span> + tableNameHudi + <span class="string">" select id, 100.0 as price from merge_source"</span>;</span><br><span class="line">        tableEnvironment.executeSql(sql);</span><br></pre></td></tr></table></figure>
+
+<p>这一段代码里没有什么复杂的逻辑，就是一个查找一个hudi表，上边已经说了，数据源是一个mor类型的hudi表，已经配置了上边两个重要的参数。这里我们可以逐渐看一下每个过程。</p>
+<p>hudi读取的入口类是HoodieTableFactory，这里有写和读数据的入口。而读取数据的入口：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> DynamicTableSource <span class="title">createDynamicTableSource</span><span class="params">(Context context)</span> </span>&#123;</span><br><span class="line">    <span class="comment">// 读取配置</span></span><br><span class="line">    Configuration conf = FlinkOptions.fromMap(context.getCatalogTable().getOptions());</span><br><span class="line">    ResolvedSchema schema = context.getCatalogTable().getResolvedSchema();</span><br><span class="line">    sanityCheck(conf, schema);</span><br><span class="line">    setupConfOptions(conf, context.getObjectIdentifier().getObjectName(), context.getCatalogTable(), schema);</span><br><span class="line"></span><br><span class="line">    Path path = <span class="keyword">new</span> Path(conf.getOptional(FlinkOptions.PATH).orElseThrow(() -&gt;</span><br><span class="line">        <span class="keyword">new</span> ValidationException(<span class="string">"Option [path] should not be empty."</span>)));</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> HoodieTableSource(</span><br><span class="line">        schema,</span><br><span class="line">        path,</span><br><span class="line">        context.getCatalogTable().getPartitionKeys(),</span><br><span class="line">        conf.getString(FlinkOptions.PARTITION_DEFAULT_NAME),</span><br><span class="line">        conf);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>上边代码中，在return之前，可以重点关注一下<mark>setupConfOptions</mark>这个方法，这个方法中主要就是根据已读配置，来初始化我现在加载的这个表的配置。这个方法作为了解的入口很合适，原因是这个方法里有很多关于表的配置的加载，而这些配置都会对后边的运行产生影响，所以在入口处先 有一个印象分。后边再看到这些配置的时候，就会知道他是怎么来的，如果我需要影响的话，怎么进行调整。</p>
+<p>其中一个比较重要的设置就是 设置hoodie.datasource.query.type，他有三种类型 ： 1、Snapshot mode（obtain latest view, based on row &amp; columnar data）。 2、incremental mode（new data since an instantTime）。 3、Read Optimized mode（obtain latest view, based on columnar data）。</p>
+<p>如果不去指定  就是快照读取模式，而在当前流式数据的读取中，如果 read.streaming.enabled 为 true 且  （设置了 read.start-commit  （）Start commit instant for reading, the commit time format should be ‘yyyyMMddHHmmss’ by default reading from the latest instant for streaming read 或者 read.end-commit  （End commit instant for reading, the commit time format should be ‘yyyyMMddHHmmss’）） 这个条件为真  才会去设置模式为 增量读取。</p>
+<p>结尾我们看到他在初始化 HoodieTableSource 这个类。在初始化完之后，flink就需要准备这个source，校验之后 就会到 getScanRuntimeProvider 这个方法。</p>
+<p>这里为什么会调用到这个方法呢？其实是因为flink在底层sql转化为执行计划的时候，节点进行转化到plan的时候是经过方法  translateToPlanInternal 进行操作的，而这个里边是有两行代码：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ScanTableSource tableSource = <span class="keyword">this</span>.tableSourceSpec.getScanTableSource(planner);</span><br><span class="line">ScanRuntimeProvider provider = tableSource.getScanRuntimeProvider(ScanRuntimeProviderContext.INSTANCE);</span><br></pre></td></tr></table></figure>
+
+<p>在把source传进去之后，source会调用getScanRuntimeProvider来获取到provider，这个provider就是获取数据源的地方。</p>
+<p>在hudi里这个方法是这样的：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> DataStream&lt;RowData&gt; <span class="title">produceDataStream</span><span class="params">(StreamExecutionEnvironment execEnv)</span> </span>&#123;</span><br><span class="line">        <span class="meta">@SuppressWarnings</span>(<span class="string">"unchecked"</span>)</span><br><span class="line">        TypeInformation&lt;RowData&gt; typeInfo =</span><br><span class="line">            (TypeInformation&lt;RowData&gt;) TypeInfoDataTypeConverter.fromDataTypeToTypeInfo(getProducedDataType());</span><br><span class="line">        <span class="keyword">if</span> (conf.getBoolean(FlinkOptions.READ_AS_STREAMING)) &#123;</span><br><span class="line">          StreamReadMonitoringFunction monitoringFunction = <span class="keyword">new</span> StreamReadMonitoringFunction(</span><br><span class="line">              conf, FilePathUtils.toFlinkPath(path), maxCompactionMemoryInBytes, getRequiredPartitionPaths());</span><br><span class="line">          InputFormat&lt;RowData, ?&gt; inputFormat = getInputFormat(<span class="keyword">true</span>);</span><br><span class="line">          OneInputStreamOperatorFactory&lt;MergeOnReadInputSplit, RowData&gt; factory = StreamReadOperator.factory((MergeOnReadInputFormat) inputFormat);</span><br><span class="line">          SingleOutputStreamOperator&lt;RowData&gt; source = execEnv.addSource(monitoringFunction, getSourceOperatorName(<span class="string">"split_monitor"</span>))</span><br><span class="line">              .setParallelism(<span class="number">1</span>)</span><br><span class="line">              .transform(<span class="string">"split_reader"</span>, typeInfo, factory)</span><br><span class="line">              .setParallelism(conf.getInteger(FlinkOptions.READ_TASKS));</span><br><span class="line">          <span class="keyword">return</span> <span class="keyword">new</span> DataStreamSource&lt;&gt;(source);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">          InputFormatSourceFunction&lt;RowData&gt; func = <span class="keyword">new</span> InputFormatSourceFunction&lt;&gt;(getInputFormat(), typeInfo);</span><br><span class="line">          DataStreamSource&lt;RowData&gt; source = execEnv.addSource(func, asSummaryString(), typeInfo);</span><br><span class="line">          <span class="keyword">return</span> source.name(getSourceOperatorName(<span class="string">"bounded_source"</span>)).setParallelism(conf.getInteger(FlinkOptions.READ_TASKS));</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br></pre></td></tr></table></figure>
+
+<p>上边的方法里主要步骤如下：</p>
+<p>1、获取数据源。这个主要是通过StreamReadMonitoringFunction这个对象获取到的。</p>
+<p>2、设置格式 。MergeOnReadInputFormat 这个类。</p>
+<p>3、初始化一个split到data的消费工厂模式。</p>
+<p>4、最后异步就是构造这个source，产出的数据要转化为flink的RawData。这样后续flink就可以继续处理了。</p>
+<p>下边这段代码就是在source里不断调用的monitor，也就是每隔interval就去元数据重新过滤一遍的任务流程。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">(SourceFunction.SourceContext&lt;MergeOnReadInputSplit&gt; context)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    checkpointLock = context.getCheckpointLock();</span><br><span class="line">    <span class="keyword">while</span> (isRunning) &#123;</span><br><span class="line">      <span class="keyword">synchronized</span> (checkpointLock) &#123;</span><br><span class="line">        monitorDirAndForwardSplits(context);</span><br><span class="line">      &#125;</span><br><span class="line">      TimeUnit.SECONDS.sleep(interval);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里主要使用<mark>monitorDirAndForwardSplits</mark>去获取数据，不过这里还有一个</p>
+<p>checkpointLock，这点需要关注一下。官方解释：必须确保下游的数据元素，检查点和水印以同步方式发送。如果不同步，是不是代表元素本身已经产生了更多的不一致。</p>
+<p>在StreamReadMonitoringFunction初始化的时候，会初始化一个incrementalInputSplits，这个变量会获取split，而获取的间隔就是设置的interval。在上游表的配置里有设置。</p>
+<p>IncrementalInputSplits的官方注释：</p>
+<p>Utilities to generate incremental input splits MergeOnReadInputSplit. The input splits are used for streaming and incremental read.<br>How to generate the input splits:<br>1、first fetch all the commit metadata for the incremental instants;（首先获取commit元数据）<br>2、resolve the incremental commit file paths;（解析增量提交的路径）</p>
+<p>3、filter the full file paths by required partitions;（根据提供的partition，进行filter）<br>4、use the file paths from #step 3 as the back-up of the filesystem view.(从第三步过滤数据的所有文件路径作为数据读取的视图)</p>
+<p>构建IncrementalInputSplits的时候有个比较重要的配置：</p>
+<p><mark>read.streaming.skip_compaction</mark>：是否跳过流读取的压缩。在两种情况下，可以使用该选项来避免读取重复:1、确定消费者的读取速度快于压缩速度，这个时候可以看一下读取周期或者说时间跨度。2、启用了更改日志模式，此选项是保持数据完整性的解决方案。</p>
+<p>IncrementalInputSplits里边的 inputSplits 方法是获取增量数据的主要方法：</p>
+<p>1、通过metaClient加载ActiveTimeline。</p>
+<p>2、过滤我可以用来这次增量读取的timeline。读取必须保证在上一次时间点之后所有deltaCommit，这样数据才是完整的。这块的核心点是如果有compact的情况下，如何进行timeline的筛选。</p>
+<p>3、根据过滤的instant进行范围的界定：如果是空 ，返回空，如果有值，根据已经遗留的issuedInstant 来界定，然后是read.start-commit来界定，如果还没有，就从当前增量数据的数据来界定，最终生成一个 InstantRange。</p>
+<p>4、生成一个FileStatus的数组。这个数组主要是根据instantRange来获取的，如果instantRange是null，那么就是全部数据，反之就要根据range来获取HoodieCommitMetadata，然后根据HoodieCommitMetadata的array，来把所有分区文件都获取到。</p>
+<p>5、然后就是最重要的一步，就是生成MergeOnReadInputSplit的数组。代码如下；</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">List&lt;MergeOnReadInputSplit&gt; inputSplits = writePartitions.stream()</span><br><span class="line">        .map(relPartitionPath -&gt; fsView.getLatestMergedFileSlicesBeforeOrOn(relPartitionPath, endInstant)</span><br><span class="line">            .map(fileSlice -&gt; &#123;</span><br><span class="line">              Option&lt;List&lt;String&gt;&gt; logPaths = Option.ofNullable(fileSlice.getLogFiles()</span><br><span class="line">                  .sorted(HoodieLogFile.getLogFileComparator())</span><br><span class="line">                  .map(logFile -&gt; logFile.getPath().toString())</span><br><span class="line">                  .collect(Collectors.toList()));</span><br><span class="line">              String basePath = fileSlice.getBaseFile().map(BaseFile::getPath).orElse(<span class="keyword">null</span>);</span><br><span class="line">              <span class="keyword">return</span> <span class="keyword">new</span> MergeOnReadInputSplit(cnt.getAndAdd(<span class="number">1</span>),</span><br><span class="line">                  basePath, logPaths, endInstant,</span><br><span class="line">                  metaClient.getBasePath(), maxCompactionMemoryInBytes, mergeType, instantRange);</span><br><span class="line">            &#125;).collect(Collectors.toList()))</span><br><span class="line">        .flatMap(Collection::stream)</span><br><span class="line">        .collect(Collectors.toList());</span><br></pre></td></tr></table></figure>
+
+<p>在这里还是关注获取增量的时候，如果commit的历史数据很靠前的话，可能需要调整配置：比如read.tasks的数量。</p>
+<p>monitorDirAndForwardSplits 最终返回是有一个Result的静态类，里边记录了 endInstant，这个数据会作为下一次拉取数据的issuedInstant。</p>
+<hr>
+<p>再回到 produceDataStream 这个方法中， 获取了inputFormat之后， 会生成一个  OneInputStreamOperatorFactory&lt;MergeOnReadInputSplit, RowData&gt; factory，这个工厂返回的是 split 对应 数据的一个map。</p>
+<p>然后下一步就是生成一个 source。这个时候生成的source就是可以放到flink线上任务调度中的source的实际数据。代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">SingleOutputStreamOperator&lt;RowData&gt; source = execEnv.addSource(monitoringFunction, getSourceOperatorName(<span class="string">"split_monitor"</span>))</span><br><span class="line">              .setParallelism(<span class="number">1</span>)</span><br><span class="line">              .transform(<span class="string">"split_reader"</span>, typeInfo, factory)</span><br><span class="line">              .setParallelism(conf.getInteger(FlinkOptions.READ_TASKS));</span><br></pre></td></tr></table></figure>
+
+<p>一个主要的参数就是 read.tasks ，这个参数的主要作用就是设置拉取数据时候的任务个数。默认是4个。</p>
+<blockquote>
+<p>读取数据的频率  interval 和  start-commit 都是来自数据源表的设置。</p>
+</blockquote>
+<p>在出去读取完数据之后，数据会循环触发 monitorDirAndForwardSplits 这个方法来获取数据。</p>
+<p>Merge On Read 表的读在 READ OPTIMIZED 模式下，只会读最近的经过 compaction 的 commit。</p>
+<p>所以默认情况下，flink里hudi的读取模式是snapshot模式。</p>
+<p>这里补充一下关于fileSystemView的相关知识：</p>
+<p><a href="https://lrting.top/backend/3519/" target="_blank" rel="noopener">https://lrting.top/backend/3519/</a></p>
+<blockquote>
+<p>这里补充一下flink的基本逻辑，要不上边的代码还不太能找到重点。flink的基础模式是首先初始化环境，然后添加source，然后添加一个sink，最后添加一下中间的tranform放过程，要熟悉flink中基础的function的接口，比如RichFunction的，这样也就知道整体运行的时候，那些方法是主要的，比如run方法，open方法，init对应的一些方法等等，在不同的阶段因为调用的方法不一样，那么思路上就不会乱。</p>
+</blockquote>
+<p>接着上边的思路重新看一下，produceDataStream方法主要是生成了对应的一个source，但是这个时候还没有运行，但是这个添加，已经把中间产出的过程需要的操作也会定义好，这样后续添加sink的时候就比较清晰了。</p>
+<p>根据上边代码中 produceDataStream 定义，他会定义  monitoringFunction ，生成一个  inputFormat，这个就是 MergeOnReadInputFormat  , 然后定义了一个  OneInputStreamOperatorFactory&lt;MergeOnReadInputSplit, RowData&gt; factory  这个factory是一个算子，在source读取出来数据之后会进行这个转化，也就是 MergeOnReadInputSplit 转化为 data。这个算子的数量可以按照 配置 read.tasks 定义的数量进行并行运行。</p>
+<p>以上过程只是添加了 source 的过程。</p>
+<p>上边的那个factory主要是 OneInputStreamOperatorFactory&lt;MergeOnReadInputSplit, RowData&gt; ，MergeOnReadInputSplit 是  input， RowData 是  output。</p>
+<p>下边分别描述一下上边几个主要的类在生成的时候做了啥。</p>
+<p>首先看一下  StreamReadMonitoringFunction，</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">StreamReadMonitoringFunction</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">      Configuration conf,</span></span></span><br><span class="line"><span class="function"><span class="params">      Path path,</span></span></span><br><span class="line"><span class="function"><span class="params">      <span class="keyword">long</span> maxCompactionMemoryInBytes,</span></span></span><br><span class="line"><span class="function"><span class="params">      @Nullable Set&lt;String&gt; requiredPartitionPaths)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>.conf = conf;</span><br><span class="line">    <span class="keyword">this</span>.path = path;</span><br><span class="line">    <span class="keyword">this</span>.interval = conf.getInteger(FlinkOptions.READ_STREAMING_CHECK_INTERVAL);</span><br><span class="line">    <span class="keyword">this</span>.incrementalInputSplits = IncrementalInputSplits.builder()</span><br><span class="line">        .conf(conf)</span><br><span class="line">        .path(path)</span><br><span class="line">        .maxCompactionMemoryInBytes(maxCompactionMemoryInBytes)</span><br><span class="line">        .requiredPartitions(requiredPartitionPaths)</span><br><span class="line">        .skipCompaction(conf.getBoolean(FlinkOptions.READ_STREAMING_SKIP_COMPACT))</span><br><span class="line">        .build();</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>上边代码中最重要的就是  IncrementalInputSplits 这个类的构建。这个类的作用在上边描述过。在下边运行的时候再去回忆一下。</p>
+<p>第二步就是生成format，format很重要，数据的组织全靠这个类。初始化过程如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> InputFormat&lt;RowData, ?&gt; getStreamInputFormat() &#123;</span><br><span class="line">  <span class="comment">// if table does not exist, use schema from the DDL</span></span><br><span class="line">  Schema tableAvroSchema = <span class="keyword">this</span>.metaClient == <span class="keyword">null</span> ? inferSchemaFromDdl() : getTableAvroSchema();</span><br><span class="line">  <span class="keyword">final</span> DataType rowDataType = AvroSchemaConverter.convertToDataType(tableAvroSchema);</span><br><span class="line">  <span class="keyword">final</span> RowType rowType = (RowType) rowDataType.getLogicalType();</span><br><span class="line">  <span class="keyword">final</span> RowType requiredRowType = (RowType) getProducedDataType().notNull().getLogicalType();</span><br><span class="line"></span><br><span class="line">  <span class="keyword">final</span> String queryType = <span class="keyword">this</span>.conf.getString(FlinkOptions.QUERY_TYPE);</span><br><span class="line">  <span class="keyword">if</span> (FlinkOptions.QUERY_TYPE_SNAPSHOT.equals(queryType)) &#123;</span><br><span class="line">    <span class="keyword">final</span> HoodieTableType tableType = HoodieTableType.valueOf(<span class="keyword">this</span>.conf.getString(FlinkOptions.TABLE_TYPE));</span><br><span class="line">    <span class="keyword">boolean</span> emitDelete = tableType == HoodieTableType.MERGE_ON_READ;</span><br><span class="line">    <span class="keyword">return</span> mergeOnReadInputFormat(rowType, requiredRowType, tableAvroSchema,</span><br><span class="line">        rowDataType, Collections.emptyList(), emitDelete);</span><br><span class="line">  &#125;</span><br><span class="line">  String errMsg = String.format(<span class="string">"Invalid query type : '%s', options ['%s'] are supported now"</span>, queryType,</span><br><span class="line">      FlinkOptions.QUERY_TYPE_SNAPSHOT);</span><br><span class="line">  <span class="keyword">throw</span> <span class="keyword">new</span> HoodieException(errMsg);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>mergeOnReadInputFormat的生成主要是 builder方法，是有一个建造者。里边初始化的时候主要是初始化了一个tableState。这个state的主要作用  ： Statistics for merge on read table source.</p>
+<blockquote>
+<p>看一下每个模块都包括了那些类，这样就比较容易理解这里这些设计。</p>
+</blockquote>
+<p>生成了这个input之后，就是生成那个转化的算子。这个factory主要还是会生成 OperatorFactory 的对象，这个对象的主要作用 还是取创建 StreamOperator。</p>
+<blockquote>
+<p>StreamReadOperator 的初始化参数中，涉及一个 mailboxExecutor ，这个是flink在1.10版本实现的优化之后的线程模型。</p>
+</blockquote>
+<p>StreamReadOperator 是数据里主要的类。在任务构建构建，进行任务分发之前都会进行 初始化，首先会 初始化state，然后初始化  sourceContext，最后是 enqueueProcessSplits 这个动作：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">enqueueProcessSplits</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (currentSplitState == SplitState.IDLE &amp;&amp; !splits.isEmpty()) &#123;</span><br><span class="line">      currentSplitState = SplitState.RUNNING;</span><br><span class="line">      executor.execute(<span class="keyword">this</span>::processSplits, <span class="string">"process input split"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>如果空闲，且split是非空的情况下  ，就会触发下一个任务的运行。这里是调用了  processSplits。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">processSplits</span><span class="params">()</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">   MergeOnReadInputSplit split = splits.peek();</span><br><span class="line">   <span class="keyword">if</span> (split == <span class="keyword">null</span>) &#123;</span><br><span class="line">     currentSplitState = SplitState.IDLE;</span><br><span class="line">     <span class="keyword">return</span>;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   <span class="comment">// 1. open a fresh new input split and start reading as mini-batch</span></span><br><span class="line">   <span class="comment">// 打开一个新的输入分块，并开始作为小批处理读取</span></span><br><span class="line">   <span class="comment">// 2. if the input split has remaining records to read, switches to another runnable to handle</span></span><br><span class="line">   <span class="comment">// 如果输入分块有剩余的记录要读，则切换到另一个可运行的分块来处理</span></span><br><span class="line">   <span class="comment">// 3. if the input split reads to the end, close the format and remove the split from the queue #splits</span></span><br><span class="line">   <span class="comment">// 如果这个分块处理完了，就把这个块移除队列</span></span><br><span class="line">   <span class="comment">// 4. for each runnable, reads at most #MINI_BATCH_SIZE number of records</span></span><br><span class="line">   <span class="comment">// 对于每个可运行对象，最多读取#MINI_BATCH_SIZE记录数</span></span><br><span class="line">   <span class="keyword">if</span> (format.isClosed()) &#123;</span><br><span class="line">     <span class="comment">// This log is important to indicate the consuming process,</span></span><br><span class="line">     <span class="comment">// 该日志对于指示消费过程很重要，</span></span><br><span class="line">     <span class="comment">// there is only one log message for one data bucket.</span></span><br><span class="line">     <span class="comment">// 一个数据桶只有一个数据块</span></span><br><span class="line">     LOG.info(<span class="string">"Processing input split : &#123;&#125;"</span>, split);</span><br><span class="line">     format.open(split);</span><br><span class="line">   &#125;</span><br><span class="line">   <span class="keyword">try</span> &#123;</span><br><span class="line">     consumeAsMiniBatch(split);</span><br><span class="line">   &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">     currentSplitState = SplitState.IDLE;</span><br><span class="line">   &#125;</span><br><span class="line"></span><br><span class="line">   <span class="comment">// Re-schedule to process the next split.</span></span><br><span class="line">   enqueueProcessSplits();</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里要重点关注一下：</p>
+<p>1、splits 是一个queue，也就是每次数据处理都是拿一个split。</p>
+<p>2、用format打开这个split，也就是加载的概念。open主要是把数据生成一个iterator，会根据不同的类型生成不同类型的迭代器。hudi主要就是利用这个方式来兼容不同的数据组织方式，然后处理代码就可以变得统一。</p>
+<p>所有的迭代器 都是实现的接口  RecordIterator 。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="class"><span class="keyword">interface</span> <span class="title">RecordIterator</span> </span>&#123;</span><br><span class="line">   <span class="function"><span class="keyword">boolean</span> <span class="title">reachedEnd</span><span class="params">()</span> <span class="keyword">throws</span> IOException</span>;</span><br><span class="line"></span><br><span class="line">   <span class="function">RowData <span class="title">nextRecord</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">   <span class="function"><span class="keyword">void</span> <span class="title">close</span><span class="params">()</span> <span class="keyword">throws</span> IOException</span>;</span><br><span class="line"> &#125;</span><br></pre></td></tr></table></figure>
+
+<p>3、生成了迭代器之后，还要把split跳转到需要的地方，因为一次读取数据最多 MINI_BATCH_SIZE ， 所以对于大于  MINI_BATCH_SIZE 的split，是会被多次读取才能消耗完。这个时候就需要去skip到指定位置，才能继续消耗后边。</p>
+<p>open之后，下一步就是consumer</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">consumeAsMiniBatch</span><span class="params">(MergeOnReadInputSplit split)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; MINI_BATCH_SIZE; i++) &#123;</span><br><span class="line">      <span class="keyword">if</span> (!format.reachedEnd()) &#123;</span><br><span class="line">        sourceContext.collect(format.nextRecord(<span class="keyword">null</span>));</span><br><span class="line">        split.consume();</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// close the input format</span></span><br><span class="line">        format.close();</span><br><span class="line">        <span class="comment">// remove the split</span></span><br><span class="line">        splits.poll();</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>消耗完这个split，就要把这个split从队列中拿掉。同时关闭 format。</p>
+<p>反之就要 按照 MINI_BATCH_SIZE 来收集数据。上边代码中，reachedEnd 会调用 迭代器来看是否消耗完数据，如果没有，那么就会给当前迭代器中的  currentRecord进行赋值，然后在nextRecord的时候进行获取。同时split进行一个offset+1的操作。</p>
+<p>读取split，并且进行数据转换的操作就变成了  迭代器中  reachedEnd 的实现。这块的实现比较细节，下边我们回到刚才iterator的生成，来说一下 具体的代码 实现。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">MergeIterator(</span><br><span class="line">        org.apache.hadoop.conf.Configuration hadoopConf,</span><br><span class="line">        MergeOnReadInputSplit split,</span><br><span class="line">        RowType tableRowType,</span><br><span class="line">        RowType requiredRowType,</span><br><span class="line">        Schema tableSchema,</span><br><span class="line">        Schema requiredSchema,</span><br><span class="line">        <span class="keyword">int</span>[] requiredPos,</span><br><span class="line">        <span class="keyword">boolean</span> emitDelete,</span><br><span class="line">        <span class="keyword">boolean</span> withOperationField,</span><br><span class="line">        <span class="keyword">int</span> operationPos,</span><br><span class="line">        ParquetColumnarRowSplitReader reader) &#123; <span class="comment">// the reader should be with full schema</span></span><br><span class="line">      <span class="keyword">this</span>.tableSchema = tableSchema;</span><br><span class="line">      <span class="keyword">this</span>.reader = reader;</span><br><span class="line">      <span class="keyword">this</span>.scanner = FormatUtils.logScanner(split, tableSchema, hadoopConf, withOperationField);</span><br><span class="line">      <span class="keyword">this</span>.logKeysIterator = scanner.getRecords().keySet().iterator();</span><br><span class="line">      <span class="keyword">this</span>.requiredSchema = requiredSchema;</span><br><span class="line">      <span class="keyword">this</span>.requiredPos = requiredPos;</span><br><span class="line">      <span class="keyword">this</span>.emitDelete = emitDelete;</span><br><span class="line">      <span class="keyword">this</span>.operationPos = operationPos;</span><br><span class="line">      <span class="keyword">this</span>.recordBuilder = <span class="keyword">new</span> GenericRecordBuilder(requiredSchema);</span><br><span class="line">      <span class="keyword">this</span>.rowDataToAvroConverter = RowDataToAvroConverters.createConverter(tableRowType);</span><br><span class="line">      <span class="keyword">this</span>.avroToRowDataConverter = AvroToRowDataConverters.createRowConverter(requiredRowType);</span><br><span class="line">      <span class="keyword">this</span>.projection = RowDataProjection.instance(requiredRowType, requiredPos);</span><br><span class="line">      <span class="keyword">this</span>.instantRange = split.getInstantRange().orElse(<span class="keyword">null</span>);</span><br></pre></td></tr></table></figure>
+
+<p>这是 MergeIterator 的构造器。这里reader是具体读取数据的代码，这里就是  ParquetColumnarRowSplitReader ，而这个类 是在cow包里，可见hudi这部分还是进行了复用的。</p>
+<p>这个类的生成是在 getFullSchemaReader(split.getBasePath().get()) 这个方法生成的，在merge迭代器进行初始化的时候。这里去关注一下这个类的生成。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> ParquetColumnarRowSplitReader <span class="title">getReader</span><span class="params">(String path, <span class="keyword">int</span>[] requiredPos)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">    <span class="comment">// generate partition specs.</span></span><br><span class="line">    LinkedHashMap&lt;String, String&gt; partSpec = FilePathUtils.extractPartitionKeyValues(</span><br><span class="line">        <span class="keyword">new</span> org.apache.hadoop.fs.Path(path).getParent(),</span><br><span class="line">        <span class="keyword">this</span>.conf.getBoolean(FlinkOptions.HIVE_STYLE_PARTITIONING),</span><br><span class="line">        FilePathUtils.extractPartitionKeys(<span class="keyword">this</span>.conf));</span><br><span class="line">    LinkedHashMap&lt;String, Object&gt; partObjects = <span class="keyword">new</span> LinkedHashMap&lt;&gt;();</span><br><span class="line">    partSpec.forEach((k, v) -&gt; partObjects.put(k, restorePartValueFromType(</span><br><span class="line">        defaultPartName.equals(v) ? <span class="keyword">null</span> : v,</span><br><span class="line">        fieldTypes.get(fieldNames.indexOf(k)))));</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> ParquetSplitReaderUtil.genPartColumnarRowReader(</span><br><span class="line">        <span class="keyword">this</span>.conf.getBoolean(FlinkOptions.UTC_TIMEZONE),</span><br><span class="line">        <span class="keyword">true</span>,</span><br><span class="line">        FormatUtils.getParquetConf(<span class="keyword">this</span>.conf, hadoopConf),</span><br><span class="line">        fieldNames.toArray(<span class="keyword">new</span> String[<span class="number">0</span>]),</span><br><span class="line">        fieldTypes.toArray(<span class="keyword">new</span> DataType[<span class="number">0</span>]),</span><br><span class="line">        partObjects,</span><br><span class="line">        requiredPos,</span><br><span class="line">        DEFAULT_SIZE,</span><br><span class="line">        <span class="keyword">new</span> org.apache.flink.core.fs.Path(path),</span><br><span class="line">        <span class="number">0</span>,</span><br><span class="line">        Long.MAX_VALUE); <span class="comment">// read the whole file</span></span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个方法里，主要做了下边的几件事，首先感觉路径去解析partition，然后用 ParquetSplitReaderUtil 的 genPartColumnarRowReader 去生成 ParquetColumnarRowSplitReader 对象。简单过一下  genPartColumnarRowReader 方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Util for generating partitioned &#123;<span class="doctag">@link</span> ParquetColumnarRowSplitReader&#125;.</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> ParquetColumnarRowSplitReader <span class="title">genPartColumnarRowReader</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">      <span class="keyword">boolean</span> utcTimestamp,</span></span></span><br><span class="line"><span class="function"><span class="params">      <span class="keyword">boolean</span> caseSensitive,</span></span></span><br><span class="line"><span class="function"><span class="params">      Configuration conf,</span></span></span><br><span class="line"><span class="function"><span class="params">      String[] fullFieldNames,</span></span></span><br><span class="line"><span class="function"><span class="params">      DataType[] fullFieldTypes,</span></span></span><br><span class="line"><span class="function"><span class="params">      Map&lt;String, Object&gt; partitionSpec,</span></span></span><br><span class="line"><span class="function"><span class="params">      <span class="keyword">int</span>[] selectedFields,</span></span></span><br><span class="line"><span class="function"><span class="params">      <span class="keyword">int</span> batchSize,</span></span></span><br><span class="line"><span class="function"><span class="params">      Path path,</span></span></span><br><span class="line"><span class="function"><span class="params">      <span class="keyword">long</span> splitStart,</span></span></span><br><span class="line"><span class="function"><span class="params">      <span class="keyword">long</span> splitLength)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">    List&lt;String&gt; selNonPartNames = Arrays.stream(selectedFields)</span><br><span class="line">        .mapToObj(i -&gt; fullFieldNames[i])</span><br><span class="line">        .filter(n -&gt; !partitionSpec.containsKey(n))</span><br><span class="line">        .collect(Collectors.toList());</span><br><span class="line"></span><br><span class="line">    <span class="keyword">int</span>[] selParquetFields = Arrays.stream(selectedFields)</span><br><span class="line">        .filter(i -&gt; !partitionSpec.containsKey(fullFieldNames[i]))</span><br><span class="line">        .toArray();</span><br><span class="line"></span><br><span class="line">    ParquetColumnarRowSplitReader.ColumnBatchGenerator gen = readVectors -&gt; &#123;</span><br><span class="line">      <span class="comment">// create and initialize the row batch</span></span><br><span class="line">      ColumnVector[] vectors = <span class="keyword">new</span> ColumnVector[selectedFields.length];</span><br><span class="line">      <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; vectors.length; i++) &#123;</span><br><span class="line">        String name = fullFieldNames[selectedFields[i]];</span><br><span class="line">        LogicalType type = fullFieldTypes[selectedFields[i]].getLogicalType();</span><br><span class="line">        vectors[i] = createVector(readVectors, selNonPartNames, name, type, partitionSpec, batchSize);</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">new</span> VectorizedColumnBatch(vectors);</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> ParquetColumnarRowSplitReader(</span><br><span class="line">        utcTimestamp,</span><br><span class="line">        caseSensitive,</span><br><span class="line">        conf,</span><br><span class="line">        Arrays.stream(selParquetFields)</span><br><span class="line">            .mapToObj(i -&gt; fullFieldTypes[i].getLogicalType())</span><br><span class="line">            .toArray(LogicalType[]::<span class="keyword">new</span>),</span><br><span class="line">        selNonPartNames.toArray(<span class="keyword">new</span> String[<span class="number">0</span>]),</span><br><span class="line">        gen, <span class="comment">// 这个列批量读取的主要方法，稍后再逐个看一下。</span></span><br><span class="line">        batchSize, <span class="comment">// 这个默认大小是 2048</span></span><br><span class="line">        <span class="keyword">new</span> org.apache.hadoop.fs.Path(path.toUri()),</span><br><span class="line">        splitStart, <span class="comment">// 这个是0</span></span><br><span class="line">        splitLength);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里是在最后生成的这个类，这里来逐个注释一下。</p>
+<p>ColumnBatchGenerator的生成，这个矢量化的读取，是 列式读取。 vectors 是一个跟列数量大小一致的数组。</p>
+<p>这里主要是就在创建 ColumnVector ，ColumnVector可有理解为读取类的时候按照一定的大小去读取文件，根据不同类型以及不同的长度小区去获取指定的长度。</p>
+<blockquote>
+<p>所有的vector都是来自flink里的 org.apache.flink.table.data.vector.heap 包，这块的具体原理可以稍后看一下。</p>
+</blockquote>
+<p>ParquetColumnarRowSplitReader 在生成之初就会对parquet文件进行解析。这块稍后会专门写个文章来分析。</p>
+<p>在nextRecord里，实际调用的是迭代器的reachedEnd，这个方法会迭代出下一条数据，会组合出来数据，同时会进行merge，把log的数据进行组合。</p>
+<p>这部分代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">reachedEnd</span><span class="params">()</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">      <span class="keyword">while</span> (!readLogs &amp;&amp; !<span class="keyword">this</span>.reader.reachedEnd()) &#123;</span><br><span class="line">        currentRecord = <span class="keyword">this</span>.reader.nextRecord();</span><br><span class="line">        <span class="keyword">if</span> (instantRange != <span class="keyword">null</span>) &#123;</span><br><span class="line">          <span class="keyword">boolean</span> isInRange = instantRange.isInRange(currentRecord.getString(HOODIE_COMMIT_TIME_COL_POS).toString());</span><br><span class="line">          <span class="keyword">if</span> (!isInRange) &#123;</span><br><span class="line">            <span class="comment">// filter base file by instant range</span></span><br><span class="line">            <span class="keyword">continue</span>;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">final</span> String curKey = currentRecord.getString(HOODIE_RECORD_KEY_COL_POS).toString();</span><br><span class="line">        <span class="keyword">if</span> (scanner.getRecords().containsKey(curKey)) &#123;<span class="comment">// parquet里是主要的记录，然后scanner里是日志记录</span></span><br><span class="line">          keyToSkip.add(curKey);</span><br><span class="line">          Option&lt;IndexedRecord&gt; mergedAvroRecord = mergeRowWithLog(currentRecord, curKey);</span><br><span class="line">          <span class="keyword">if</span> (!mergedAvroRecord.isPresent()) &#123;</span><br><span class="line">            <span class="comment">// deleted</span></span><br><span class="line">            <span class="keyword">continue</span>;</span><br><span class="line">          &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">final</span> RowKind rowKind = FormatUtils.getRowKindSafely(mergedAvroRecord.get(), <span class="keyword">this</span>.operationPos);</span><br><span class="line">            <span class="keyword">if</span> (!emitDelete &amp;&amp; rowKind == RowKind.DELETE) &#123;</span><br><span class="line">              <span class="comment">// deleted</span></span><br><span class="line">              <span class="keyword">continue</span>;</span><br><span class="line">            &#125;</span><br><span class="line">            GenericRecord avroRecord = buildAvroRecordBySchema(</span><br><span class="line">                mergedAvroRecord.get(),</span><br><span class="line">                requiredSchema,</span><br><span class="line">                requiredPos,</span><br><span class="line">                recordBuilder);</span><br><span class="line">            <span class="keyword">this</span>.currentRecord = (RowData) avroToRowDataConverter.convert(avroRecord);</span><br><span class="line">            <span class="keyword">this</span>.currentRecord.setRowKind(rowKind);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// project the full record in base with required positions</span></span><br><span class="line">        currentRecord = projection.project(currentRecord);</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="comment">// read the logs</span></span><br><span class="line">      readLogs = <span class="keyword">true</span>;</span><br><span class="line">      <span class="keyword">while</span> (logKeysIterator.hasNext()) &#123;</span><br><span class="line">        <span class="keyword">final</span> String curKey = logKeysIterator.next();</span><br><span class="line">        <span class="keyword">if</span> (!keyToSkip.contains(curKey)) &#123;</span><br><span class="line">          Option&lt;IndexedRecord&gt; insertAvroRecord = getInsertValue(curKey);</span><br><span class="line">          <span class="keyword">if</span> (insertAvroRecord.isPresent()) &#123;</span><br><span class="line">            <span class="comment">// the record is a DELETE if insertAvroRecord not present, skipping</span></span><br><span class="line">            GenericRecord avroRecord = buildAvroRecordBySchema(</span><br><span class="line">                insertAvroRecord.get(),</span><br><span class="line">                requiredSchema,</span><br><span class="line">                requiredPos,</span><br><span class="line">                recordBuilder);</span><br><span class="line">            <span class="keyword">this</span>.currentRecord = (RowData) avroToRowDataConverter.convert(avroRecord);</span><br><span class="line">            FormatUtils.setRowKind(<span class="keyword">this</span>.currentRecord, insertAvroRecord.get(), <span class="keyword">this</span>.operationPos);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">          &#125;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这部分代码主要的逻辑就是进行parquet数据和log数据的merge。reader就是parquet数据的读取，是逐行读取的。读取的是基础数据。然后log数据的读取是scanner，也是逐行读取，他会把所有文件都读取一遍，然后按照分区和文件id，进行分组，在遍历parquet文件的时候，会进行匹配，然后把同一个slice的数据进行merge，这样就相当于组织了一个全量数据，数据相对于当前的instantRange来说，也就是最新的数据了。</p>
+<blockquote>
+<p>这里的数据组织方式，往通用逻辑去考虑也是一致的。这里的通用逻辑可以归纳到数据库本身对于变化数据的处理。不过也要冷静去想一下hudi这种基于文件的组织方式的缺点是啥？在什么极端条件下会有哪些风险。</p>
+</blockquote>
+<p>上边的这部分代码逻辑是第二次看逻辑的时候重新捋的，感觉更加清晰了。</p>
+<p>主题思路就是monitor通过format把服务出来的数据组合成一个个的split，而一个个split就是fileSlice的概念。然后会有orerator算子来消费这些split，通过指定task数量的任务进行消费，转化为RowData。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/hudi/" rel="tag"># hudi</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/02/09/hudi%E6%8E%A2%E7%B4%A2-cdc%E6%95%B0%E6%8D%AE%E8%BF%9B%E8%A1%8Cjoin%E5%85%A5%E6%B9%96/" rel="next" title="hudi探索--cdc数据进行join入湖">
+                <i class="fa fa-chevron-left"></i> hudi探索--cdc数据进行join入湖
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/03/05/hudi%E6%8E%A2%E7%B4%A2-%E5%9F%BA%E4%BA%8Eflink%E7%9A%84%E6%B5%81%E5%BC%8F%E5%A4%84%E7%90%86%E7%9A%84%E5%86%99%E6%95%B0%E6%8D%AE%E8%BF%87%E7%A8%8B/" rel="prev" title="hudi探索--基于flink的流式处理的写数据过程">
+                hudi探索--基于flink的流式处理的写数据过程 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#hudi探索–flink从hudi的changelog进行数据生产"><span class="nav-number">1.</span> <span class="nav-text">hudi探索–flink从hudi的changelog进行数据生产</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

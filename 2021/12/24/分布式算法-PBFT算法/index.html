@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="pbft," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="分布式算法–PBFT算法PBFT 全称 Practical Byzantine-Fault-Tolerant。（实用拜占庭容错算法） PBFT 算法非常实用，是一种能在实际场景中落地的拜占庭容错算法，它在区块链中应用广泛（比如 Hyperledger Sawtooth、Zilliqa）。 PBFT算法假设的环境比Raft算法更加的’恶劣‘，Raft算法只支持容错故障节点，而PBFT算法除了需要支持">
+<meta property="og:type" content="article">
+<meta property="og:title" content="分布式算法-PBFT算法">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/24/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-PBFT%E7%AE%97%E6%B3%95/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="分布式算法–PBFT算法PBFT 全称 Practical Byzantine-Fault-Tolerant。（实用拜占庭容错算法） PBFT 算法非常实用，是一种能在实际场景中落地的拜占庭容错算法，它在区块链中应用广泛（比如 Hyperledger Sawtooth、Zilliqa）。 PBFT算法假设的环境比Raft算法更加的’恶劣‘，Raft算法只支持容错故障节点，而PBFT算法除了需要支持">
+<meta property="article:published_time" content="2021-12-24T00:26:03.000Z">
+<meta property="article:modified_time" content="2022-01-07T11:54:06.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="pbft">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/24/分布式算法-PBFT算法/"/>
+
+
+
+
+
+  <title>分布式算法-PBFT算法 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/24/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-PBFT%E7%AE%97%E6%B3%95/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">分布式算法-PBFT算法</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-12-24T08:26:03+08:00">
+                2021-12-24
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%88%86%E5%B8%83%E5%BC%8F/" itemprop="url" rel="index">
+                    <span itemprop="name">分布式</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="分布式算法–PBFT算法"><a href="#分布式算法–PBFT算法" class="headerlink" title="分布式算法–PBFT算法"></a>分布式算法–PBFT算法</h2><p>PBFT 全称 Practical Byzantine-Fault-Tolerant。（实用拜占庭容错算法）</p>
+<p>PBFT 算法非常实用，是一种能在实际场景中落地的拜占庭容错算法，它在区块链中应用广泛（比如 Hyperledger Sawtooth、Zilliqa）。</p>
+<p><code>PBFT</code>算法假设的环境比<code>Raft</code>算法更加的’恶劣‘，<code>Raft</code>算法只支持容错故障节点，而<code>PBFT</code>算法除了需要支持容错故障节点之外，还需要容忍作恶节点。</p>
+<blockquote>
+<p>作恶节点节点是指可能对接收到的消息作出截然相反的回复，甚至伪造消息。</p>
+</blockquote>
+<blockquote>
+<p>拜占庭将军问题最早是由 Leslie Lamport 在 1982 年发表的论文<strong>《The Byzantine Generals Problem 》</strong>提出的， 他证明了在将军总数大于 3f ，背叛者为f 或者更少时，忠诚的将军可以达成命令上的一致，即 3f+1&lt;=n 。算法复杂度为 O(nf+1) 。而 Miguel Castro 和 Barbara Liskov 在1999年发表的论文<strong>《 Practical Byzantine Fault Tolerance 》</strong>中首次提出 PBFT算法，该算法容错数量也满足 <code>3f+1&lt;=n</code>，也即最大的容错作恶节点数<code>f=(n-1)/3</code>。算法复杂度为 O(n2)，将系统的复杂度由指数级别降低为多项式级别，使得拜占庭容错算法在实际系统应用中变得可行。</p>
+</blockquote>
+<p>PBFT中传递的所有消息都是签名消息。这个前提很关键。</p>
+<ol>
+<li><p>比如其中一个节点A收到指令X，A就会发起一个三阶段协议，先进入预准备阶段，然后把指令信息和进入准备阶段的命令发给其他节点。</p>
+</li>
+<li><p>其他节点收到请求，为了防止作恶节点发送的消息，会在进入准备阶段的同时，也会发送指令以及准备的结果发送给其他节点。</p>
+</li>
+<li><p>当某个节点收到2f个一致的投票提案，就会进入提交阶段，（此时还没有提交指令，只是会广播一下“我当前马上要提交这个提案了”）。</p>
+</li>
+<li><p>最后，当某个节点收到2f+1个验证通过的提交消息之后（包括自己），这时候就可以执行作战指令了。</p>
+</li>
+<li><p>执行完毕后，把结果反馈给客户端。</p>
+</li>
+<li><p>当客户端收到f+1个相同的响应的时候，就说明提案已经通过并且被应用。</p>
+</li>
+</ol>
+<blockquote>
+<p>f是叛徒节点数量。f = (n - 1)/3</p>
+</blockquote>
+<p>PBFT 算法是通过签名（或消息认证码 MAC）约束恶意节点的行为，也就是说，每个节点都可以通过验证消息签名确认消息的发送来源，一个节点无法伪造另外一个节点的消息。最终，基于大多数原则（2f + 1）实现共识的。</p>
+<p>最终的共识是否达成，客户端是会做判断的，如果客户端在指定时间内未收到请求对应的 f + 1 相同响应，就认为集群出故障了，共识未达成，客户端会重新发送请求。</p>
+<p>PBFT 算法通过视图变更（View Change）的方式，来处理主节点作恶，当发现主节点在作恶时，会以“轮流上岗”方式，推举新的主节点。</p>
+<blockquote>
+<p>视图变更（View Change），也就是通过领导者选举，选举出新的主节点，并替换掉作恶的主节点。（其中的“视图”你可以理解为领导者任期的，不同的视图值对应不同的主节点。比如，视图值为 1 时，主节点为 A；视图值为 2 时，主节点为 B。）</p>
+</blockquote>
+<p>尽管 PBFT 算法相比口信消息型拜占庭之解已经有了很大的优化，将消息复杂度从 O(n ^ (f + 1)) 降低为 O(n ^ 2)，能在实际场景中落地，并解决实际的共识问题。但 PBFT 还是需要比较多的消息。指数级别的时间复杂度是很难承受的。</p>
+<blockquote>
+<p>对于 pbft 算法，核心过程有三个阶段，分别是 pre-prepare （预准备）阶段，prepare （准备）阶段和 commit （提交）阶段。对于 pre-prepare 阶段，主节点广播 pre-prepare 消息给其它节点即可，因此通信次数为 n-1 ；对于 prepare 阶段，每个节点如果同意请求后，都需要向其它节点再 广播 parepare 消息，所以总的通信次数为 n<em>（n-1），即 n^2-n ；对于 commit 阶段，每个节点如果达到 prepared 状态后，都需要向其它节点广播 commit 消息，所以总的通信次数也为 n</em>（n-1） ，即 n^2-n 。所以总通信次数为 （n-1）+（n^2-n）+（n^2-n） ，即 2n^2-n-1 ，因此pbft算法复杂度为 O（n^2） 。</p>
+</blockquote>
+<hr>
+<p><strong>如果恶意节点当选了主节点，此时无论忠诚节点数多少，忠诚节点们将都无法达成共识。</strong> 而这种情况肯定是无法接受的，这就需要我们在发现主节点可能在作恶时，设计一个机制，将作恶的主节点替换掉，并保证最终只有忠诚的节点在担任主节点。这样，PFBT 才能保证当节点数为 3f + 1（其中 f 为恶意节点数）时，忠诚的节点们能就客户端提议的指令达成共识，并执行一致的指令。</p>
+<p>在视图变更时，PBFT 集群也是无法提供服务的。</p>
+<p>PBFT 实现了检查点，来定时清理节点本地缓存的但已经不再需要的历史数据（比如预准备消息、准备消息和提交消息），节省了本地的存储空间，并不会影响系统的运行。</p>
+<blockquote>
+<p><strong>那么为什么PBFT算法的容错数量满足3f+1&lt;=n呢？</strong></p>
+<p>因为 PBFT 算法的除了需要支持容错故障节点之外，还需要支持<strong>容错作恶节点</strong>。假设集群节点数为 N，有问题的节点为 f。有问题的节点中，可以既是故障节点，也可以是作恶节点，或者只是故障节点或者只是作恶节点。那么会产生以下两种极端情况：</p>
+<ol>
+<li>这f 个有问题节点既是故障节点，又是作恶节点，那么根据少数服从多数的原则，集群里正常节点只需要比f个节点再多一个节点，即 f+1 个节点，确节点的数量就会比故障节点数量多，那么集群就能达成共识，即总节点数为f+(f+1)=n，也就是说这种情况支持的最大容错节点数量是 (n-1)/2。</li>
+<li>故障节点和作恶节点都是不同的节点。那么就会有 f 个作恶节点和 f 个故障节点，当发现节点是作恶节点后，会被集群排除在外，剩下 f 个故障节点，那么根据少数服从多数的原则，集群里正常节点只需要比f个节点再多一个节点，即 f+1 个节点，确节点的数量就会比故障节点数量多，那么集群就能达成共识。所以，所有类型的节点数量加起来就是 f+1 个正常节点，f个故障节点和f个作恶节点，即 3f+1=n。</li>
+</ol>
+</blockquote>
+<p><a href="https://www.cnblogs.com/zmk-c/p/14535734.html" target="_blank" rel="noopener">PBFT共识算法详解 - 无_忧 - 博客园</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/pbft/" rel="tag"># pbft</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/12/23/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-%E4%B8%80%E8%87%B4%E6%80%A7%E8%A7%A3%E8%AF%BB/" rel="next" title="分布式算法-一致性解读">
+                <i class="fa fa-chevron-left"></i> 分布式算法-一致性解读
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/12/28/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-Pow%E7%AE%97%E6%B3%95/" rel="prev" title="分布式算法-Pow算法">
+                分布式算法-Pow算法 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#分布式算法–PBFT算法"><span class="nav-number">1.</span> <span class="nav-text">分布式算法–PBFT算法</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

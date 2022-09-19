@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="spark," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="spark的DAG内存计算这里先说一下spark的内存计算的理解，方便对于后续DAG的运用有更深的认识。 在spark中，内存计算主要是以下两方面:  分布式缓存：这是spark计算效率的关键，但是在我们使用缓存的时候，要切记不可以盲目使用，只有需要频繁访问的数据集才有必要 cache。 Stage 内部的流水线式计算模式。  明确了两个主要的方向，我们就明确了一个宏观概念，下边就详细说一下，DA">
+<meta property="og:type" content="article">
+<meta property="og:title" content="spark原理--DAG">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/29/spark%E5%8E%9F%E7%90%86-DAG/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="spark的DAG内存计算这里先说一下spark的内存计算的理解，方便对于后续DAG的运用有更深的认识。 在spark中，内存计算主要是以下两方面:  分布式缓存：这是spark计算效率的关键，但是在我们使用缓存的时候，要切记不可以盲目使用，只有需要频繁访问的数据集才有必要 cache。 Stage 内部的流水线式计算模式。  明确了两个主要的方向，我们就明确了一个宏观概念，下边就详细说一下，DA">
+<meta property="og:image" content="https://github.com/images/dag_1.png">
+<meta property="og:image" content="https://github.com/images/dag_2.png">
+<meta property="article:published_time" content="2021-09-29T05:44:32.000Z">
+<meta property="article:modified_time" content="2022-05-13T03:51:34.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="spark">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/dag_1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/29/spark原理-DAG/"/>
+
+
+
+
+
+  <title>spark原理--DAG | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/29/spark%E5%8E%9F%E7%90%86-DAG/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">spark原理--DAG</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-09-29T13:44:32+08:00">
+                2021-09-29
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+                  ， 
+                
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/spark/" itemprop="url" rel="index">
+                    <span itemprop="name">spark</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="spark的DAG"><a href="#spark的DAG" class="headerlink" title="spark的DAG"></a>spark的DAG</h2><h3 id="内存计算"><a href="#内存计算" class="headerlink" title="内存计算"></a>内存计算</h3><p>这里先说一下spark的内存计算的理解，方便对于后续DAG的运用有更深的认识。</p>
+<p>在spark中，内存计算主要是以下两方面:</p>
+<ul>
+<li>分布式缓存：这是spark计算效率的关键，但是在我们使用缓存的时候，要切记不可以盲目使用，只有需要频繁访问的数据集才有必要 cache。</li>
+<li>Stage 内部的流水线式计算模式。</li>
+</ul>
+<p>明确了两个主要的方向，我们就明确了一个宏观概念，下边就详细说一下，DAG在spark的内存计算中是怎么发挥作用的。</p>
+<h3 id="Stage-内的流水线式计算模式"><a href="#Stage-内的流水线式计算模式" class="headerlink" title="Stage 内的流水线式计算模式"></a>Stage 内的流水线式计算模式</h3><p>DAG 全称 Direct Acyclic Graph，中文叫有向无环图。顾名思义，DAG 是一种“图”。我们知道，任何一种图都包含两种基本元素：顶点（Vertex）和边（Edge），顶点通常用于表示实体，而边则代表实体间的关系。在 Spark 的 DAG 中，顶点是一个个 RDD，边则是 RDD 之间通过 dependencies 属性构成的父子关系。</p>
+<blockquote>
+<p>在这块，建议大家自己动手写一个DAG，实现数据节点的添加，数据节点的遍历，数据节点的删除，以及附带上任务执行的不同时效，就可以打造出一个mini的流水线式计算模式。</p>
+</blockquote>
+<p>在 Spark 的开发模型下，应用开发实际上就是灵活运用算子实现业务逻辑的过程。开发者在分布式数据集如 RDD、 DataFrame 或 Dataset 之上调用算子、封装计算逻辑，这个过程会衍生新的子 RDD。与此同时，<strong>子 RDD 会把 dependencies 属性赋值到父 RDD，把 compute 属性赋值到算子封装的计算逻辑</strong>。以此类推，在子 RDD 之上，开发者还会继续调用其他算子，衍生出新的 RDD，如此往复便有了 DAG。</p>
+<p>从开发者的视角出发，DAG 的构建是通过在分布式数据集上不停地调用算子来完成的。</p>
+<h4 id="Stages-的划分"><a href="#Stages-的划分" class="headerlink" title="Stages 的划分"></a>Stages 的划分</h4><p>我们知道了什么是 DAG，以及 DAG 是如何构建的。不过，DAG 毕竟只是一张流程图，Spark 需要把这张流程图转化成分布式任务，才能充分利用分布式集群并行计算的优势。</p>
+<p>从开发者构建 DAG，到 DAG 转化的分布式任务在分布式环境中执行，其间会经历如下 4 个阶段：</p>
+<ul>
+<li>回溯 DAG 并划分 Stages</li>
+<li>在 Stages 中创建分布式任务</li>
+<li>分布式任务的分发</li>
+<li>分布式任务的执行</li>
+</ul>
+<p>那么，搞清楚 DAG 是怎么划分 Stages，结合上次说的rdd的一些属性来理解，那么就能知道dag的前半部后，后半部分是跟调度相关，后边会细说。</p>
+<p>如果用一句话来概括从 DAG 到 Stages 的转化过程，那应该是：以 Actions 算子为起点，从后向前回溯 DAG，以 Shuffle 操作为边界去划分 Stages。而内存计算的涉及，就隐匿于从 DAG 划分出的一个又一个 Stages 之中。</p>
+<p><strong>在 Spark 中，流水线计算模式指的是：在同一 Stage 内部，所有算子融合为一个函数，Stage 的输出结果由这个函数一次性作用在输入数据集而产生。</strong></p>
+<p>这样做最大的好处就是减少中间数据的落地，能通过一次性产出的，就绝对不会去调用两次数据。</p>
+<hr>
+<p><strong>因此，所谓内存计算，不仅仅是指数据可以缓存在内存中，更重要的是让我们明白了，通过计算的融合来大幅提升数据在内存中的转换效率，进而从整体上提升应用的执行性能。</strong></p>
+<p>由于计算的融合只发生在 Stages 内部，而 Shuffle 是切割 Stages 的边界，因此一旦发生 Shuffle，内存计算的代码融合就会中断。但是，当我们对内存计算有了多方位理解以后，就不会一股脑地只想到用 cache 去提升应用的执行性能，而是会更主动地想办法尽量避免 Shuffle，让应用代码中尽可能多的部分融合为一个函数，从而提升计算效率。</p>
+<p>在spark内部是依赖什么来划分stage的呢？</p>
+<p>rdd 会有 dep 属性，用来区分是否是 shuffle 生成的 rdd. 而 dep 属性的确定主要是根据子 rdd 是否依赖父 rdd 的某一部分数据，这个就得看他两的分区器(如果 tranf/action 有的话)。如果分区器一致，就不会产生 shuffle。</p>
+<p>在 Spark 中，同一 Stage 内的所有算子会融合为一个函数。你知道这一步是怎么做到的吗？</p>
+<p>WholeStageCodegen 全阶段代码生成将多个operators编译成一个Java函数来提升性能。不过，这个是只有Spark SQL才能享受到的特性，也就是当你使用DataFrame、Dataset或是SQL进行开发的时候，才能享受到这个特性。对于纯粹的RDD API来说，所谓的“捏合”，其实是一种伪“捏合”，它是通过同一个Stage内部多个RDD算子compute函数嵌套的方式，来完成“捏合”。</p>
+<blockquote>
+<p>正如老师在文章里面提到的一样，Hadoop MapReduce使用硬盘来存储中间结果，而 Spark自从诞生以来就一直标榜自己是内存计算，可能有些同学会比较奇怪，为什么内存明显比硬盘快，MR 不去选择内存计算，实际上 MR 也有在使用内存的，比如环形缓冲区的存在就可以说明，之所以这样做，一个很重要的原因是 MR 诞生的年代（04 年）内存比较贵，后来随着科技发展，内存价格在不断下降，大家如果仔细研究就会发现比如 Spark 比如 Redis 等充分利用内存来计算的框架都是 10 年左右出现的，就是在这个时候内存价格开始大幅度下降的。我之所以说这么多，其实就想说明，事物的发展都是有规律的，大数据的背后也潜藏着各种规律，把握好这些规律，个人认为对于理解记忆各种不同的大数据技术都是很有帮助的。</p>
+</blockquote>
+<p>后边一个问题可以跟  catalyst优化器和tungsten 联合起来思考会比较完整。</p>
+<p><img src="/images/dag_1.png" alt="dag的原理图"></p>
+<p>DAG的工作流程：</p>
+<ol>
+<li>解释器是第一层。Spark 通过使用Scala解释器，来解释代码，并会对代码做一些修改。</li>
+<li>在Spark控制台中输入代码时，Spark会创建一个 operator graph， 来记录各个操作。</li>
+<li>当一个 RDD 的 Action 动作被调用时， Spark 就会把这个 operator graph 提交到 DAG scheduler 上。</li>
+<li>DAG Scheduler 会把 operator graph 分为各个 stage。 一个 stage 包含基于输入数据分区的task。DAG scheduler 会把各个操作连接在一起。</li>
+<li>这些 Stage 将传递给 Task Scheduler。Task Scheduler 通过 cluster manager 启动任务。Stage 任务的依赖关系， task scheduler 是不知道的。</li>
+<li>在 slave 机器上的 Worker 们执行 task。</li>
+</ol>
+<p><img src="/images/dag_2.png" alt="dag运行原理图"></p>
+<p>dag调度器 以及 sparkContext 还有 task调度器 都是有关联的，因为存在注入式的引用，所以声明的先后顺序都是有要求的。</p>
+<p>dag的生成，广度遍历节点，根据依赖关系以及节点属性，来构建整个stage的划分，先从宏观去看，再去梳理细节需要理解的属性，会比较容易理解一些。</p>
+<p>参考：</p>
+<p><a href="https://www.jianshu.com/p/8c7e0f5ff326" target="_blank" rel="noopener">https://www.jianshu.com/p/8c7e0f5ff326</a></p>
+<p><a href="https://time.geekbang.org/column/article/353808" target="_blank" rel="noopener">https://time.geekbang.org/column/article/353808</a></p>
+<p><a href="https://data-flair.training/blogs/dag-in-apache-spark/" target="_blank" rel="noopener">https://data-flair.training/blogs/dag-in-apache-spark/</a></p>
+<p><a href="https://cloud.tencent.com/developer/article/1390344" target="_blank" rel="noopener">https://cloud.tencent.com/developer/article/1390344</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/spark/" rel="tag"># spark</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/09/28/spark%E5%8E%9F%E7%90%86-rdd/" rel="next" title="spark原理--rdd">
+                <i class="fa fa-chevron-left"></i> spark原理--rdd
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/10/01/%E3%80%8A%E6%B7%B1%E5%BA%A6%E6%80%9D%E7%BB%B4%E3%80%8B/" rel="prev" title="《深度思维》">
+                《深度思维》 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#spark的DAG"><span class="nav-number">1.</span> <span class="nav-text">spark的DAG</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#内存计算"><span class="nav-number">1.1.</span> <span class="nav-text">内存计算</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Stage-内的流水线式计算模式"><span class="nav-number">1.2.</span> <span class="nav-text">Stage 内的流水线式计算模式</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Stages-的划分"><span class="nav-number">1.2.1.</span> <span class="nav-text">Stages 的划分</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="flink," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="flip-27关于source接口改进最近在看flink-cdc的相关内容，cdc2.0有一个关于mysql数据源的无锁同步的实现，对于mysql数据源的同步不但效率提升，而且更加稳定。而这里一个实现的关键就是基于flink最新的关于source 接口的重构。这个改进是在flink的flip-27这个提案里，所以我们看一下他的前因后果以及具体的实现。  这个改进是在flink 1.12的版本中已经">
+<meta property="og:type" content="article">
+<meta property="og:title" content="flink原理--flip-27关于source接口改进">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/31/flink%E5%8E%9F%E7%90%86-flip-27%E5%85%B3%E4%BA%8Esource%E6%8E%A5%E5%8F%A3%E6%94%B9%E8%BF%9B/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="flip-27关于source接口改进最近在看flink-cdc的相关内容，cdc2.0有一个关于mysql数据源的无锁同步的实现，对于mysql数据源的同步不但效率提升，而且更加稳定。而这里一个实现的关键就是基于flink最新的关于source 接口的重构。这个改进是在flink的flip-27这个提案里，所以我们看一下他的前因后果以及具体的实现。  这个改进是在flink 1.12的版本中已经">
+<meta property="og:image" content="https://cwiki.apache.org/confluence/download/attachments/95653746/enumerator_in_task.png?version=2&modificationDate=1551805113000&api=v2">
+<meta property="og:image" content="https://github.com/images/flip_27_2.png">
+<meta property="og:image" content="https://cwiki.apache.org/confluence/download/attachments/95653746/Picture1.png?version=1&modificationDate=1575376557000&api=v2">
+<meta property="og:image" content="https://cwiki.apache.org/confluence/download/attachments/95653746/BaseSourceImpl.png?version=1&modificationDate=1580899998000&api=v2">
+<meta property="article:published_time" content="2022-05-31T07:53:07.000Z">
+<meta property="article:modified_time" content="2022-07-21T04:08:32.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="flink">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://cwiki.apache.org/confluence/download/attachments/95653746/enumerator_in_task.png?version=2&modificationDate=1551805113000&api=v2">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/31/flink原理-flip-27关于source接口改进/"/>
+
+
+
+
+
+  <title>flink原理--flip-27关于source接口改进 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/31/flink%E5%8E%9F%E7%90%86-flip-27%E5%85%B3%E4%BA%8Esource%E6%8E%A5%E5%8F%A3%E6%94%B9%E8%BF%9B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">flink原理--flip-27关于source接口改进</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-31T15:53:07+08:00">
+                2022-05-31
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="flip-27关于source接口改进"><a href="#flip-27关于source接口改进" class="headerlink" title="flip-27关于source接口改进"></a>flip-27关于source接口改进</h2><p>最近在看flink-cdc的相关内容，cdc2.0有一个关于mysql数据源的无锁同步的实现，对于mysql数据源的同步不但效率提升，而且更加稳定。而这里一个实现的关键就是基于flink最新的关于source 接口的重构。这个改进是在flink的flip-27这个提案里，所以我们看一下他的前因后果以及具体的实现。</p>
+<blockquote>
+<p>这个改进是在flink 1.12的版本中已经发布了。</p>
+</blockquote>
+<h3 id="动机"><a href="#动机" class="headerlink" title="动机"></a>动机</h3><p>这个flip主要是目的是解决当前流式source接口中一些缺点，同时可以统一流式和批量模式的source接口。主要点如下：</p>
+<ul>
+<li><p>针对流式和批量的source，一个模式需要有两个不同的实现。</p>
+</li>
+<li><p>针对于“分区、split“等这种自动扩展模式的存储逻辑、没有一个很好的接口去应对，导致读数据的实现很复杂，比如kafka、kinesis。</p>
+</li>
+<li><p>Partitions/shards/splits 三者的接口定义不够明确，导致三者的概念也是不够明确的。这让很多flink原本流上的语义实现也变得实现很复杂。比如事件时间的映射、分区内的watermarks、动态split分配等场景。</p>
+</li>
+<li><p>checkpoint lock被source function持有，这里要确保在获取锁的状态下进行数据分发和状态更新。这里flink无法优化处理它处理该锁的方式。锁不是公平锁，在锁竞争下，一些线程可能无法获得锁，这也会影响到新的线程模型（mailbox）的运作。</p>
+</li>
+<li><p>没有通用的构建块，这意味着每个源都自己实现了一个复杂的线程模型。如果你想基于flink测试新的数据源，或者想来贡献一个新的source，这些都增加了门槛。</p>
+</li>
+</ul>
+<h3 id="整体设计"><a href="#整体设计" class="headerlink" title="整体设计"></a>整体设计</h3><p>在设计中有一些关键点，在下边会依次讨论。这些讨论会帮助我们更好地理解这些接口具体实现的由来。</p>
+<h4 id="从reading中分离出work-discovery"><a href="#从reading中分离出work-discovery" class="headerlink" title="从reading中分离出work discovery"></a>从reading中分离出work discovery</h4><p>在source里有两个组件：</p>
+<ul>
+<li><p>SplitEnumerator ： 发现并分配 splits（files、partitions etc.）。</p>
+</li>
+<li><p>Reader : 从 splits 里获取数据。</p>
+</li>
+</ul>
+<p>SplitEnumerator 类似于 旧的batch source接口里创建和分配 splits 的功能。它只有一个实例运行，并不是并行的。（但是在未来的接口里会考虑并行的可能性）</p>
+<p>至于这个SplitEnumerator运行在哪个服务上，有一个讨论对比分析。我这边直接列出来：</p>
+<hr>
+<h5 id="where-to-run-enumerator的分析："><a href="#where-to-run-enumerator的分析：" class="headerlink" title="where to run enumerator的分析："></a>where to run enumerator的分析：</h5><p>Enumerator 和 SourceReader 之间的拆分通信具有特定要求：</p>
+<ul>
+<li><p>惰性/基于拉取的分配方式：仅reader请求下一个拆分时，enumerator才应发送拆分。这样可以实现更好的负载平衡。</p>
+</li>
+<li><p>通过“拉取”的方式加载数据，将诸如“位置”之类的信息从 SourceReader 传递到 SplitEnumerator，从而支持诸如位置感知split分配之类的功能。</p>
+</li>
+<li><p>精确一次容错和检查点：一次发送一个split给reader。一个split 要不是enumerator的一部分，要不就是reader的一部分，要不就是checkpointing的一部分。</p>
+</li>
+<li><p>检查点之间的精确一次语义：在检查点之间（或者没有检查点的情况下），分配给reader的split，必须在失败或者恢复的时候，重新添加到枚举器中。</p>
+</li>
+<li><p>通信通道不可以连接任务到 a single failover region。</p>
+</li>
+</ul>
+<p><strong><em>Option 1: Enumerator on the TaskManager</em></strong></p>
+<p>SplitEnumerator 作为具有单任务并行的任务运行。枚举器的下游是并行运行的 SourceReader 任务。通信通过常规数据流进行。</p>
+<p>读取器通过发送“backwards events”请求拆分，类似于批量迭代中的“request partition”或“superstep synchronization”。这些不会在运算符中公开，但任务可以访问它们。</p>
+<p>任务对backwards events做出反应：只有在发生事件时才会发送拆分。这给了我们实现基于惰性/拉动的分配策略。请求backwards events消息的有效负载（例如用于位置感知）是可以实现的。</p>
+<p>检查点和split自然对齐，因为split通过数据通道。枚举器实际上是来自source的唯一入口任务，也是唯一接收“触发检查点”RPC 调用的任务。</p>
+<p><img src="https://cwiki.apache.org/confluence/download/attachments/95653746/enumerator_in_task.png?version=2&modificationDate=1551805113000&api=v2" alt=""></p>
+<p>enumerator 和 split 的网络连接，被调度器定义为一个failover region的边界。</p>
+<p>为了解耦 enumerator 和 reader 重启，我们需要以下机制：</p>
+<ul>
+<li><p>流水线持久通道：通道的内容在检查点之间是持久的。接收任务在“检查点 X 之后”请求数据。当检查点 X+1 完成时，数据将被修剪。</p>
+<p>当reader任务失败时，恢复的reader任务可以在检查点之后重新连接到流，并将获得先前分配的split。 Batch 是一种特殊情况，如果没有检查点，则通道从一开始就保存所有数据。</p>
+<ul>
+<li><p>优点：“流水线持久通道”具有超出枚举器到reader连接的作用。</p>
+</li>
+<li><p>缺点：拆分总是发送到同一个阅读器，并且在恢复时不能分布在多个阅读器上。特别是对于批处理程序，这可能会在恢复过程中产生不良的落后者。</p>
+</li>
+</ul>
+</li>
+<li><p>失败时的重连和任务通知：enumerator任务需要记住分配给每个result partition的split，直到下一个检查点完成。必须将下游任务失败通知枚举器任务并将split添加回枚举器。恢复的reader任务将简单地重新连接并获得新的流。</p>
+<ul>
+<li><p>优点：在失败/恢复时重新分配所有reader的split（没有落后者）。</p>
+</li>
+<li><p>缺点：打破了隔离任务和网络堆栈的抽象。</p>
+</li>
+</ul>
+</li>
+</ul>
+<h4 id="Option-2-Enumerator-on-the-JobManager"><a href="#Option-2-Enumerator-on-the-JobManager" class="headerlink" title="Option 2: Enumerator on the JobManager"></a><strong><em>Option 2: Enumerator on the JobManager</em></strong></h4><p>与当前的批处理(DataSet)输入分配器类似，SplitEnumerator 代码作为 ExecutionJobVertex 的一部分在 JobManager 中运行。为了支持周期性的split发现，必须从另一个线程定期调用枚举器。</p>
+<p>reader通过 RPC 消息请求split，枚举器通过 RPC 响应。 RPC 消息携带位置等信息的有效负载。</p>
+<p>我额外需要注意的是，需要对齐split与检查点barrier的消息。如果我们开始支持基于元数据的水印(在处理有界split的集合时，为了始终如一地处理事件时间) ，我们还需要通过 RPC 来支持它，并将它与输入split任务对齐。</p>
+<p>当触发检查点时，枚举器会创建自己的检查点状态。</p>
+<p>这里的关键部分是master上(ExecutionGraph)和检查点上增加的复杂性。当通过现在的单线程执行execution graph时，可以将它们与 RPC 消息适当对齐，但是支持异步检查点编写需要更多的复杂性。</p>
+<p><strong>Option 3:</strong> <strong>Introduce an independent component named SourceCoordinator, Enumerator runs on the SourceCoordinator</strong></p>
+<p>SourceCoordinator是一个独立的组件，不是ExecutionGraph的一部分。SourceCoordinator 可以在 JobMaster 上运行或作为独立进程运行。设计上没有限制。与 SourceCoordinator（Enumerator）的通信是通过 RPC 进行的。通过 RPC 进行split分配支持拉取的方式。SourceReader 需要注册到 SourceCoordinator（地址在 TaskDeploymentDescriptor 中或由 JobMaster 通过 RPC 更新），然后发送带有负载信息的split请求。</p>
+<p>每个作业最多有一个 SourceCoordinator，由 JobMaster 启动。一个作业中可能有多个枚举器，因为可能有多个不同的源，所有枚举器都在此 SourceCoordinator 上运行。</p>
+<p>split分配需要满足检查点模式语义。枚举器有自己的状态（split 任务），它们是全局检查点的一部分。当一个新的检查点被触发时，CheckpointCoordinator 首先向 SourceCoordinator 发送屏障。SourceCoordinator 快照所有枚举器的状态。然后 SourceCoordinator 通过 RPC 向 SourceReader 发送屏障。通过 RPC 的 split 和 barrier 是 FIFO，因此 Flink 可以自然地将 split assignment 与 checkpoint 对齐。</p>
+<p>如果用户指定 RestartAllStrategy 作为故障转移策略，Flink 会在任务失败时重新启动所有任务和 SourceCoordinator。所有任务和枚举器都从上次成功的检查点重新启动和恢复。</p>
+<p>如果用户将 RestartPipelinedRegionStrategy 指定为故障转移策略，则有点复杂。在这个模型中没有故障转移区域问题，因为 Enumerator 和 SourceReader 之间没有执行边(SourceCoordinator 不是 ExecutionGraph 的端口)。解释如下：</p>
+<ul>
+<li><p>当 SourceReader 任务失败时，JobMaster 不会重新启动 SourceCoordinator 或它上面的 Enumerators。像往常一样，JobMaster 取消同一故障转移区域中的其他任务。然后 JobMaster 通知 Enumerator sourceader 任务的失败或取消(同一故障转移区域中可能有多个 sourceader 任务) ，以及将从哪个检查点版本恢复。通知在重新启动新任务之前发生。当 Enumerator 知道任务失败时，它会从特定检查点版本恢复与失败任务相关的状态。这意味着 SourceCoordinator 需要支持部分恢复。Enumerator 还在内存中保留了 SourceReader、检查点版本和拆分分配的两级映射。此映射有助于找到应该重新分配或添加回 Enumerator 的split。将有不同的策略来处理这些失败的拆分。在某些基于事件时间的作业中，将失败的split重新分配给其他任务可能会破坏水印语义。恢复split assignment状态，在内存中重构map，处理失败的split后，Enumerator向JobMaster返回一个确认，然后JobMaster重新启动失败区域的任务。可能存在 Enumerator 立即返回确认而不等待恢复的优化。这样就可以同时处理失败区域任务的调度和恢复Enumerator。另一个重要的事情是，当 Enumerator 正在恢复时，其他正在运行的 SourceReader 应该正常工作，包括拉下一个拆分。</p>
+</li>
+<li><p>当 Enumerator 或 SourceCoordinator 失败时，如果有可用的 write-ahead log（如下所述），JobMaster 将重新启动 Enumerator 或 SourceCoordinator，但不会重新启动 SourceReader 任务。重启后，枚举器恢复状态，重放预写日志，然后开始工作。同时，SourceReader 等待重新连接，在重新注册成功之前暂时没有分配更多的拆分。重新注册是必要的。重放 Enumerator 和 SourceReader 之间的预写日志后应该对齐，因为 Enumerator 无法确保对每个 SourceReader 的最后拆分分配是否成功。如果需要（进程崩溃），JobMaster 会更新重新连接信息。如果没有可用的预写日志，故障转移将回退到全局故障转移，所有任务和枚举器将重新启动并从上一个成功的检查点恢复。</p>
+</li>
+</ul>
+<p>CheckpointCoordinator 应通知 Enumerator 检查点已完成。因此 Enumerator 可以修剪保存在内存中的映射和预写日志。</p>
+<blockquote>
+<p>根据checkpoint的通知信息，冗余的日志等信息是可以删除掉的。</p>
+</blockquote>
+<p><strong><em>Comparison between Options</em></strong></p>
+<p>Stephan 的个人观点: 如果我们能找到一种优雅的方式来抽象网络堆栈变化，我倾向于在任务中运行枚举数，而不是在 JobManager 上。</p>
+<hr>
+<p>Example:</p>
+<ul>
+<li><p>在 File Source 中，SplitEnumerator 列出所有文件（可能将它们细分为块/范围）。</p>
+</li>
+<li><p>对于 Kafka 源，SplitEnumerator 会找到源应读取的所有 Kafka 分区。</p>
+</li>
+</ul>
+<p>Reader 从分配的split 任务中读取数据。reader包含当前源接口的大部分功能。</p>
+<p>一些reader可能会读取一个接一个的有界split序列，有些可能会并行准备多个（无界）split。</p>
+<p>枚举数和读取器之间的这种分离允许对split读取器混合使用和匹配不同的枚举策略。例如，当前的 Kafka 连接器具有不同的分区发现策略，这些策略与代码的其余部分混合在一起。有了新的接口，我们只需要一个split读取器实现，并且可以有多个split枚举器用于不同的分区发现策略。</p>
+<p>由于这两个组件封装了核心功能，主source接口本身只是一个用于创建split枚举器和读取器的工厂。</p>
+<p><img src="/images/flip_27_2.png" alt=""></p>
+<h4 id="Batch-and-Streaming-Unification"><a href="#Batch-and-Streaming-Unification" class="headerlink" title="Batch and Streaming Unification"></a>Batch and Streaming Unification</h4><p>每个源都应该能够作为有界（批处理）和无界（连续流）源工作。</p>
+<p>有界性是源实例本身的固有属性。在大多数情况下，只有 SplitEnumerators 应该知道有界性，而 SplitReader 是不可知的。</p>
+<p>这样，当我们可以显式地建模有界流时，我们还可以使 API 类型在未来变得安全。</p>
+<p>例如：</p>
+<ul>
+<li><p>FileSource</p>
+<ul>
+<li><p>对于“有界输入”，它使用一个SplitEnumerator 枚举给定路径下的所有文件。</p>
+</li>
+<li><p>对于“连续输入”，它使用SplitEnumerator 定期枚举给定路径下的所有文件并分配新文件。</p>
+</li>
+</ul>
+</li>
+<li><p>KafkaSource</p>
+<ul>
+<li><p>对于“有界输入”，它使用SplitEnumerator 列出所有分区并获取每个分区的最新偏移量，并将其作为“结束偏移量”附加到split。</p>
+</li>
+<li><p>对于“连续输入”，它使用列出所有分区并将 LONG_MAX 作为“结束偏移量”附加到每个split的SplitEnumerator。</p>
+</li>
+<li><p>source可能有另一个选项来定期发现新分区。这仅适用于“连续输入”。</p>
+</li>
+</ul>
+</li>
+</ul>
+<h4 id="Generic-enumerator-reader-communication-mechanism"><a href="#Generic-enumerator-reader-communication-mechanism" class="headerlink" title="Generic enumerator-reader communication mechanism"></a>Generic enumerator-reader communication mechanism</h4><p>SplitEnumerator 和 sourceeader 都是用户实现的类。实现需要这两个组件之间进行一些通信，这种情况并不罕见。为了方便这些用例。在这个 FLIP 中，我们介绍了 SplitEnumerator 和 SourceReader 之间的通用消息传递机制。这种机制需要 JobMasterGateway 和 TaskExecutorGateway 中的附加 RPC 方法对。消息传递堆栈可以在下面说明。</p>
+<p><img src="https://cwiki.apache.org/confluence/download/attachments/95653746/Picture1.png?version=1&modificationDate=1575376557000&api=v2" alt=""></p>
+<p>SourceEvent 是在 SplitEnumerator 和 sourceader 之间传递消息的接口。OperatorEvent 是 OperatorCoordinator 和 Operator 之间传递消息的接口。OperatorCoordinator 是一个通用的协调器，可以与任何操作符关联。在这个 FLIP 中，SourceCoordinator 将是封装 SplitEnumerator 的 OperatorCoordinator 实现。</p>
+<h4 id="Reader-Interface-and-Threading-Model"><a href="#Reader-Interface-and-Threading-Model" class="headerlink" title="Reader Interface and Threading Model"></a>Reader Interface and Threading Model</h4><p>reader需要满足以下属性：</p>
+<ul>
+<li><p>没有封闭的工作循环，因此不需要管理锁定。</p>
+</li>
+<li><p>非阻塞进度方法，它支持在actor/mailbox/dispatcher 样式操作符中运行。</p>
+</li>
+<li><p>在单线程上所有方法的调用都是一样的，因此实现者不需要处理并发。</p>
+</li>
+<li><p>水印/事件时间处理抽象为可扩展以用于split感知和对齐。</p>
+</li>
+<li><p>所有的读者都应该自然地支持状态和检查点。</p>
+</li>
+<li><p>批处理执行应避免水印生成。</p>
+</li>
+</ul>
+<p>The following core aspects give us these properties:</p>
+<ul>
+<li><p>split既是工作分配的类型，也是源持有的状态类型。从检查点分配split或恢复split对阅读器来说是一样的。</p>
+</li>
+<li><p>高阶reader是一个返回future的非阻塞调用。</p>
+</li>
+<li><p>我们在主接口之上构建更高级别的原语（见下文“高级阅读器”）</p>
+</li>
+<li><p>我们在 SourceOutput 中隐藏事件时间/水印，并为批处理（无水印）和流式传输（有水印）传递不同的源上下文。 SourceOutput 还抽象了每个分区的水印跟踪。</p>
+</li>
+</ul>
+<p>FLIP-27：重构源接口#SourceReader 将作为 PushingAsyncDataInput 运行，它与任务中的mainbox线程模型很好地配合，类似于网络输入。</p>
+<h4 id="Base-implementation-and-high-level-readers"><a href="#Base-implementation-and-high-level-readers" class="headerlink" title="Base implementation and high-level readers"></a>Base implementation and high-level readers</h4><p>核心源接口（最底层的接口）非常通用。这使得它很灵活，但对于贡献者来说很难实现，尤其是对于像 Kafka 或 Kinesis 这样足够复杂的reader模式。</p>
+<p>通常，大多数用于连接器的 I/O 库都不是异步的，并且需要生成一个 I/O 线程以使它们对主线程不阻塞。</p>
+<p>我们建议通过构建更高级别的源抽象来解决这个问题，这些抽象提供允许阻塞调用的更简单的接口。</p>
+<p>这些更高级别的抽象还将解决同时处理多个split的源的问题，以及每个split的事件时间逻辑。</p>
+<p>大多数reader属于以下类别之一：</p>
+<ul>
+<li><p>单reader单split节点。 </p>
+</li>
+<li><p>单reader多split节点。</p>
+<ul>
+<li><p>有序split (File, database query, most bounded splits)</p>
+</li>
+<li><p>Multi-split multiplexed (Kafka, Pulsar, Pravega, …)</p>
+</li>
+<li><p>Multi-split multi-threaded (Kinesis, …)</p>
+</li>
+</ul>
+</li>
+</ul>
+<p>大多数针对这些高级构建块实现的reader只需要实现一个类似于此的接口。契约还包括除 wakeup ()之外的所有方法都将由同一个线程调用，从而避免了连接器中的任何并发处理需求。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">SplitReader</span>&lt;<span class="title">E</span>, <span class="title">SplitT</span> <span class="keyword">extends</span> <span class="title">SourceSplit</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="function">RecordsWithSplitIds&lt;E&gt; <span class="title">fetch</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException</span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">handleSplitsChanges</span><span class="params">(Queue&lt;SplitsChange&lt;SplitT&gt;&gt; splitsChanges)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">wakeUp</span><span class="params">()</span></span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>SplitReader 返回的 RecordsWithSplitIds 将以一对一的方式被传递给一个 FLIP-27：Refactor Source Interface#RecordEmitter 。 RecordEmitter 负责以下工作：</p>
+<ul>
+<li>Convert the raw record type <strong><E></strong> into the eventual record type <strong><T></strong></li>
+<li>Provide an event time timestamp for the record that it processes.</li>
+</ul>
+<p>通过基本实现，用户编写自己的源代码可以专注于：</p>
+<ol>
+<li>Fetch records from external system.</li>
+<li>Perform record parsing and conversion.</li>
+<li>Extract timestamps and optionally deal with watermarks. A followup FLIP will provide some default behaviors for users to deal with their watermark.</li>
+</ol>
+<p>基本实现可以大致说明如下：</p>
+<p><img src="https://cwiki.apache.org/confluence/download/attachments/95653746/BaseSourceImpl.png?version=1&modificationDate=1580899998000&api=v2" alt=""></p>
+<ol>
+<li>When a new split is added to the <em>SourceReader</em> by <em>SplitEnumerator</em>, the initial state of that new split is put into a state map maintained by the <em>SourceReaderBase</em> before the split is assigned to a <em>SplitReader</em>.（当 SplitEnumerator 将新拆分添加到 SourceReader 时，在将split分配给 SplitReader 之前，将该新split的初始状态放入由 SourceReaderBase 维护的状态映射中。）</li>
+<li>The records are passed from the the <em>SplitReaders</em> to the <em>RecordEmitter</em> in <em>RecordsBySplitIds.</em> This allows the <em>SplitReader</em> to enqueue records in a batch manner, which benefits performance.（记录从 SplitReaders 传递到 RecordsBySplitIds 中的 RecordEmitter。这允许 SplitReader 以批处理方式将记录排入队列，从而提高性能。）</li>
+<li>The <em>SourceReaderBase</em> iterates over each records and looks up their corresponding split state. The Record and its corresponding split state is passed to the <em>RecordEmitter.</em>(SourceReaderBase 遍历每条记录并查找它们对应的split状态。 Record 及其对应的split状态被传递给 RecordEmitter。)</li>
+</ol>
+<p>请注意，此基本实现的抽象并未指定执行反序列化的位置。因为 RecordEmitter 是由任务的mainbox线程驱动的，所以理想情况下，反序列化应该在splitReader中完成，因为它更具可扩展性。也可以引入反序列化线程池来做到这一点。不过，反序列化的具体实现并不是本次FLIP的重点，后续FLIP会涉及到。</p>
+<p>The interfaces used by the base implementation is covered in the <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=95653748#FLIP27:RefactorSourceInterface-BaseImplInterface" target="_blank" rel="noopener">section of interface for base implementation.</a></p>
+<h4 id="Failover"><a href="#Failover" class="headerlink" title="Failover"></a>Failover</h4><p>SplitEnumerator 的状态包括以下内容：</p>
+<ul>
+<li>The unassigned splits</li>
+<li>The splits that have been assigned but not successfully checkpointed yet.</li>
+<li>The assigned but uncheckpointed splits will be associated with each of the checkpoint id they belong to.（已分配但未设置检查点的拆分将与它们所属的每个检查点 ID 相关联。）</li>
+</ul>
+<p>SourceReader 的状态包括：</p>
+<ul>
+<li><p>The assigned splits</p>
+</li>
+<li><p>The state of the splits (e.g. Kafka offsets, HDFS file offset, etc)</p>
+</li>
+</ul>
+<p>当 SplitEnumerator 失败时，将执行完整的故障转移。虽然可以进行更细粒度的故障转移以仅恢复 SplitEnumerator 的状态，但我们希望在单独的 FLIP 中解决此问题。</p>
+<p>当 SourceReader 失败时，失败的 SourceReader 将恢复到最后一个成功的检查点。SplitEnumerator 将通过向 SplitEnumerator 添加已分配但未检查的拆分来部分重置其状态。在这种情况下，只有失败的子任务及其相关联的节点必须重置状态。</p>
+<h4 id="Where-to-run-the-enumerator"><a href="#Where-to-run-the-enumerator" class="headerlink" title="Where to run the enumerator"></a>Where to run the enumerator</h4><p>关于在哪里运行我们在附录中记录的枚举器进行了长时间的讨论。我们采用的最终方法与选项 3 非常相似，但有一些不同之处。方法如下。</p>
+<blockquote>
+<p>在jm节点上，有一个ordinator的服务。</p>
+</blockquote>
+<p>每个 SplitEnumerator 都将封装在一个 SourceCoordinator 中。如果有多个源，就会有多个SourceCoordinator。SourceCoordinators 将在 JobMaster 中运行，但不作为 ExecutionGraph 的一部分。在这个 FLIP 中，我们建议在 SplitEnumerator 失败时对整个执行图进行故障转移。稍后的 FLIP 中将提出更细粒度的枚举器故障转移。</p>
+<h4 id="Per-Split-Event-Time"><a href="#Per-Split-Event-Time" class="headerlink" title="Per Split Event Time"></a>Per Split Event Time</h4><p>随着 SourceSplit 的引入，我们实际上可以为用户发出每个split事件时间。我们计划在单独的 FLIP 中而不是在此 FLIP 中提出解决方案，以降低复杂性。</p>
+<h4 id="Event-Time-Alignment"><a href="#Event-Time-Alignment" class="headerlink" title="Event Time Alignment"></a>Event Time Alignment</h4><p>使用 SplitEnumerator 和 SourceReader 之间引入的通用通信机制，事件时间对齐变得更容易实现。在这个 FLIP 中，我们没有将其包含在基本实现中以降低复杂性。</p>
+<h3 id="Public-Interface"><a href="#Public-Interface" class="headerlink" title="Public Interface"></a>Public Interface</h3><p>此 FLIP 引入的公共接口更改由三部分组成：</p>
+<ul>
+<li>The top level public interfaces.</li>
+<li>The interfaces introduced as a part of the base implementation of the top level public interfaces.(作为顶级公共接口的基本实现的一部分引入的接口。)</li>
+<li>The base implementation provides common functionalities required for most Source implementations. See <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=95653748#FLIP27:RefactorSourceInterface-BaseImplementation" target="_blank" rel="noopener">base implementation</a> for details.（基本实现提供了大多数 Source 实现所需的通用功能。有关详细信息，请参阅基本实现。）</li>
+<li>The RPC gateway interface change for the <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=95653748#FLIP27:RefactorSourceInterface-GenericComm" target="_blank" rel="noopener">generic message passing mechanism</a>.（通用消息传递机制的 RPC 网关接口更改。）</li>
+</ul>
+<p>值得注意的是，尽管我们将尽力维护稳定的接口，但作为基本实现的一部分而引入的接口(例如 SplitReader)比顶级公共接口(例如 SplitEnumerator/SourceReader)更容易更改。这主要是因为我们希望随着时间的推移向基本实现中添加更多的功能。</p>
+<h2 id="Top-level-public-interfaces"><a href="#Top-level-public-interfaces" class="headerlink" title="Top level public interfaces"></a>Top level public interfaces</h2><ul>
+<li><strong>Source</strong> - A factory style class that helps create <em>SplitEnumerator</em> and <em>SourceReader</em> at runtime.</li>
+<li><strong>SourceSplit</strong> - An interface for all the split types.</li>
+<li><strong>SplitEnumerator</strong> - Discover the splits and assign them to the <em>SourceReaders</em></li>
+<li><strong>SplitEnumeratorContext</strong> - Provide necessary information to the <em>SplitEnumerator</em> to assign splits and send custom events to the the <em>SourceReaders</em>.</li>
+<li><strong>SplitAssignment</strong> - A container class holding the source split assignment for each subtask.</li>
+<li><strong>SourceReader</strong> - Read the records from the splits assigned by the <em>SplitEnumerator</em>.</li>
+<li><strong>SourceReaderContext</strong> - Provide necessary function to the <em>SourceReader</em> to communicate with <em>SplitEnumerator</em>.</li>
+<li><strong>SourceOutput</strong> - A collector style interface to take the records and timestamps emit by the <em>SourceReader.</em></li>
+<li><strong>WatermarkOutput</strong> <em>-</em> An interface for emitting watermark and indicate idleness of the source.</li>
+<li><strong>Watermark</strong> - A new Watermark class will be created in the package <em>org.apache.flink.api.common.eventtime.</em> This class will eventually replace the existing Watermark in <em>org.apache.flink.streaming.api.watermark.</em> This change allows flink-core to remain independent of other modules. Given that we will eventually put all the watermark generation into the Source, this change will be necessary. Note that this FLIP does not intended to change the existing way that watermark can be overridden in the DataStream after they are emitted by the source.</li>
+</ul>
+<h3 id="Source"><a href="#Source" class="headerlink" title="Source"></a>Source</h3><blockquote>
+<p> A factory style class that helps create <em>SplitEnumerator</em> and <em>SourceReader</em> at runtime.</p>
+</blockquote>
+<blockquote>
+<p>source 的注释里有解释source的定位，按照工厂的角色，可见他的主要作用就是一个source的入口。</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * The interface for Source. It acts like a factory class that helps construct</span></span><br><span class="line"><span class="comment"> * the &#123;<span class="doctag">@link</span> SplitEnumerator&#125; and &#123;<span class="doctag">@link</span> SourceReader&#125; and corresponding</span></span><br><span class="line"><span class="comment"> * serializers.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> &lt;T&gt;        The type of records produced by the source.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> &lt;SplitT&gt;   The type of splits handled by the source.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> &lt;EnumChkT&gt; The type of the enumerator checkpoints.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">Source</span>&lt;<span class="title">T</span>, <span class="title">SplitT</span> <span class="keyword">extends</span> <span class="title">SourceSplit</span>, <span class="title">EnumChkT</span>&gt; <span class="keyword">extends</span> <span class="title">Serializable</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Get the boundedness of this source.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> the boundedness of this source.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">Boundedness <span class="title">getBoundedness</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Creates a new reader to read data from the spits it gets assigned.</span></span><br><span class="line"><span class="comment">     * The reader starts fresh and does not have any state to resume.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> readerContext The &#123;<span class="doctag">@link</span> SourceReaderContext context&#125; for the source reader.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> A new SourceReader.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">SourceReader&lt;T, SplitT&gt; <span class="title">createReader</span><span class="params">(SourceReaderContext readerContext)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Creates a new SplitEnumerator for this source, starting a new input.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> enumContext The &#123;<span class="doctag">@link</span> SplitEnumeratorContext context&#125; for the split enumerator.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> A new SplitEnumerator.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">SplitEnumerator&lt;SplitT, EnumChkT&gt; <span class="title">createEnumerator</span><span class="params">(SplitEnumeratorContext&lt;SplitT&gt; enumContext)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Restores an enumerator from a checkpoint.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> enumContext The &#123;<span class="doctag">@link</span> SplitEnumeratorContext context&#125; for the restored split enumerator.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> checkpoint The checkpoint to restore the SplitEnumerator from.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> A SplitEnumerator restored from the given checkpoint.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">SplitEnumerator&lt;SplitT, EnumChkT&gt; <span class="title">restoreEnumerator</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">            SplitEnumeratorContext&lt;SplitT&gt; enumContext,</span></span></span><br><span class="line"><span class="function"><span class="params">            EnumChkT checkpoint)</span> <span class="keyword">throws</span> IOException</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ------------------------------------------------------------------------</span></span><br><span class="line">    <span class="comment">//  serializers for the metadata</span></span><br><span class="line">    <span class="comment">// ------------------------------------------------------------------------</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Creates a serializer for the source splits. Splits are serialized when sending them</span></span><br><span class="line"><span class="comment">     * from enumerator to reader, and when checkpointing the reader's current state.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> The serializer for the split type.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">SimpleVersionedSerializer&lt;SplitT&gt; <span class="title">getSplitSerializer</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Creates the serializer for the &#123;<span class="doctag">@link</span> SplitEnumerator&#125; checkpoint.</span></span><br><span class="line"><span class="comment">     * The serializer is used for the result of the &#123;<span class="doctag">@link</span> SplitEnumerator#snapshotState()&#125;</span></span><br><span class="line"><span class="comment">     * method.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> The serializer for the SplitEnumerator checkpoint.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">SimpleVersionedSerializer&lt;EnumChkT&gt; <span class="title">getEnumeratorCheckpointSerializer</span><span class="params">()</span></span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * The boundedness of the source: "bounded" for the currently available data (batch style),</span></span><br><span class="line"><span class="comment"> * "continuous unbounded" for a continuous streaming style source.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">enum</span> Boundedness &#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * A bounded source processes the data that is currently available and will end after that.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * &lt;p&gt;When a source produces a bounded stream, the runtime may activate additional optimizations</span></span><br><span class="line"><span class="comment">     * that are suitable only for bounded input. Incorrectly producing unbounded data when the source</span></span><br><span class="line"><span class="comment">     * is set to produce a bounded stream will often result in programs that do not output any results</span></span><br><span class="line"><span class="comment">     * and may eventually fail due to runtime errors (out of memory or storage).</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    BOUNDED,</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * A continuous unbounded source continuously processes all data as it comes.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * &lt;p&gt;The source may run forever (until the program is terminated) or might actually end at some point,</span></span><br><span class="line"><span class="comment">     * based on some source-specific conditions. Because that is not transparent to the runtime,</span></span><br><span class="line"><span class="comment">     * the runtime will use an execution mode for continuous unbounded streams whenever this mode</span></span><br><span class="line"><span class="comment">     * is chosen.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    CONTINUOUS_UNBOUNDED</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>注释里有写明，当前方法的角色和隐含的注意事项。</p>
+</blockquote>
+<h3 id="SourceSplit"><a href="#SourceSplit" class="headerlink" title="SourceSplit"></a>SourceSplit</h3><blockquote>
+<p>An interface for all the split types.</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * An interface for all the Split types to implement.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">SourceSplit</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Get the split id of this source split.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> id of this source split.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">String <span class="title">splitId</span><span class="params">()</span></span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>每个split的都有一个id标识</p>
+</blockquote>
+<h3 id="SourceReader"><a href="#SourceReader" class="headerlink" title="SourceReader"></a>SourceReader</h3><blockquote>
+<p>Read the records from the splits assigned by the <em>SplitEnumerator</em>.</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * The interface for a source reader which is responsible for reading the records from</span></span><br><span class="line"><span class="comment"> * the source splits assigned by &#123;<span class="doctag">@link</span> SplitEnumerator&#125;.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> &lt;T&gt; The type of the record emitted by this source reader.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> &lt;SplitT&gt; The type of the the source splits.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">SourceReader</span>&lt;<span class="title">T</span>, <span class="title">SplitT</span> <span class="keyword">extends</span> <span class="title">SourceSplit</span>&gt; <span class="keyword">extends</span> <span class="title">Serializable</span>, <span class="title">AutoCloseable</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Start the reader;</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">start</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Poll the next available record into the &#123;<span class="doctag">@link</span> SourceOutput&#125;.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * &lt;p&gt;The implementation must make sure this method is non-blocking.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * &lt;p&gt;Although the implementation can emit multiple records into the given SourceOutput,</span></span><br><span class="line"><span class="comment">     * it is recommended not doing so. Instead, emit one record into the SourceOutput</span></span><br><span class="line"><span class="comment">     * and return a &#123;<span class="doctag">@link</span> Status#AVAILABLE_NOW&#125; to let the caller thread</span></span><br><span class="line"><span class="comment">     * know there are more records available.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> The &#123;<span class="doctag">@link</span> Status&#125; of the SourceReader after the method invocation.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">Status <span class="title">pollNext</span><span class="params">(SourceOutput&lt;T&gt; sourceOutput)</span> <span class="keyword">throws</span> Exception</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Checkpoint on the state of the source.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> the state of the source.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">List&lt;SplitT&gt; <span class="title">snapshotState</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> a future that will be completed once there is a record available to poll.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">CompletableFuture&lt;Void&gt; <span class="title">isAvailable</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Adds a list of splits for this reader to read.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> splits The splits assigned by the split enumerator.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">addSplits</span><span class="params">(List&lt;SplitT&gt; splits)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Handle a source event sent by the &#123;<span class="doctag">@link</span> SplitEnumerator&#125;</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> sourceEvent the event sent by the &#123;<span class="doctag">@link</span> SplitEnumerator&#125;.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">handleSourceEvents</span><span class="params">(SourceEvent sourceEvent)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * The status of this reader.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">enum</span> Status &#123;</span><br><span class="line">        <span class="comment">/** The next record is available right now. */</span></span><br><span class="line">        AVAILABLE_NOW,</span><br><span class="line">        <span class="comment">/** The next record will be available later. */</span></span><br><span class="line">        AVAILABLE_LATER,</span><br><span class="line">        <span class="comment">/** The source reader has completed all the reading work. */</span></span><br><span class="line">        FINISHED</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>为什么一个状态的变更要用future，追溯一下并发模型和flink的线程模型，这样能知道flink为什么不选择别的方式？</p>
+<p>看最后的status，去推演他的可能模型有哪些。或者说能应对的场景。</p>
+<p>思考自己的基础知识如何发挥作用。</p>
+</blockquote>
+<h3 id="SourceOutput"><a href="#SourceOutput" class="headerlink" title="SourceOutput"></a>SourceOutput</h3><blockquote>
+<p>A collector style interface to take the records and timestamps emit by the <em>SourceReader.</em></p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">SourceOutput</span>&lt;<span class="title">E</span>&gt; <span class="keyword">extends</span> <span class="title">WatermarkOutput</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">emitRecord</span><span class="params">(E record)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">emitRecord</span><span class="params">(E record, <span class="keyword">long</span> timestamp)</span></span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="WatermarkOutput"><a href="#WatermarkOutput" class="headerlink" title="WatermarkOutput"></a>WatermarkOutput</h3><blockquote>
+<p>An interface for emitting watermark and indicate idleness of the source.</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * An output for watermarks. The output accepts watermarks and idleness (inactivity) status.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="meta">@Public</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">WatermarkOutput</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Emits the given watermark.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * &lt;p&gt;Emitting a watermark also implicitly marks the stream as &lt;i&gt;active&lt;/i&gt;, ending</span></span><br><span class="line"><span class="comment">     * previously marked idleness.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">emitWatermark</span><span class="params">(Watermark watermark)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Marks this output as idle, meaning that downstream operations do not</span></span><br><span class="line"><span class="comment">     * wait for watermarks from this output.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * &lt;p&gt;An output becomes active again as soon as the next watermark is emitted.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">markIdle</span><span class="params">()</span></span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Watermark"><a href="#Watermark" class="headerlink" title="Watermark"></a>Watermark</h3><blockquote>
+<p>A new Watermark class will be created in the package <em>org.apache.flink.api.common.eventtime.</em> This class will eventually replace the existing Watermark in <em>org.apache.flink.streaming.api.watermark.</em> This change allows flink-core to remain independent of other modules. Given that we will eventually put all the watermark generation into the Source, this change will be necessary. Note that this FLIP does not intended to change the existing way that watermark can be overridden in the DataStream after they are emitted by the source.</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Watermarks are the progress indicators in the data streams. A watermark signifies</span></span><br><span class="line"><span class="comment"> * that no events with a timestamp smaller or equal to the watermark's time will occur after the</span></span><br><span class="line"><span class="comment"> * water. A watermark with timestamp &lt;i&gt;T&lt;/i&gt; indicates that the stream's event time has progressed</span></span><br><span class="line"><span class="comment"> * to time &lt;i&gt;T&lt;/i&gt;.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * &lt;p&gt;Watermarks are created at the sources and propagate through the streams and operators.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * &lt;p&gt;In some cases a watermark is only a heuristic, meaning some events with a lower timestamp</span></span><br><span class="line"><span class="comment"> * may still follow. In that case, it is up to the logic of the operators to decide what to do</span></span><br><span class="line"><span class="comment"> * with the "late events". Operators can for example ignore these late events, route them to a</span></span><br><span class="line"><span class="comment"> * different stream, or send update to their previously emitted results.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * &lt;p&gt;When a source reaches the end of the input, it emits a final watermark with timestamp</span></span><br><span class="line"><span class="comment"> * &#123;<span class="doctag">@code</span> Long.MAX_VALUE&#125;, indicating the "end of time".</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * &lt;p&gt;Note: A stream's time starts with a watermark of &#123;<span class="doctag">@code</span> Long.MIN_VALUE&#125;. That means that all records</span></span><br><span class="line"><span class="comment"> * in the stream with a timestamp of &#123;<span class="doctag">@code</span> Long.MIN_VALUE&#125; are immediately late.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="meta">@Public</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">Watermark</span> <span class="keyword">implements</span> <span class="title">Serializable</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> serialVersionUID = <span class="number">1L</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/** Thread local formatter for stringifying the timestamps. */</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> ThreadLocal&lt;SimpleDateFormat&gt; TS_FORMATTER = ThreadLocal.withInitial(</span><br><span class="line">        () -&gt; <span class="keyword">new</span> SimpleDateFormat(<span class="string">"yyyy-MM-dd HH:mm:ss.SSS"</span>));</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ------------------------------------------------------------------------</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/** The watermark that signifies end-of-event-time. */</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">final</span> Watermark MAX_WATERMARK = <span class="keyword">new</span> Watermark(Long.MAX_VALUE);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ------------------------------------------------------------------------</span></span><br><span class="line"></span><br><span class="line">    <span class="comment">/** The timestamp of the watermark in milliseconds. */</span></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> <span class="keyword">long</span> timestamp;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Creates a new watermark with the given timestamp in milliseconds.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">Watermark</span><span class="params">(<span class="keyword">long</span> timestamp)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.timestamp = timestamp;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Returns the timestamp associated with this Watermark.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">long</span> <span class="title">getTimestamp</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> timestamp;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Formats the timestamp of this watermark, assuming it is a millisecond timestamp.</span></span><br><span class="line"><span class="comment">     * The returned format is "yyyy-MM-dd HH:mm:ss.SSS".</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">getFormattedTimestamp</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> TS_FORMATTER.get().format(<span class="keyword">new</span> Date(timestamp));</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// ------------------------------------------------------------------------</span></span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">equals</span><span class="params">(Object o)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">this</span> == o ||</span><br><span class="line">                o != <span class="keyword">null</span> &amp;&amp;</span><br><span class="line">                o.getClass() == Watermark<span class="class">.<span class="keyword">class</span> &amp;&amp;</span></span><br><span class="line"><span class="class">                ((<span class="title">Watermark</span>) <span class="title">o</span>).<span class="title">timestamp</span> </span>== <span class="keyword">this</span>.timestamp;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">hashCode</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> Long.hashCode(timestamp);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">toString</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="string">"Watermark @ "</span> + timestamp + <span class="string">" ("</span> + getFormattedTimestamp() + <span class="string">')'</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="SourceReaderContext"><a href="#SourceReaderContext" class="headerlink" title="SourceReaderContext"></a>SourceReaderContext</h3><blockquote>
+<p>Provide necessary function to the <em>SourceReader</em> to communicate with <em>SplitEnumerator</em>.</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * A context for the source reader. It allows the source reader to get the context information and</span></span><br><span class="line"><span class="comment"> * allows the SourceReader to send source event to its split enumerator.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">SourceReaderContext</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Returns the metric group for this parallel subtask.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> metric group for this parallel subtask.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">MetricGroup <span class="title">getMetricGroup</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Send a source event to the corresponding SplitEnumerator.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> event The source event to send.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">sendEventToEnumerator</span><span class="params">(SourceEvent event)</span></span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="SplitEnumerator"><a href="#SplitEnumerator" class="headerlink" title="SplitEnumerator"></a>SplitEnumerator</h3><blockquote>
+<p>Discover the splits and assign them to the <em>SourceReaders</em></p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * A interface of a split enumerator responsible for the followings:</span></span><br><span class="line"><span class="comment"> * 1. discover the splits for the &#123;<span class="doctag">@link</span> SourceReader&#125; to read.</span></span><br><span class="line"><span class="comment"> * 2. assign the splits to the source reader.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">SplitEnumerator</span>&lt;<span class="title">SplitT</span> <span class="keyword">extends</span> <span class="title">SourceSplit</span>, <span class="title">CheckpointT</span>&gt; <span class="keyword">extends</span> <span class="title">AutoCloseable</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Start the split enumerator.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * &lt;p&gt;The default behavior does nothing.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">start</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Handles the source event from the source reader.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> subtaskId the subtask id of the source reader who sent the source event.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> sourceEvent the source event from the source reader.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">handleSourceEvent</span><span class="params">(<span class="keyword">int</span> subtaskId, SourceEvent sourceEvent)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Add a split back to the split enumerator. It will only happen when a &#123;<span class="doctag">@link</span> SourceReader&#125; fails</span></span><br><span class="line"><span class="comment">     * and there are splits assigned to it after the last successful checkpoint.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> splits The split to add back to the enumerator for reassignment.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> subtaskId The id of the subtask to which the returned splits belong.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">addSplitsBack</span><span class="params">(List&lt;SplitT&gt; splits, <span class="keyword">int</span> subtaskId)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Add a new source reader with the given subtask ID.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> subtaskId the subtask ID of the new source reader.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">addReader</span><span class="params">(<span class="keyword">int</span> subtaskId)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Checkpoints the state of this split enumerator.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">CheckpointT <span class="title">snapshotState</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Called to close the enumerator, in case it holds on to any resources, like threads or</span></span><br><span class="line"><span class="comment">     * network connections.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">close</span><span class="params">()</span> <span class="keyword">throws</span> IOException</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="SplitEnumeratorContext"><a href="#SplitEnumeratorContext" class="headerlink" title="SplitEnumeratorContext"></a>SplitEnumeratorContext</h3><blockquote>
+<p>Provide necessary information to the <em>SplitEnumerator</em> to assign splits and send custom events to the the <em>SourceReaders</em>.</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * A context class for the &#123;<span class="doctag">@link</span> SplitEnumerator&#125;. This class serves the following purposes:</span></span><br><span class="line"><span class="comment"> * 1. Host information necessary for the SplitEnumerator to make split assignment decisions.</span></span><br><span class="line"><span class="comment"> * 2. Accept and track the split assignment from the enumerator.</span></span><br><span class="line"><span class="comment"> * 3. Provide a managed threading model so the split enumerators do not need to create their</span></span><br><span class="line"><span class="comment"> *    own internal threads.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> &lt;SplitT&gt; the type of the splits.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">SplitEnumeratorContext</span>&lt;<span class="title">SplitT</span> <span class="keyword">extends</span> <span class="title">SourceSplit</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="function">MetricGroup <span class="title">metricGroup</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Send a source event to a source reader. The source reader is identified by its subtask id.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> subtaskId the subtask id of the source reader to send this event to.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> event the source event to send.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> a completable future which will be completed when the event is successfully sent.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">sendEventToSourceReader</span><span class="params">(<span class="keyword">int</span> subtaskId, SourceEvent event)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Get the number of subtasks.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> the number of subtasks.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">int</span> <span class="title">numSubtasks</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Get the currently registered readers. The mapping is from subtask id to the reader info.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> the currently registered readers.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">Map&lt;Integer, ReaderInfo&gt; <span class="title">registeredReaders</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Assign the splits.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> newSplitAssignments the new split assignments to add.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">assignSplits</span><span class="params">(SplitsAssignment&lt;SplitT&gt; newSplitAssignments)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Invoke the callable and handover the return value to the handler which will be executed</span></span><br><span class="line"><span class="comment">     * by the source coordinator.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * &lt;p&gt;It is important to make sure that the callable should not modify</span></span><br><span class="line"><span class="comment">     * any shared state. Otherwise the there might be unexpected behavior.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> callable a callable to call.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> handler a handler that handles the return value of or the exception thrown from the callable.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    &lt;T&gt; <span class="function"><span class="keyword">void</span> <span class="title">callAsync</span><span class="params">(Callable&lt;T&gt; callable, BiConsumer&lt;T, Throwable&gt; handler)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Invoke the callable and handover the return value to the handler which will be executed</span></span><br><span class="line"><span class="comment">     * by the source coordinator.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * &lt;p&gt;It is important to make sure that the callable should not modify</span></span><br><span class="line"><span class="comment">     * any shared state. Otherwise the there might be unexpected behavior.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> callable the callable to call.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> handler a handler that handles the return value of or the exception thrown from the callable.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> initialDelay the initial delay of calling the callable.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> period the period between two invocations of the callable.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    &lt;T&gt; <span class="function"><span class="keyword">void</span> <span class="title">callAsync</span><span class="params">(Callable&lt;T&gt; callable,</span></span></span><br><span class="line"><span class="function"><span class="params">                       BiConsumer&lt;T, Throwable&gt; handler,</span></span></span><br><span class="line"><span class="function"><span class="params">                       <span class="keyword">long</span> initialDelay,</span></span></span><br><span class="line"><span class="function"><span class="params">                       <span class="keyword">long</span> period)</span></span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="SplitAssignment"><a href="#SplitAssignment" class="headerlink" title="SplitAssignment"></a>SplitAssignment</h3><blockquote>
+<p>A container class holding the source split assignment for each subtask.</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * A class containing the splits assignment to the source readers.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * &lt;p&gt;The assignment is always incremental. In another word, splits in the assignment are simply</span></span><br><span class="line"><span class="comment"> * added to the existing assignment.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SplitsAssignment</span>&lt;<span class="title">SplitT</span> <span class="keyword">extends</span> <span class="title">SourceSplit</span>&gt; </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> Map&lt;Integer, List&lt;SplitT&gt;&gt; assignment;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">SplitsAssignment</span><span class="params">(Map&lt;Integer, List&lt;SplitT&gt;&gt; assignment)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">this</span>.assignment = assignment;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> A mapping from subtask ID to their split assignment.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="keyword">public</span> Map&lt;Integer, List&lt;SplitT&gt;&gt; assignment() &#123;</span><br><span class="line">        <span class="keyword">return</span> assignment;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> String <span class="title">toString</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> assignment.toString();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="SourceEvent"><a href="#SourceEvent" class="headerlink" title="SourceEvent"></a>SourceEvent</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * An interface for the events passed between the SourceReaders and Enumerators.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">SourceEvent</span> <span class="keyword">extends</span> <span class="title">Serializable</span> </span>&#123;&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="StreamExecutionEnvironment"><a href="#StreamExecutionEnvironment" class="headerlink" title="StreamExecutionEnvironment"></a>StreamExecutionEnvironment</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">StreamExecutionEnvironment</span> </span>&#123;</span><br><span class="line">...</span><br><span class="line">    <span class="keyword">public</span> &lt;T&gt; <span class="function">DataStream&lt;T&gt; <span class="title">continuousSource</span><span class="params">(Source&lt;T, ?, ?&gt; source)</span> </span>&#123;...&#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> &lt;T&gt; <span class="function">DataStream&lt;T&gt; <span class="title">continuousSource</span><span class="params">(Source&lt;T, ?, ?&gt; source, TypeInformation&lt;T&gt; type)</span> </span>&#123;...&#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> &lt;T&gt; <span class="function">DataStream&lt;T&gt; <span class="title">boundedSource</span><span class="params">(Source&lt;T, ?, ?&gt; source)</span> </span>&#123;...&#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">public</span> &lt;T&gt; <span class="function">DataStream&lt;T&gt; <span class="title">boundedSource</span><span class="params">(Source&lt;T, ?, ?&gt; source, TypeInformation&lt;T&gt; type)</span> </span>&#123;...&#125;</span><br><span class="line">...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Public-interface-from-base-Source-implementation"><a href="#Public-interface-from-base-Source-implementation" class="headerlink" title="Public interface from base Source implementation"></a>Public interface from base Source implementation</h3><p>以下接口是由 Source 的基本实现引入的高级接口。</p>
+<ul>
+<li><strong>SourceReaderBase</strong> - The base implementation for <em>SourceReader</em>. It uses the following interfaces.</li>
+<li><strong>SplitReader</strong> - The stateless and thread-less high level reader which is only responsible for reading raw records of type <strong><E></strong> from the assigned splits.</li>
+<li><strong>SplitChange</strong> - The split change to the split reader. Right now there is only one subclass which is <em>SplitAddition</em>.</li>
+<li><strong>RecordsWithSplitIds</strong> - A container class holding the raw records of type <strong><E></strong> read by <em>SplitReader</em>. It allows the <em>SplitReader</em> to fetch and pass the records in batch.</li>
+<li><strong>RecordEmitter</strong> - A class that takes the raw records of type <strong><E></strong> returned by the <em>SplitReader</em>, convert them into the final record type <strong><T></strong> and emit them into the <em>SourceOutput.</em></li>
+</ul>
+<h3 id="SourceReaderBase"><a href="#SourceReaderBase" class="headerlink" title="SourceReaderBase"></a>SourceReaderBase</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * An abstract implementation of &#123;<span class="doctag">@link</span> SourceReader&#125; which provides some sychronization between</span></span><br><span class="line"><span class="comment"> * the mail box main thread and the SourceReader internal threads. This class allows user to have</span></span><br><span class="line"><span class="comment"> * a SourceReader implementation by just providing the following:</span></span><br><span class="line"><span class="comment"> * &lt;ul&gt;</span></span><br><span class="line"><span class="comment"> *     &lt;li&gt;A &#123;<span class="doctag">@link</span> SplitReader&#125;.&lt;/li&gt;</span></span><br><span class="line"><span class="comment"> *     &lt;li&gt;A &#123;<span class="doctag">@link</span> RecordEmitter&#125;&lt;/li&gt;</span></span><br><span class="line"><span class="comment"> *     &lt;li&gt;The logic to clean up a split state after it is finished.&lt;/li&gt;</span></span><br><span class="line"><span class="comment"> *     &lt;li&gt;The logic to get the state from a &#123;<span class="doctag">@link</span> SourceSplit&#125;.&lt;/li&gt;</span></span><br><span class="line"><span class="comment"> *     &lt;li&gt;The logic to restore a &#123;<span class="doctag">@link</span> SourceSplit&#125; from its state.&lt;/li&gt;</span></span><br><span class="line"><span class="comment"> * &lt;/ul&gt;</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> &lt;E&gt; The rich element type that contains information for split state update or timestamp extraction.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> &lt;T&gt; The final element type to emit.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> &lt;SplitT&gt; the immutable split type.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> &lt;SplitStateT&gt; the mutable type of split state.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="class"><span class="keyword">class</span> <span class="title">SourceReaderBase</span>&lt;<span class="title">E</span>, <span class="title">T</span>, <span class="title">SplitT</span> <span class="keyword">extends</span> <span class="title">SourceSplit</span>, <span class="title">SplitStateT</span>&gt;</span></span><br><span class="line"><span class="class">        <span class="keyword">implements</span> <span class="title">SourceReader</span>&lt;<span class="title">T</span>, <span class="title">SplitT</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// -------------------- Abstract method to allow different implementations ------------------</span></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Handles the finished splits to clean the state if needed.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">abstract</span> <span class="keyword">void</span> <span class="title">onSplitFinished</span><span class="params">(Collection&lt;String&gt; finishedSplitIds)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * When new splits are added to the reader. The initialize the state of the new splits.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> split a newly added split.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">abstract</span> SplitStateT <span class="title">initializedState</span><span class="params">(SplitT split)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Convert a mutable SplitStateT to immutable SplitT.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> splitState splitState.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> an immutable Split state.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">protected</span> <span class="keyword">abstract</span> SplitT <span class="title">toSplitType</span><span class="params">(String splitId, SplitStateT splitState)</span></span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="SplitReader"><a href="#SplitReader" class="headerlink" title="SplitReader"></a>SplitReader</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * An interface used to read from splits. The implementation could either read from a single split or from</span></span><br><span class="line"><span class="comment"> * multiple splits.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> &lt;E&gt; the element type.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> &lt;SplitT&gt; the split type.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">SplitReader</span>&lt;<span class="title">E</span>, <span class="title">SplitT</span> <span class="keyword">extends</span> <span class="title">SourceSplit</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Fetch elements into the blocking queue for the given splits. The fetch call could be blocking</span></span><br><span class="line"><span class="comment">     * but it should get unblocked when &#123;<span class="doctag">@link</span> #wakeUp()&#125; is invoked. In that case, the implementation</span></span><br><span class="line"><span class="comment">     * may either decide to return without throwing an exception, or it can just throw an interrupted</span></span><br><span class="line"><span class="comment">     * exception. In either case, this method should be reentrant, meaning that the next fetch call</span></span><br><span class="line"><span class="comment">     * should just resume from where the last fetch call was waken up or interrupted.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> A RecordsWithSplitIds that contains the fetched records grouped by the split ids.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@throws</span> InterruptedException when interrupted</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">RecordsWithSplitIds&lt;E&gt; <span class="title">fetch</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Handle the split changes. This call should be non-blocking.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> splitsChanges a queue with split changes that has not been handled by this SplitReader.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">handleSplitsChanges</span><span class="params">(Queue&lt;SplitsChange&lt;SplitT&gt;&gt; splitsChanges)</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Wake up the split reader in case the fetcher thread is blocking in</span></span><br><span class="line"><span class="comment">     * &#123;<span class="doctag">@link</span> #fetch()&#125;.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">wakeUp</span><span class="params">()</span></span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="SplitChange"><a href="#SplitChange" class="headerlink" title="SplitChange"></a>SplitChange</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * An abstract class to host splits change.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">abstract</span> <span class="class"><span class="keyword">class</span> <span class="title">SplitsChange</span>&lt;<span class="title">SplitT</span>&gt; </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> List&lt;SplitT&gt; splits;</span><br><span class="line"></span><br><span class="line">    SplitsChange(List&lt;SplitT&gt; splits) &#123;</span><br><span class="line">        <span class="keyword">this</span>.splits = splits;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> the list of splits.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> List&lt;SplitT&gt; <span class="title">splits</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> Collections.unmodifiableList(splits);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * A change to add splits.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> &lt;SplitT&gt; the split type.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SplitsAddition</span>&lt;<span class="title">SplitT</span>&gt; <span class="keyword">extends</span> <span class="title">SplitsChange</span>&lt;<span class="title">SplitT</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">SplitsAddition</span><span class="params">(List&lt;SplitT&gt; splits)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">super</span>(splits);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="RecordsWithSplitIds"><a href="#RecordsWithSplitIds" class="headerlink" title="RecordsWithSplitIds"></a>RecordsWithSplitIds</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * An interface for the elements passed from the SplitReader to the source reader.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">RecordsWithSplitIds</span>&lt;<span class="title">E</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Get all the split ids.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> a collection of split ids.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">Collection&lt;String&gt; <span class="title">getSplitIds</span><span class="params">()</span></span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Get all the records by Splits;</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> a mapping from split ids to the records.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    Map&lt;String, Collection&lt;E&gt;&gt; getRecordsBySplits();</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Get the finished splits.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@return</span> the finished splits after this RecordsWithSplitIds is returned.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">Set&lt;String&gt; <span class="title">getFinishedSplits</span><span class="params">()</span></span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="RecordEmitter"><a href="#RecordEmitter" class="headerlink" title="RecordEmitter"></a>RecordEmitter</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Emit a record to the downstream.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> &lt;E&gt; the type of the record emitted by the &#123;<span class="doctag">@link</span> SplitReader&#125;</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> &lt;T&gt; the type of records that are eventually emitted to the &#123;<span class="doctag">@link</span> SourceOutput&#125;.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> &lt;SplitStateT&gt; the mutable type of split state.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">RecordEmitter</span>&lt;<span class="title">E</span>, <span class="title">T</span>, <span class="title">SplitStateT</span>&gt; </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Process and emit the records to the &#123;<span class="doctag">@link</span> SourceOutput&#125;. A typical implementation will do the</span></span><br><span class="line"><span class="comment">     * followings：</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * &lt;ul&gt;</span></span><br><span class="line"><span class="comment">     *     &lt;li&gt;</span></span><br><span class="line"><span class="comment">     *         Convert the element emitted by the &#123;<span class="doctag">@link</span> SplitReader&#125; to the target type taken by the</span></span><br><span class="line"><span class="comment">     *         &#123;<span class="doctag">@link</span> SourceOutput&#125;.</span></span><br><span class="line"><span class="comment">     *     &lt;/li&gt;</span></span><br><span class="line"><span class="comment">     *     &lt;li&gt;</span></span><br><span class="line"><span class="comment">     *         Extract timestamp from the passed in element and emit the timestamp along with the record.</span></span><br><span class="line"><span class="comment">     *     &lt;/li&gt;</span></span><br><span class="line"><span class="comment">     *     &lt;li&gt;</span></span><br><span class="line"><span class="comment">     *         Emit watermarks for the source.</span></span><br><span class="line"><span class="comment">     *     &lt;/li&gt;</span></span><br><span class="line"><span class="comment">     * &lt;/ul&gt;</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> element The intermediate element read by the SplitReader.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> output The output to which the final records are emit to.</span></span><br><span class="line"><span class="comment">     * <span class="doctag">@param</span> splitState The state of the split where the given element was from.</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">emitRecord</span><span class="params">(E element, SourceOutput&lt;T&gt; output, SplitStateT splitState)</span> <span class="keyword">throws</span> Exception</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Public-interface-from-RPC-gateway"><a href="#Public-interface-from-RPC-gateway" class="headerlink" title="Public interface from RPC gateway"></a>Public interface from RPC gateway</h3><h3 id="TaskExecutorGateway"><a href="#TaskExecutorGateway" class="headerlink" title="TaskExecutorGateway"></a>TaskExecutorGateway</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">TaskExecutorGateway</span> <span class="keyword">extends</span> <span class="title">RpcGateway</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * Sends an operator event to an operator in a task executed by this task executor.</span></span><br><span class="line"><span class="comment">     *</span></span><br><span class="line"><span class="comment">     * &lt;p&gt;The reception is acknowledged (future is completed) when the event has been dispatched to the</span></span><br><span class="line"><span class="comment">     * &#123;<span class="doctag">@link</span> org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable#dispatchOperatorEvent(OperatorID, SerializedValue)&#125;</span></span><br><span class="line"><span class="comment">     * method. It is not guaranteed that the event is processes successfully within the implementation.</span></span><br><span class="line"><span class="comment">     * These cases are up to the task and event sender to handle (for example with an explicit response</span></span><br><span class="line"><span class="comment">     * message upon success, or by triggering failure/recovery upon exception).</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function">CompletableFuture&lt;Acknowledge&gt; <span class="title">sendOperatorEvent</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">            ExecutionAttemptID task,</span></span></span><br><span class="line"><span class="function"><span class="params">            OperatorID operator,</span></span></span><br><span class="line"><span class="function"><span class="params">            SerializedValue&lt;OperatorEvent&gt; evt)</span></span>;</span><br><span class="line"></span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="JobMasterGateway"><a href="#JobMasterGateway" class="headerlink" title="JobMasterGateway"></a>JobMasterGateway</h3><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">JobMasterGateway</span> </span>&#123;</span><br><span class="line">    ...</span><br><span class="line">    <span class="function">CompletableFuture&lt;Acknowledge&gt; <span class="title">sendOperatorEventToCoordinator</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">            ExecutionAttemptID task,</span></span></span><br><span class="line"><span class="function"><span class="params">            OperatorID operatorID,</span></span></span><br><span class="line"><span class="function"><span class="params">            SerializedValue&lt;OperatorEvent&gt; event)</span></span>;</span><br><span class="line">    ...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Implementation-Plan"><a href="#Implementation-Plan" class="headerlink" title="Implementation Plan"></a>Implementation Plan</h3><p>The implementation should proceed in the following steps, some of which can proceed concurrently.</p>
+<ol>
+<li><p>Validate the interface proposal by implementing popular connectors of different patterns:  </p>
+<ol>
+<li>FileSource<ol>
+<li>For a row-wise format (splittable within files, checkpoint offset within a split)</li>
+<li>For a bulk format like Parquet / Orc.</li>
+<li>Bounded and unbounded split enumerator</li>
+</ol>
+</li>
+<li>KafkaSource  <ol>
+<li>Unbounded <em>without</em> dynamic partition discovery</li>
+<li>Unbounded <em>with</em> dynamic partition discovery</li>
+<li>Bounded</li>
+</ol>
+</li>
+<li>Kinesis<ol>
+<li>Unbounded  </li>
+</ol>
+</li>
+</ol>
+</li>
+<li><p>Implement test harnesses for the high-level readers patterns</p>
+</li>
+<li><p>Test their functionality of the readers implemented in (1)  </p>
+</li>
+<li><p>Implement a new <code>SourceReaderTask</code> and implement the single-threaded mailbox logic  </p>
+</li>
+<li><p>Implement <code>SourceEnumeratorTask</code>  </p>
+</li>
+<li><p>Implement the changes to network channels and scheduler, or to RPC service and checkpointing, to handle split assignment and checkpoints and re-adding splits.</p>
+</li>
+</ol>
+<hr>
+<p>以上就是flip-27的全部内容。自己斟酌一下他的设计思维，对于自己去扩展实现一些服务或者设计，也能够给到一些启示。</p>
+<p>关于并发的应用无处不在，但是用好与用不好，主要还是在细节上。</p>
+<p>细节上见证正真功夫。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/flink/" rel="tag"># flink</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/05/31/flink%E5%8E%9F%E7%90%86-%E7%BA%BF%E7%A8%8B%E6%A8%A1%E5%9E%8B/" rel="next" title="flink原理--线程模型">
+                <i class="fa fa-chevron-left"></i> flink原理--线程模型
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/06/02/flink%E5%8E%9F%E7%90%86-flink-cdc%E9%87%8D%E8%A6%81%E7%89%88%E6%9C%AC%E7%9A%84%E9%87%8D%E8%A6%81%E7%89%B9%E6%80%A7/" rel="prev" title="flink原理--flink-cdc重要版本的重要特性">
+                flink原理--flink-cdc重要版本的重要特性 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#flip-27关于source接口改进"><span class="nav-number">1.</span> <span class="nav-text">flip-27关于source接口改进</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#动机"><span class="nav-number">1.1.</span> <span class="nav-text">动机</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#整体设计"><span class="nav-number">1.2.</span> <span class="nav-text">整体设计</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#从reading中分离出work-discovery"><span class="nav-number">1.2.1.</span> <span class="nav-text">从reading中分离出work discovery</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#where-to-run-enumerator的分析："><span class="nav-number">1.2.1.1.</span> <span class="nav-text">where to run enumerator的分析：</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Option-2-Enumerator-on-the-JobManager"><span class="nav-number">1.2.2.</span> <span class="nav-text">Option 2: Enumerator on the JobManager</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Batch-and-Streaming-Unification"><span class="nav-number">1.2.3.</span> <span class="nav-text">Batch and Streaming Unification</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Generic-enumerator-reader-communication-mechanism"><span class="nav-number">1.2.4.</span> <span class="nav-text">Generic enumerator-reader communication mechanism</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Reader-Interface-and-Threading-Model"><span class="nav-number">1.2.5.</span> <span class="nav-text">Reader Interface and Threading Model</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Base-implementation-and-high-level-readers"><span class="nav-number">1.2.6.</span> <span class="nav-text">Base implementation and high-level readers</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Failover"><span class="nav-number">1.2.7.</span> <span class="nav-text">Failover</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Where-to-run-the-enumerator"><span class="nav-number">1.2.8.</span> <span class="nav-text">Where to run the enumerator</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Per-Split-Event-Time"><span class="nav-number">1.2.9.</span> <span class="nav-text">Per Split Event Time</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Event-Time-Alignment"><span class="nav-number">1.2.10.</span> <span class="nav-text">Event Time Alignment</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Public-Interface"><span class="nav-number">1.3.</span> <span class="nav-text">Public Interface</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Top-level-public-interfaces"><span class="nav-number">2.</span> <span class="nav-text">Top level public interfaces</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Source"><span class="nav-number">2.1.</span> <span class="nav-text">Source</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SourceSplit"><span class="nav-number">2.2.</span> <span class="nav-text">SourceSplit</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SourceReader"><span class="nav-number">2.3.</span> <span class="nav-text">SourceReader</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SourceOutput"><span class="nav-number">2.4.</span> <span class="nav-text">SourceOutput</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#WatermarkOutput"><span class="nav-number">2.5.</span> <span class="nav-text">WatermarkOutput</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Watermark"><span class="nav-number">2.6.</span> <span class="nav-text">Watermark</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SourceReaderContext"><span class="nav-number">2.7.</span> <span class="nav-text">SourceReaderContext</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SplitEnumerator"><span class="nav-number">2.8.</span> <span class="nav-text">SplitEnumerator</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SplitEnumeratorContext"><span class="nav-number">2.9.</span> <span class="nav-text">SplitEnumeratorContext</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SplitAssignment"><span class="nav-number">2.10.</span> <span class="nav-text">SplitAssignment</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SourceEvent"><span class="nav-number">2.11.</span> <span class="nav-text">SourceEvent</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#StreamExecutionEnvironment"><span class="nav-number">2.12.</span> <span class="nav-text">StreamExecutionEnvironment</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Public-interface-from-base-Source-implementation"><span class="nav-number">2.13.</span> <span class="nav-text">Public interface from base Source implementation</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SourceReaderBase"><span class="nav-number">2.14.</span> <span class="nav-text">SourceReaderBase</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SplitReader"><span class="nav-number">2.15.</span> <span class="nav-text">SplitReader</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SplitChange"><span class="nav-number">2.16.</span> <span class="nav-text">SplitChange</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#RecordsWithSplitIds"><span class="nav-number">2.17.</span> <span class="nav-text">RecordsWithSplitIds</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#RecordEmitter"><span class="nav-number">2.18.</span> <span class="nav-text">RecordEmitter</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Public-interface-from-RPC-gateway"><span class="nav-number">2.19.</span> <span class="nav-text">Public interface from RPC gateway</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#TaskExecutorGateway"><span class="nav-number">2.20.</span> <span class="nav-text">TaskExecutorGateway</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#JobMasterGateway"><span class="nav-number">2.21.</span> <span class="nav-text">JobMasterGateway</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Implementation-Plan"><span class="nav-number">2.22.</span> <span class="nav-text">Implementation Plan</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

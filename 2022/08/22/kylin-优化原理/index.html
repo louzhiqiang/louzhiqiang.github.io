@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="kylin," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="kylin–优化原理维度优化 层级维度 层级维度：具有一定层次关系的维度。 使用场景：像年，月，日；国家，省份，城市这类具有层次关系的维度。 优化效果：将N个维度设置为层次维度，则这N个维度组合成的cuboid个数会从2的N次方减少到N+1。  必要维度 必要维度：所有cuboid必须包含的维度，不会计算不包含强制维度的cuboid。 适用场景：可以将确定在查询时一定会使用的维度设为强制维度。例如">
+<meta property="og:type" content="article">
+<meta property="og:title" content="kylin--优化原理">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/08/22/kylin-%E4%BC%98%E5%8C%96%E5%8E%9F%E7%90%86/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="kylin–优化原理维度优化 层级维度 层级维度：具有一定层次关系的维度。 使用场景：像年，月，日；国家，省份，城市这类具有层次关系的维度。 优化效果：将N个维度设置为层次维度，则这N个维度组合成的cuboid个数会从2的N次方减少到N+1。  必要维度 必要维度：所有cuboid必须包含的维度，不会计算不包含强制维度的cuboid。 适用场景：可以将确定在查询时一定会使用的维度设为强制维度。例如">
+<meta property="article:published_time" content="2022-08-22T03:53:06.000Z">
+<meta property="article:modified_time" content="2022-08-31T03:12:42.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="kylin">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/08/22/kylin-优化原理/"/>
+
+
+
+
+
+  <title>kylin--优化原理 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/08/22/kylin-%E4%BC%98%E5%8C%96%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">kylin--优化原理</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-08-22T11:53:06+08:00">
+                2022-08-22
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/olap/" itemprop="url" rel="index">
+                    <span itemprop="name">olap</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="kylin–优化原理"><a href="#kylin–优化原理" class="headerlink" title="kylin–优化原理"></a>kylin–优化原理</h1><h2 id="维度优化"><a href="#维度优化" class="headerlink" title="维度优化"></a>维度优化</h2><ul>
+<li><p>层级维度</p>
+<p>层级维度：具有一定层次关系的维度。</p>
+<p>使用场景：像年，月，日；国家，省份，城市这类具有层次关系的维度。</p>
+<p>优化效果：将N个维度设置为层次维度，则这N个维度组合成的cuboid个数会从2的N次方减少到N+1。</p>
+</li>
+<li><p>必要维度</p>
+<p>必要维度：所有cuboid必须包含的维度，不会计算不包含强制维度的cuboid。</p>
+<p>适用场景：可以将确定在查询时一定会使用的维度设为强制维度。例如，时间维度。</p>
+<p>优化效果：将一个维度设为强制维度，则cuboid个数直接减半。</p>
+</li>
+<li><p>联合维度</p>
+<p>联合维度：将几个维度视为一个维度。</p>
+<p>适用场景：</p>
+<ol>
+<li><p>可以将确定在查询时一定会同时使用的几个维度设为一个联合维度。</p>
+</li>
+<li><p>可以将基数很小的几个维度设为一个联合维度。</p>
+</li>
+<li><p>可以将查询时很少使用的几个维度设为一个联合维度。</p>
+</li>
+</ol>
+<p>优化效果：将N个维度设置为联合维度，则这N个维度组合成的cuboid个数会<strong>从2的N次方减少到1</strong>。</p>
+</li>
+<li><p>extended column</p>
+<p>在OLAP分析场景中，经常存在对某个id进行过滤，但查询结果要展示为name的情况，比如user_id和user_name。这类问题通常有三种解决方式：</p>
+<ul>
+<li>将ID和Name都设置为维度，查询语句类似select name, count(*) from table where id = 1 group by id,name。这种方式的问题是会导致维度增多，导致预计算结果膨胀；</li>
+<li>将id和name都设置为维度，并且将两者设置为联合。这种方式的好处是保持维度组合数不会增加，但限制了维度的其它优化，比如ID不能再被设置为强制维度或者层次维度；</li>
+<li>将ID设置为维度，Name设置为特殊的Measure，类型为Extended Column。这种方式既能保证过滤id且查询name的需求，同时也不影响id维度的进一步优化。</li>
+</ul>
+</li>
+<li><p>衍生维度</p>
+<p>衍生维度：维表中可以由主键推导出值的列可以作为衍⽣维度。</p>
+<p>使用场景：以星型模型接入时。例如用户维表可以从userid推导出用户的姓名，年龄，性别。</p>
+<p>优化效果：维度表的N个维度组合成的cuboid个数会从2的N次方降为2。</p>
+</li>
+</ul>
+<h2 id="cube大小"><a href="#cube大小" class="headerlink" title="cube大小"></a>cube大小</h2><p>一般来说，Cube的膨胀率应该在0%~1000%之间，如果一个Cube的膨胀率超过1000%，那么Cube管理员应当开始挖掘其中的原因。通常，膨胀率高有以下几个方面的原因。</p>
+<ul>
+<li>Cube中的维度数量较多，且没有进行很好的Cuboid剪枝优化，导致Cuboid数量极多。</li>
+<li>Cube中存在较高基数的维度，导致包含这类维度的每一个Cuboid占用的空间都很大，这些Cuboid累积造成整体Cube体积变大。</li>
+<li>存在比较占用空间的度量，例如Count Distinct，因此需要在Cuboid的每一行中都为其保存一个较大的寄存器，最坏的情况将会导致Cuboid中每一行都有数十KB，从而造成整个Cube的体积变大。</li>
+</ul>
+<h2 id="并发优化"><a href="#并发优化" class="headerlink" title="并发优化"></a>并发优化</h2><p> 当Segment中某一个Cuboid的大小超出一定的阈值时，系统会将该Cuboid的数据分片到多个分区中，以实现Cuboid数据读取的并行化，从而优化Cube的查询速度。具体的实现方式如下：构建引擎根据Segment估计的大小，以及参数“kylin.hbase.region.cut”的设置决定Segment在存储引擎中总共需要几个分区来存储，如果存储引擎是HBase，那么分区的数量就对应于HBase中的Region数量。kylin.hbase.region.cut的默认值是5.0，单位是GB，也就是说对于一个大小估计是50GB的Segment，构建引擎会给它分配10个分区。用户还可以通过设置kylin.hbase.region.count.min（默为1）和kylin.hbase.region.count.max（默认为500）两个配置来决定每个Segment最少或最多被划分成多少个分区。</p>
+<h2 id="Rowkeys优化"><a href="#Rowkeys优化" class="headerlink" title="Rowkeys优化"></a><strong>Rowkeys优化</strong></h2><p><strong>编码：</strong></p>
+<p> 编码（Encoding）代表了该维度的值应使用何种方式进行编码，合适的编码能够减少维度对空间的占用，例如，我们可以把所有的日期都用三个字节进行编码，相比于字符串存储，或者是使用长整数形式存储的方法，我们的编码方式能够大大减少每行Cube数据的体积。而Cube中可能存在数以亿计的行数，使用编码节约的空间累加起来将是一个非常巨大的数字。</p>
+<p>目前Kylin支持的编码方式有以下几种：</p>
+<ul>
+<li><p>Date编码：将日期类型的数据使用三个字节进行编码，其支持从0000-01-01到9999-01-01中的每一个日期。</p>
+</li>
+<li><p>lTime编码：仅支持表示从1970-01-0100：00：00到2038-01-1903：14：07的时间，且Time-stamp类型的维度经过编码和反编码之后，会失去毫秒信息，所以说Time编码<strong>仅仅支持到秒</strong>。但是Time编码的优势是每个维度仅仅使用4个字节，这相比普通的长整数编码节约了一半。如果能够接受秒级的时间精度，请选择Time编码来代表时间的维度。</p>
+</li>
+<li><p>lInteger编码：Integer编码需要提供一个额外的参数“Length”来代表需要多少个字节。Length的长度为1~8。如果用来编码int32类型的整数，可以将Length设为4；如果用来编码int64类型的整数，可以将Length设为8。在更多情况下，如果知道一个整数类型维度的可能值都很小，那么就能使用Length为2甚至是1的int编码来存储，这将能够有效避免存储空间的浪费。</p>
+</li>
+<li><p>lDict编码：对于使用该种编码的维度，每个Segment在构建的时候都会为这个维度所有可能的值创建一个字典，然后使用字典中每个值的编号来编码。Dict的优势是产生的编码非常紧凑，尤其在维度值的基数较小且长度较大的情况下，特别节约空间。由于产生的字典是在查询时加载入构建引擎和查询引擎的，所以在维度的基数大、长度也大的情况下，容易造成构建引擎或查询引擎的内存溢出。</p>
+</li>
+<li><p>lFixed_length编码：编码需要提供一个额外的参数“Length”来代表需要多少个字节。该编码可以看作Dict编码的一种补充。对于基数大、长度也大的维度来说，使用Dict可能不能正常工作，于是可以采用一段固定长度的字节来存储代表维度值的字节数组，该数组为字符串形式的维度值的UTF-8字节。如果维度值的长度大于预设的Length，那么超出的部分将会被截断。</p>
+</li>
+</ul>
+<p>在未来，Kylin还有可能为特定场景、特定类型的维度量身定制特别的编码方式，例如在很多行业，身份证号码可能就是一个重要的维度，但是身份证号码由于其具有特殊性而不能使用整数类型的编码（身份证最后一位可能是X），其高基数的特点也决定了不能使用dict编码，在目前的版本中只能使用f？ixed_length编码，但是显然f？ixed_length不能充分利用身份证号码中大部分字节是数字的特性来进行深度编码，因此存在一定程度的浪费。</p>
+<p><strong>按维度分片：</strong></p>
+<p>系统可能会对Cuboid的数据进行分片处理。但是默认情况下Cuboid的分片策略是随机的，也就是说，我们无法控制Cuboid的哪些行会被分到同一个分片中。这种默认的方法固然能够提高读取的并发程度，但是它仍然有优化的空间。按维度分片（Shard by Dimension）提供了一种更加高效的分片策略，那就是按照某个特定维度进行分片。简单地说，<strong>如果Cuboid中某两个行的Shard by Dimension的值相同，那么无论这个Cuboid最终会被划分成多少个分片，这两行数据必然会被分配到同一个分片中</strong>。</p>
+<p>这种分片策略对查询有着极大的好处。我们知道，Cuboid的每个分片都会被分配到存储引擎的不同物理机器上Kylin在读取Cuboid数据的时候会向存储引擎的若干机器发送所读取的RPC请求。在RPC请求接收端，存储引擎会读取本机的分片据，并在进行一定的预处理后再发送RPC回应。以HBase存储引擎为例，不同的Region代表不同的Cuboid分片，在读取Cuboid数据的时候，HBase会为每个Region开启一个Coprocessor实例来处理查询引擎的请求。查询引擎将查询条件和分组条件作为请求参数的一部分发送到Coprocessor中，Coprocessor就能够在返回结果之前先对当前分片的数据做一定的预聚合（这里的预聚合不是Cube构建的预聚合，而是针对特定查询深度的预聚合）。</p>
+<p>如果按照维度划分分片，假设按照一个基数比较高的维度seller_id进行分片，那么在这种情况下，每个分片将会承担一部分seller_id，且<strong>各个分片不会有相同的seller_id</strong>。所有按照seller_id分组（Group by seller_id）的查询都会变得更加高效，因为每个分区预聚合的结果都会更加专注于某一些seller_id之上，使得分片返回的结果数量大大减少，查询引擎端也无需对各个分片的结果做分片间的聚合。按维度分片也能让过滤条件的执行更加高效，因为是按维度分片，所以每个分片的数据都会更加“整洁”，更方便查找和索引。</p>
+<p><strong>调整RowKeys的顺序：</strong></p>
+<p>在Cube Designer→Advanced Setting→Rowkeys部分，我们可以上下拖动每一个维度来调节维度在Rowkeys中的顺序。这种顺序对于查询非常重要，因为在目前的实现中，Kylin会把所有的维度按照顺序黏合成一个完整的Rowkeys，并且按照这个<strong>Rowkeys升序排列Cuboid中所有的行</strong> 。</p>
+<p> 不难发现，如果在一个比较靠后的维度上有过滤条件，那么这个过滤条件的执行就会非常复杂。以目前的HBase存储引擎为例，Rowkeys对应HBase中的Rowkeys，是一段字节数组。目前没有创建单独的每个维度上的倒排索引，因此对于在比较靠后的维度上的过滤条件，只能依靠HBase的FuzzyKeyFilter来执行。尽管HBase做了大量相应的优化，但是因为是在对靠后的字节运用FuzzyKeyFilter，因此一旦前面维度的基数很大，那么FuzzyKeyFilter的寻找代价就会很高，执行效率就会变差。所以，在调整Rowkeys的顺序时需要遵守以下几个原则：</p>
+<ul>
+<li><p>在查询中被用作过滤条件的维度有可能放在其他维度的前面。</p>
+</li>
+<li><p>将经常出现在查询中的维度放在不经常出现的维度的前面。</p>
+</li>
+<li><p>对于基数较高的维度，如果查询会有这个维度上的过滤条件，那么将它往前调整；如果没有，则向后调整</p>
+</li>
+</ul>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/kylin/" rel="tag"># kylin</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/08/22/kylin-%E6%9F%A5%E8%AF%A2%E5%8E%9F%E7%90%86/" rel="next" title="kylin--查询原理">
+                <i class="fa fa-chevron-left"></i> kylin--查询原理
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/08/22/kylin-%E6%96%B0%E7%89%88%E6%9C%AC%E7%9A%84%E6%94%B9%E8%BF%9B/" rel="prev" title="kylin--新版本的改进">
+                kylin--新版本的改进 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#kylin–优化原理"><span class="nav-number">1.</span> <span class="nav-text">kylin–优化原理</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#维度优化"><span class="nav-number">1.1.</span> <span class="nav-text">维度优化</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#cube大小"><span class="nav-number">1.2.</span> <span class="nav-text">cube大小</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#并发优化"><span class="nav-number">1.3.</span> <span class="nav-text">并发优化</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Rowkeys优化"><span class="nav-number">1.4.</span> <span class="nav-text">Rowkeys优化</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

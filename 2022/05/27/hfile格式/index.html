@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="hbase," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="最近在看hudi的索引的时候，hudi的索引支持中，有一个基于hfile的索引，用来根据key找数据路径的索引。然后就想起来很久之前看的hbase的很多原理，需要温习一下，看看是否有一些可以用在现在的架构设计上。 本意是想着看一看hbase例hfile的文件存储结构，来作为入口，可是顺道看了一下范欣欣大神的博客，发现还是宝藏满满，所以准备花两三天时间把大神的hbase系列文章通读一遍，再记录一下自">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hfile格式">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/27/hfile%E6%A0%BC%E5%BC%8F/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="最近在看hudi的索引的时候，hudi的索引支持中，有一个基于hfile的索引，用来根据key找数据路径的索引。然后就想起来很久之前看的hbase的很多原理，需要温习一下，看看是否有一些可以用在现在的架构设计上。 本意是想着看一看hbase例hfile的文件存储结构，来作为入口，可是顺道看了一下范欣欣大神的博客，发现还是宝藏满满，所以准备花两三天时间把大神的hbase系列文章通读一遍，再记录一下自">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/03/1.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/03/2.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/03/3.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/03/4.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/03/5.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/03/1111.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/03/10.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/03/100.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/03/105.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/03/0.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/04/22.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/04/24.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/04/26.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/04/70074.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/04/22222.png">
+<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/04/33333.png">
+<meta property="article:published_time" content="2022-05-27T06:25:24.000Z">
+<meta property="article:modified_time" content="2022-08-08T10:34:38.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="hbase">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://hbasefly.com/wp-content/uploads/2016/03/1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/27/hfile格式/"/>
+
+
+
+
+
+  <title>hfile格式 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/27/hfile%E6%A0%BC%E5%BC%8F/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">hfile格式</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-27T14:25:24+08:00">
+                2022-05-27
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>最近在看hudi的索引的时候，hudi的索引支持中，有一个基于hfile的索引，用来根据key找数据路径的索引。然后就想起来很久之前看的hbase的很多原理，需要温习一下，看看是否有一些可以用在现在的架构设计上。</p>
+<p>本意是想着看一看hbase例hfile的文件存储结构，来作为入口，可是顺道看了一下范欣欣大神的博客，发现还是宝藏满满，所以准备花两三天时间把大神的hbase系列文章通读一遍，再记录一下自己的思考点。</p>
+<h1 id="hfile格式"><a href="#hfile格式" class="headerlink" title="hfile格式"></a>hfile格式</h1><p><img src="http://hbasefly.com/wp-content/uploads/2016/03/1.png" alt=""></p>
+<p>文件主要分为四个部分：Scanned block section，Non-scanned block section，Opening-time data section 和 Trailer。</p>
+<p>Scanned block section：顾名思义，表示顺序扫描 HFile 时所有的数据块将会被读取，包括 Leaf Index Block 和 Bloom Block。</p>
+<p>Non-scanned block section：表示在 HFile 顺序扫描的时候数据不会被读取，主要包括 Meta Block 和 Intermediate Level Data Index Blocks 两部分。</p>
+<p>Load-on-open-section：这部分数据在 HBase 的 region server 启动时，需要加载到内存中。包括 FileInfo、Bloom filter block、data block index 和 meta block index。</p>
+<p>Trailer：这部分主要记录了 HFile 的基本信息、各个部分的偏移值和寻址信息。</p>
+<blockquote>
+<p>主题思路就是根据不同的场景，提供了不同的存储方式，比如为了scan和非scan场景有不同的存储，然后针对索引部分、元数据部分，都会单独加载一个索引到内存里，这部分也是单独存储的，在region启动的时候，会直接加载到内存里的部分，方便后续读取的时候直接使用。</p>
+</blockquote>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/03/2.png" alt=""></p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/03/3.png" alt=""></p>
+<p>根据block type 支持不同的block。</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/03/4.png" alt=""></p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/03/5.png" alt=""></p>
+<blockquote>
+<p>存储格式里各个区域的设计，有点像计算机启动加载的过程的意思，有启动区域，然后加载之后，就可以找个各个数据块了，然后就可以分别找到自己需要的信息了。</p>
+</blockquote>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/03/1111.png" alt=""></p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/03/10.png" alt=""></p>
+<blockquote>
+<p>hfile的存储里大量应用到偏移量的设计和部分哨兵（比如某些block的开始key和结束的key，因为hfile的数据都是基于key有序的，这个点很关键）的存储。</p>
+</blockquote>
+<p>参考：</p>
+<p><a href="http://hbasefly.com/2016/03/25/hbase-hfile/" target="_blank" rel="noopener">HBase – 存储文件HFile结构解析 – 有态度的HBase/Spark/BigData</a></p>
+<h1 id="数据写入流程解析"><a href="#数据写入流程解析" class="headerlink" title="数据写入流程解析"></a>数据写入流程解析</h1><p><img src="http://hbasefly.com/wp-content/uploads/2016/03/100.png" alt=""></p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/03/105.png" alt=""></p>
+<ol>
+<li><p>上文中提到工作线程在写入 WALEdit 之后并没有进行 Sync，而是等到释放行锁阻塞在 syncedTillHere 变量上，等待 AsyncNotifier 线程唤醒。</p>
+</li>
+<li><p>工作线程将 WALEdit 写入本地 Buffer 之后，会生成一个自增变量 txid，携带此 txid 唤醒 AsyncWriter 线程</p>
+</li>
+<li><p>AsyncWriter 线程会取出本地 Buffer 中的所有 WALEdit，写入 HDFS。注意该线程会比较传入的 txid 和已经写入的最大 txid（writtenTxid），如果传入的 txid 小于 writteTxid，表示该 txid 对应的 WALEdit 已经写入，直接跳过</p>
+</li>
+<li><p>AsyncWriter 线程将所有 WALEdit 写入 HDFS 之后携带 maxTxid 唤醒 AsyncFlusher 线程</p>
+</li>
+<li><p>AsyncFlusher 线程将所有写入文件系统的 WALEdit 统一 Sync 刷新到磁盘</p>
+</li>
+<li><p>数据全部落盘之后调用 setFlushedTxid 方法唤醒 AyncNotifier 线程</p>
+</li>
+<li><p>AyncNotifier 线程会唤醒所有阻塞在变量 syncedTillHere 的工作线程，工作线程被唤醒之后表示 WAL 写入完成，后面再执行 MVCC 结束写事务，推进全局读取点，本次更新才会对用户可见</p>
+</li>
+</ol>
+<p>通过上述过程的梳理可以知道，新写入模型采取了多线程模式独立完成写文件系统、sync 磁盘操作，避免了之前多工作线程恶性抢占锁的问题。同时，工作线程在将 WALEdit 写入本地 Buffer 之后并没有马上阻塞，而是释放行锁之后阻塞等待 WALEdit 落盘，这样可以尽可能地避免行锁竞争，提高写入性能。</p>
+<p>参考：</p>
+<p><a href="http://hbasefly.com/2016/03/23/hbase_writer/" target="_blank" rel="noopener">HBase － 数据写入流程解析 &#8211; 有态度的HBase/Spark/BigData</a></p>
+<h1 id="memstore-flush原理"><a href="#memstore-flush原理" class="headerlink" title="memstore flush原理"></a>memstore flush原理</h1><p>一个region server 是一个jvm，包含多个region，每个region是 一个线程，一个region包含一个表的横切数据端，如果包含3个column family，就会有三个store，一个store包含一个memstore和多个hfile。</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/03/0.png" alt=""></p>
+<p><strong>Memstore Flush 流程</strong></p>
+<p>为了减少 flush 过程对读写的影响，HBase 采用了类似于两阶段提交的方式，将整个 flush 过程分为三个阶段：</p>
+<ol>
+<li>prepare 阶段：遍历当前 Region 中的所有 Memstore，将 Memstore 中当前数据集 kvset 做一个快照 snapshot，然后再新建一个新的 kvset。后期的所有写入操作都会写入新的 kvset 中，而整个 flush 阶段读操作会首先分别遍历 kvset 和 snapshot，如果查找不到再会到 HFile 中查找。prepare 阶段需要加一把 updateLock 对写请求阻塞，结束之后会释放该锁。因为此阶段没有任何费时操作，因此持锁时间很短。</li>
+<li>flush 阶段：遍历所有 Memstore，将 prepare 阶段生成的 snapshot 持久化为临时文件，临时文件会统一放到目录. tmp 下。这个过程因为涉及到磁盘 IO 操作，因此相对比较耗时。</li>
+<li>commit 阶段：遍历所有的 Memstore，将 flush 阶段生成的临时文件移到指定的 ColumnFamily 目录下，针对 HFile 生成对应的 storefile 和 Reader，把 storefile 添加到 HStore 的 storefiles 列表中，最后再清空 prepare 阶段生成的 snapshot。</li>
+</ol>
+<p>参考：</p>
+<p><a href="http://hbasefly.com/2016/03/23/hbase-memstore-flush/" target="_blank" rel="noopener">HBase &#8211; Memstore Flush深度解析 &#8211; 有态度的HBase/Spark/BigData</a></p>
+<h1 id="HFile索引机制"><a href="#HFile索引机制" class="headerlink" title="HFile索引机制"></a>HFile索引机制</h1><p>hfile的索引是分多种的，因为数据实际存储的时候就是各种非定长字段，那么基于key的各种索引找到一些长度进行跳过，效率会快很多。</p>
+<p>HFile 中索引结构类似于一棵树，Root Index Block 表示索引数根节点，Intermediate Index Block 表示中间节点，Leaf Index block 表示叶子节点，叶子节点直接指向实际数据块。</p>
+<p>HFile 中除了 Data Block 需要索引之外，上一篇文章提到过 Bloom Block 也需要索引，索引结构实际上就是采用了 single-level 结构，文中 Bloom Index Block 就是一种 Root Index Block。</p>
+<blockquote>
+<p>hfile中的bloom是基于key进行划分，用多个bloom组成的数组，这样根据key可以加载指定的bloom，防止单次加载过大的bloom，造成系统不稳定。</p>
+</blockquote>
+<blockquote>
+<p>hfile 的索引是按照级数来算的，如果数据量不大，单级别就可以支撑查询，反之就需要多级别，参考btree的实现，数据量越大就需要更大的高度，这样加载的时候才能有更多的灵活策略去支持。</p>
+</blockquote>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/04/22.png" alt=""></p>
+<p>所谓的多层级，就是把中间的节点抽出来，对一个平行线上的节点，折叠一下，如果是经过排序的数组，二分查找就是不二之选了。</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/04/24.png" alt=""></p>
+<p>图中上面三层为索引层，在数据量不大的时候只有最上面一层，数据量大了之后开始分裂为多层，最多三层，如图所示。最下面一层为数据层，存储用户的实际 keyvalue 数据。这个索引树结构类似于 InnoSQL 的聚集索引，只是 HBase 并没有辅助索引的概念。</p>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/04/26.png" alt=""></p>
+<p>这是分裂的一个过程。</p>
+<blockquote>
+<p>参考btree</p>
+</blockquote>
+<p>参考：</p>
+<p><a href="http://hbasefly.com/2016/04/03/hbase_hfile_index/" target="_blank" rel="noopener">HBase &#8211; 探索HFile索引机制 &#8211; 有态度的HBase/Spark/BigData</a></p>
+<h1 id="BlockCache"><a href="#BlockCache" class="headerlink" title="BlockCache"></a>BlockCache</h1><p>优化 IO 也是 HBase 提升性能的不二法宝，block cache就是关键点。</p>
+<p> Block 是 HBase 中最小的数据存储单元，默认为 64K，在建表语句中可以通过参数 BlockSize 指定。HBase 中 Block 分为四种类型：Data Block，Index Block，Bloom Block 和 Meta Block。</p>
+<p>其中 Data Block 用于存储实际数据，通常情况下每个 Data Block 可以存放多条 KeyValue 数据对；Index Block 和 Bloom Block 都用于优化随机读的查找路径，其中 Index Block 通过存储索引数据加快数据查找，而 Bloom Block 通过一定算法可以过滤掉部分一定不存在待查 KeyValue 的数据文件，减少不必要的 IO 操作；Meta Block 主要存储整个 HFile 的元数据。</p>
+<p>BlockCache 是 <strong>Region Server 级别</strong> 的，一个 Region Server 只有一个 Block Cache，在 Region Server 启动的时候完成 Block Cache 的初始化工作。</p>
+<p>HBase 先后实现了 3 种 Block Cache 方案：</p>
+<ul>
+<li><p>LRUBlockCache：将所有数据都放入 JVM Heap 中，交给 JVM 进行管理。会有GC问题。</p>
+</li>
+<li><p>SlabCache：将部分数据存储在堆外，尽量避免gc问题。</p>
+</li>
+<li><p>BucketCache</p>
+</li>
+</ul>
+<p><strong>LRUBlockCache</strong></p>
+<p>它将内存从逻辑上分为了三块：single-access 区、mutil-access 区、in-memory 区，分别占到整个 BlockCache 大小的 25%、50%、25%。</p>
+<p>一次随机读中，一个 Block 块从 HDFS 中加载出来之后首先放入 signle 区，后续如果有多次请求访问到这块数据的话，就会将这块数据移到 mutil-access 区。而 in-memory 区表示数据可以常驻内存，一般用来存放访问频繁、数据量小的数据，比如元数据，用户也可以在建表的时候通过设置列族属性 IN-MEMORY= true 将此列族放入 in-memory 区。</p>
+<p>无论哪个区，系统都会采用严格的 Least-Recently-Used 算法，当 BlockCache 总量达到一定阈值之后就会启动淘汰机制，最少使用的 Block 会被置换出来，为新加载的 Block 预留空间。</p>
+<p><strong>SlabCache</strong></p>
+<p>SlabCache 方案使用 Java NIO DirectByteBuffer 技术实现了堆外内存存储，不再由 JVM 管理数据内存。</p>
+<p>默认情况下，系统在初始化的时候会分配两个缓存区，分别占整个 BlockCache 大小的 80% 和 20%，每个缓存区分别存储固定大小的 Block 块，其中前者主要存储小于等于 64K 大小的 Block，后者存储小于等于 128K Block，如果一个 Block 太大就会导致两个区都无法缓存。</p>
+<p>SlabCache 也使用 Least-Recently-Used 算法对过期 Block 进行淘汰。</p>
+<p>和 LRUBlockCache 不同的是，SlabCache 淘汰 Block 的时候只需要将对应的 bufferbyte 标记为空闲，后续 cache 对其上的内存直接进行覆盖即可。</p>
+<p>为了满足设置blocksize较大的表，也能缓存block，可以选择前两种方案一起使用，称为 DoubleBlockCache。</p>
+<p>经过实际测试，DoubleBlockCache 方案有很多弊端。比如 SlabCache 设计中固定大小内存设置会导致实际内存使用率比较低，而且使用 LRUBlockCache 缓存 Block 依然会因为 JVM GC 产生大量内存碎片。因此在 HBase 0.98 版本之后，该方案已经被不建议使用。</p>
+<p><strong>BucketCache</strong></p>
+<p>BucketCache 通过配置可以工作在三种模式下：heap，offheap 和 file。无论工作在那种模式下，BucketCache 都会申请许多带有固定大小标签的 Bucket，和 SlabCache 一样，一种 Bucket 存储一种指定 BlockSize 的数据块，但和 SlabCache 不同的是，BucketCache 会在初始化的时候申请 14 个不同大小的 Bucket，而且即使在某一种 Bucket 空间不足的情况下，系统也会从其他 Bucket 空间借用内存使用，不会出现内存使用率低的情况。</p>
+<p>heap 模式表示这些 Bucket 是从 JVM Heap 中申请，offheap 模式使用 DirectByteBuffer 技术实现堆外内存存储管理，而 file 模式使用类似 SSD 的高速缓存文件存储数据块。</p>
+<p>实际实现中，HBase 将 BucketCache 和 LRUBlockCache 搭配使用，称为 <strong>CombinedBlockCache</strong>。</p>
+<p>和 DoubleBlockCache 不同，系统在 LRUBlockCache 中主要存储 Index Block 和 Bloom Block，而将 Data Block 存储在 BucketCache 中。因此一次随机读需要首先在 LRUBlockCache 中查到对应的 Index Block，然后再到 BucketCache 查找对应数据块。</p>
+<h2 id="BucketCache"><a href="#BucketCache" class="headerlink" title="BucketCache"></a>BucketCache</h2><p><img src="http://hbasefly.com/wp-content/uploads/2016/04/70074.png" alt=""></p>
+<p>HBase 启动之后会在内存中申请大量的 bucket，如下图中黄色矩形所示，每个 bucket 的大小默认都为 2MB。每个 bucket 会有一个 baseoffset 变量和一个 size 标签，其中 baseoffset 变量表示这个 bucket 在实际物理空间中的起始地址，因此 block 的物理地址就可以通过 baseoffset 和该 block 在 bucket 的偏移量唯一确定；而 size 标签表示这个 bucket 可以存放的 block 块的大小，比如图中左侧 bucket 的 size 标签为 65KB，表示可以存放 64KB 的 block，右侧 bucket 的 size 标签为 129KB，表示可以存放 128KB 的 block。</p>
+<p>HBase 中使用 BucketAllocator 类实现对 Bucket 的组织管理：</p>
+<ol>
+<li><p>HBase 会根据每个 bucket 的 size 标签对 bucket 进行分类，相同 size 标签的 bucket 由同一个 BucketSizeInfo 管理，如上图，左侧存放 64KB block 的 bucket 由 65KB BucketSizeInfo 管理，右侧存放 128KB block 的 bucket 由 129KB BucketSizeInfo 管理。</p>
+</li>
+<li><p>HBase 在启动的时候就决定了 size 标签的分类，默认标签有 (4+1)K、(8+1)K、(16+1)K … (48+1)K、(56+1)K、(64+1)K、(96+1)K … (512+1)K。而且系统会首先从小到大遍历一次所有 size 标签，为每种 size 标签分配一个 bucket，最后所有剩余的 bucket 都分配最大的 size 标签，默认分配 (512+1)K，如下图所示：</p>
+</li>
+</ol>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/04/22222.png" alt=""></p>
+<ol start="3">
+<li>Bucket 的 size 标签可以动态调整，比如 64K 的 block 数目比较多，65K 的 bucket 被用完了以后，其他 size 标签的完全空闲的 bucket 可以转换成为 65K 的 bucket，但是至少保留一个该 size 的 bucket。</li>
+</ol>
+<p><img src="http://hbasefly.com/wp-content/uploads/2016/04/33333.png" alt=""></p>
+<blockquote>
+<p>BackingMap 中根据 blockKey 找到对应物理偏移地址 offset；</p>
+</blockquote>
+<h2 id="性能测试"><a href="#性能测试" class="headerlink" title="性能测试"></a>性能测试</h2><p><strong>1. 在’缓存全部命中’场景下，LRU 君可谓完胜 CBC 君。因此如果总数据量相比 JVM 内存容量很小的时候，选择 LRU 君；</strong></p>
+<p><strong>2. 在所有其他存在缓存未命中情况的场景下， LRU 君的 GC 性能几乎只有 CBC 君的 1/3，而吞吐量、读写延迟、IO、CPU 等指标两者基本相当，因此建议选择 CBC。</strong></p>
+<p>参考：</p>
+<p><a href="http://hbasefly.com/2016/04/08/hbase-blockcache-1/" target="_blank" rel="noopener">http://hbasefly.com/2016/04/08/hbase-blockcache-1/</a></p>
+<p><a href="http://hbasefly.com/2016/04/26/hbase-blockcache-2/" target="_blank" rel="noopener">HBase BlockCache系列 － 探求BlockCache实现机制 &#8211; 有态度的HBase/Spark/BigData</a></p>
+<p><a href="http://hbasefly.com/2016/05/06/hbase-blockcache-3/" target="_blank" rel="noopener">HBase BlockCache系列 － 性能对比测试报告 &#8211; 有态度的HBase/Spark/BigData</a></p>
+<p><a href="https://blog.csdn.net/wodewutai17quiet/article/details/100086998" target="_blank" rel="noopener">https://blog.csdn.net/wodewutai17quiet/article/details/100086998</a></p>
+<p><a href="https://blog.csdn.net/wzq6578702/article/details/78572055?spm=1001.2101.3001.6650.1&amp;utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7Edefault-1-78572055-blog-100086998.pc_relevant_default&amp;depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7Edefault-1-78572055-blog-100086998.pc_relevant_default&amp;utm_relevant_index=2" target="_blank" rel="noopener">https://blog.csdn.net/wzq6578702/article/details/78572055?spm=1001.2101.3001.6650.1&amp;utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7Edefault-1-78572055-blog-100086998.pc_relevant_default&amp;depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7Edefault-1-78572055-blog-100086998.pc_relevant_default&amp;utm_relevant_index=2</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/hbase/" rel="tag"># hbase</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/05/26/hash%E7%9A%84%E7%BB%86%E5%8C%96%E5%9C%BA%E6%99%AF%E4%BD%BF%E7%94%A8/" rel="next" title="hash的细化场景使用">
+                <i class="fa fa-chevron-left"></i> hash的细化场景使用
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/05/27/hudi%E6%8E%A2%E7%B4%A2-timeline%E6%BA%90%E7%A0%81/" rel="prev" title="hudi探索--timeline源码">
+                hudi探索--timeline源码 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#hfile格式"><span class="nav-number">1.</span> <span class="nav-text">hfile格式</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#数据写入流程解析"><span class="nav-number">2.</span> <span class="nav-text">数据写入流程解析</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#memstore-flush原理"><span class="nav-number">3.</span> <span class="nav-text">memstore flush原理</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#HFile索引机制"><span class="nav-number">4.</span> <span class="nav-text">HFile索引机制</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#BlockCache"><span class="nav-number">5.</span> <span class="nav-text">BlockCache</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#BucketCache"><span class="nav-number">5.1.</span> <span class="nav-text">BucketCache</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#性能测试"><span class="nav-number">5.2.</span> <span class="nav-text">性能测试</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

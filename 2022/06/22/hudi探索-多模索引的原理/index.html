@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="hudi," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="hudi探索–多模索引的原理前言索引是现在存储系统中加速查询和写入必不可少的子系统，而且，随着数据量的增加以及覆盖的场景越来越多，对于索引的要求也是越来越精细化，要求的索引的类型也越来越宽泛，不同的索引覆盖不同的场景。而这样，也会要求我们要对索引有更好的管理，否则，一个不能跟数据同步新鲜度的索引，他的威力就骤减，甚至是带来风险和成本的。 原先的索引有什么问题 索引扩展性不够  索引是需要在每次查询">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hudi探索--多模索引的原理">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/22/hudi%E6%8E%A2%E7%B4%A2-%E5%A4%9A%E6%A8%A1%E7%B4%A2%E5%BC%95%E7%9A%84%E5%8E%9F%E7%90%86/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="hudi探索–多模索引的原理前言索引是现在存储系统中加速查询和写入必不可少的子系统，而且，随着数据量的增加以及覆盖的场景越来越多，对于索引的要求也是越来越精细化，要求的索引的类型也越来越宽泛，不同的索引覆盖不同的场景。而这样，也会要求我们要对索引有更好的管理，否则，一个不能跟数据同步新鲜度的索引，他的威力就骤减，甚至是带来风险和成本的。 原先的索引有什么问题 索引扩展性不够  索引是需要在每次查询">
+<meta property="og:image" content="https://assets.website-files.com/61f38d7a4e41d6a673cd65c7/628419cdc20643b94614b9f1_N6ZFGrV9oHyC8ZHssLtC0dNbH-3NpMBueK_vCu2AI4ZWf0qfJu9jltNO1CjYWJ9QfuPC7T8t-slkyh7oTia4Th091HzMFwtqUQn1vjnmipgdHPkkibq34NSkDCPZfP7ND8JvFbYy1qxHs8z_xA.gif">
+<meta property="og:image" content="https://assets.website-files.com/61f38d7a4e41d6a673cd65c7/6284237c497c90d33b3b1d87_image1.png">
+<meta property="og:image" content="https://assets.website-files.com/61f38d7a4e41d6a673cd65c7/628419ce6a45157293c6fed3_BcmQE8y5RpgwAfW_PlCEbUKQl0oah94CQ9rD5yZVa2T7hicWzYTkfEmYIOlctwInIYVCI90W4pMnGL-iYU-OUact_tBE40B3vPOkFhr8nn8oGXDsFIL-fa03BMwDFsQseghlQ2Z1HcCPdHeoeA.png">
+<meta property="og:image" content="https://cwiki.apache.org/confluence/download/attachments/135860174/Screen%20Shot%202020-02-12%20at%201.00.31%20AM.png?version=1&modificationDate=1581498056000&api=v2">
+<meta property="og:image" content="https://assets.website-files.com/61f38d7a4e41d6a673cd65c7/6297ef8a6cef924eb06f7d6c_Screen%20Shot%202022-06-01%20at%206.00.13%20PM.png">
+<meta property="og:image" content="https://assets.website-files.com/61f38d7a4e41d6a673cd65c7/6284240c375b15fbaf2258df_Screen%20Shot%202022-05-17%20at%203.38.58%20PM.png">
+<meta property="article:published_time" content="2022-06-22T10:29:36.000Z">
+<meta property="article:modified_time" content="2022-06-23T10:59:46.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="hudi">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://assets.website-files.com/61f38d7a4e41d6a673cd65c7/628419cdc20643b94614b9f1_N6ZFGrV9oHyC8ZHssLtC0dNbH-3NpMBueK_vCu2AI4ZWf0qfJu9jltNO1CjYWJ9QfuPC7T8t-slkyh7oTia4Th091HzMFwtqUQn1vjnmipgdHPkkibq34NSkDCPZfP7ND8JvFbYy1qxHs8z_xA.gif">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/22/hudi探索-多模索引的原理/"/>
+
+
+
+
+
+  <title>hudi探索--多模索引的原理 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/22/hudi%E6%8E%A2%E7%B4%A2-%E5%A4%9A%E6%A8%A1%E7%B4%A2%E5%BC%95%E7%9A%84%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">hudi探索--多模索引的原理</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-22T18:29:36+08:00">
+                2022-06-22
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="hudi探索–多模索引的原理"><a href="#hudi探索–多模索引的原理" class="headerlink" title="hudi探索–多模索引的原理"></a>hudi探索–多模索引的原理</h1><h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>索引是现在存储系统中加速查询和写入必不可少的子系统，而且，随着数据量的增加以及覆盖的场景越来越多，对于索引的要求也是越来越精细化，要求的索引的类型也越来越宽泛，不同的索引覆盖不同的场景。而这样，也会要求我们要对索引有更好的管理，否则，一个不能跟数据同步新鲜度的索引，他的威力就骤减，甚至是带来风险和成本的。</p>
+<h2 id="原先的索引有什么问题"><a href="#原先的索引有什么问题" class="headerlink" title="原先的索引有什么问题"></a>原先的索引有什么问题</h2><ul>
+<li><p>索引扩展性不够</p>
+</li>
+<li><p>索引是需要在每次查询中需要重复加载的</p>
+</li>
+<li><p>索引大小是线性增加的</p>
+</li>
+<li><p>索引无法缓存</p>
+</li>
+</ul>
+<p>以上三个问题，在数据规模越来越大以及数据场景越来越复杂的情况下，成本会越来越高，查询效率也会出现一些瓶颈，优化起来也越来越难以招架。</p>
+<p>所以，hudi需要一个扩展性强，可缓存，易维护的索引子系统，这样在面对复杂的大数据场景需求才会持续保持健壮。</p>
+<h2 id="多模索引是啥"><a href="#多模索引是啥" class="headerlink" title="多模索引是啥"></a>多模索引是啥</h2><p>多模，顾名思义，就是多种模式，hudi这里考虑的是鉴于单种索引无法覆盖全部的查询场景，而每个业务都有自己的场景，索引需求也可能是多样化的。但是如果没有一个很好的模式去兼容的话，他的复杂度会上升很多，因为涉及到增删改查、创建、删除索引、修整优化等多个方面，还有时效性问题，这样整个过程需要写入、查询和索引有很好的交互，否则系统的维护性会很难保证，所以hudi在0.11版本重新构想了关于索引的整个过程，而重新设计了索引子系统，也就是这个多模索引，用来扩展整个索引系统。</p>
+<h2 id="设计与实现"><a href="#设计与实现" class="headerlink" title="设计与实现"></a>设计与实现</h2><p>多模索引需要满足一下要求：</p>
+<ul>
+<li><p><strong>Scalable metadata</strong>：随着表元数据类型扩展以及数据量的扩展，元数据不会呈现查询效率和加载效率的明显下降。</p>
+</li>
+<li><p><strong>ACID transactional updates</strong>:索引和表元数据必须始终是最新的并与数据表同步，并且不应公开部分写入。</p>
+</li>
+<li><p><strong>Fast lookup</strong>:面对超大数据集的点查，不应该必须加载全部索引，因为索引的大小很可能达到了TB级别。</p>
+</li>
+</ul>
+<p><img src="https://assets.website-files.com/61f38d7a4e41d6a673cd65c7/628419cdc20643b94614b9f1_N6ZFGrV9oHyC8ZHssLtC0dNbH-3NpMBueK_vCu2AI4ZWf0qfJu9jltNO1CjYWJ9QfuPC7T8t-slkyh7oTia4Th091HzMFwtqUQn1vjnmipgdHPkkibq34NSkDCPZfP7ND8JvFbYy1qxHs8z_xA.gif" alt=""></p>
+<h3 id="可扩展的元数据"><a href="#可扩展的元数据" class="headerlink" title="可扩展的元数据"></a>可扩展的元数据</h3><p>包含表元数据的所有索引都存储为一个内部 Hudi Merge-On-Read (MOR)表，即数据表中的元数据表。这种方式比较常见，属于用自己的服务来延展自己的扩展性。kafka也有过着这样的实现，这样元数据表就是无服务型的，而且可以扩展到TB级别也不是问题。</p>
+<p>hudi已经存在 colum_stats 和 Bloom 过滤器索引，可以在多方面提高性能，后续还可以继续扩展新的索引，比如位图、基于 R 的树的任何位置索引、记录级别索引等。任何这样的索引都可以根据需要启用和禁用，而不必与其他索引协调。此外，Hudi 支持异步索引，以与普通作者一起编制索引，但不会影响写入延迟（即将推出的一个博客将详细讨论索引）。</p>
+<h3 id="事务级别更新"><a href="#事务级别更新" class="headerlink" title="事务级别更新"></a>事务级别更新</h3><p>元数据表保证具有事务性更新。对数据表的所有更改都转换为提交到元数据表的元数据记录。我们将其设计为一个多表事务，这样只有当数据表和元数据表都提交，当前这一次事务整体才算提交，并且这样的设计对故障具有弹性，因此对数据表的写操作不会暴露给其他读或写事务，具有隔离性。元数据表是自我管理的，因此不需要用户去操作或者管理，包括compact和clean。后续，我们利用日志压缩服务更新数据，以进一步减少写放大。</p>
+<h3 id="快速查找"><a href="#快速查找" class="headerlink" title="快速查找"></a>快速查找</h3><p>为了提高读写性能，元数据要具备高效的点查和范围查找，而当前hudi支持的parquet 和 avro 都不具备这样的特性。</p>
+<p>而Hbase的Hfile格式是专门为高效的点查设计的。</p>
+<p><img src="https://assets.website-files.com/61f38d7a4e41d6a673cd65c7/6284237c497c90d33b3b1d87_image1.png" alt=""></p>
+<p>元数据表会根据分区或者文件来划分对应的索引存储，那么基于这种文件布局，hfile的查询效率会更加高效。元数据表中的base文件和log文件都使用hfile格式来存储，每个日志文件可以包含多个日志块。hudi利用内联文件系统将实际数据块的内容读取为Hfile，这样就可以利用hfile的格式实现高效率的查询，而在应对线上超大数据集的时候，也不用加载整个索引。</p>
+<p><img src="https://assets.website-files.com/61f38d7a4e41d6a673cd65c7/628419ce6a45157293c6fed3_BcmQE8y5RpgwAfW_PlCEbUKQl0oah94CQ9rD5yZVa2T7hicWzYTkfEmYIOlctwInIYVCI90W4pMnGL-iYU-OUact_tBE40B3vPOkFhr8nn8oGXDsFIL-fa03BMwDFsQseghlQ2Z1HcCPdHeoeA.png" alt=""></p>
+<blockquote>
+<p>这些元数据表的数据也会通过timeline server进行缓存，进一步减小查询延迟。</p>
+</blockquote>
+<blockquote>
+<p>hfile 内联也可以认为是一种数据组织方式。</p>
+</blockquote>
+<p><img src="https://cwiki.apache.org/confluence/download/attachments/135860174/Screen%20Shot%202020-02-12%20at%201.00.31%20AM.png?version=1&modificationDate=1581498056000&api=v2" alt=""></p>
+<h2 id="异步构建"><a href="#异步构建" class="headerlink" title="异步构建"></a>异步构建</h2><p><img src="https://assets.website-files.com/61f38d7a4e41d6a673cd65c7/6297ef8a6cef924eb06f7d6c_Screen%20Shot%202022-06-01%20at%206.00.13%20PM.png" alt="Asynchronous Indexing using Hudi"></p>
+<p>鉴于可扩展的索引系统的开发，索引的异步构建是一个很好的建议，异步索引有两个好处，改进写入延迟和解耦故障。这样对于hudi整体的稳定性、易用性都有很好的保证。</p>
+<p>这里的核心问题是异步更新的索引如何与实际写入的数据保持一致。简单的处理方式就是锁定index分区，然后就要历史数据进行构建。但是这种方式在应对超长事务的时候会存在冲突的可能性。</p>
+<p>而hudi是实现并不是这样的，而是 依赖于一下三个要素的实现：</p>
+<h3 id="hudi-file-layout"><a href="#hudi-file-layout" class="headerlink" title="hudi file layout"></a>hudi file layout</h3><p>基于file slice的方式，可以实现基于mvcc的方式实现并发写入。</p>
+<h3 id="hybird-concurrency-control-model"><a href="#hybird-concurrency-control-model" class="headerlink" title="hybird concurrency control model"></a>hybird concurrency control model</h3><p>异步索引综合使用乐观并发控制和基于日志的并发控制模型。索引分为两个阶段：调度和执行。</p>
+<p>在调度过程中，索引器（负责创建新索引的外部进程）获取一个短锁，并为数据文件生成一个索引计划，直到最后一个 commit instant <code>t</code>。它初始化请求的索引对应的元数据分区，并在此阶段完成后释放锁。这应该需要几秒钟，并且在此阶段不会写入任何索引文件。</p>
+<p>在执行期间，索引器执行计划，将索引基础文件（对应于commit instant <code>t</code> 的数据文件）写入元数据分区。同时，常规的 inflight writer 继续将更新记录到与元数据分区中的基本文件相同的文件组中的日志文件。编写基本文件后，索引器会检查 <code>t</code> 之后的所有已完成提交instant，以确保每个提交都根据其索引计划添加条目，否则只能优雅地中止。</p>
+<p>当乐观并发控制介入时，使用元数据表锁来检查写入者是否影响了重叠文件，如果存在冲突，则中止。优雅中止确保可以以幂等方式重试索引。</p>
+<h3 id="hudi-timeline"><a href="#hudi-timeline" class="headerlink" title="hudi timeline"></a>hudi timeline</h3><p> Hudi 在时间轴上实现了细粒度的基于日志的并发协议。为了将索引与其他写入操作区分开来，我们在此时间线上引入了一个名为“索引”的新操作。此操作的状态转换由索引器处理。调度索引会在时间线中添加一个“indexing.requested” instant。执行阶段在执行计划时将其转换为“inflight”状态，然后在索引完成后最终转换为“complete”状态。索引器仅在向时间线添加事件时锁定，而不是在写入索引文件时锁定。</p>
+<h3 id="好处"><a href="#好处" class="headerlink" title="好处"></a>好处</h3><ul>
+<li><p>数据 writer 和 indexer 是解耦的，但它们彼此影响。</p>
+</li>
+<li><p>可以扩展到其他类型的索引。</p>
+</li>
+<li><p>适用于批处理和流式工作负载。</p>
+</li>
+</ul>
+<h2 id="场景应用"><a href="#场景应用" class="headerlink" title="场景应用"></a>场景应用</h2><h3 id="File-Listing"><a href="#File-Listing" class="headerlink" title="File Listing"></a>File Listing</h3><p>为了提高文件列表的性能，Hudi 将信息存储在元数据表中名为 files 的分区中，以避免文件系统调用，例如 exists、listStatus 和 listFiles。文件分区存储数据表中每个分区的文件名、大小和活动状态等文件信息。</p>
+<blockquote>
+<p>在超大数据集上，这个点会成为查询的瓶颈，所以想要提高更高的查询效率，更有效率的File Listing是一定要有的。</p>
+</blockquote>
+<h3 id="Data-Skipping"><a href="#Data-Skipping" class="headerlink" title="Data Skipping"></a>Data Skipping</h3><p>元数据表的另一个主要好处是在服务读取查询时帮助跳过数据。column_stats 分区存储所有数据文件的感兴趣列的统计信息，例如最小值和最大值、总值、空计数、大小等。在查询时，提取指定的谓词进行条件转换，形成一个基于当前索引的filter。这可以大大提高查询性能，因为不匹配的文件会被过滤掉，而不是从文件系统中读取，还可以减少文件系统的 I/O 负担。</p>
+<p><img src="https://assets.website-files.com/61f38d7a4e41d6a673cd65c7/6284240c375b15fbaf2258df_Screen%20Shot%202022-05-17%20at%203.38.58%20PM.png" alt=""></p>
+<p>在column_stats分区中，记录键是由列名、分区名、数据文件名依次串联而成的，这样我们就可以进行点查找和范围读取。这种记录键设计也解锁了在 column_stats 索引上执行前缀查找的能力。</p>
+<h3 id="Upsert-Performance"><a href="#Upsert-Performance" class="headerlink" title="Upsert Performance"></a>Upsert Performance</h3><p>upsert依赖于确认当前primary key所在的文件位置，也就是要先查找这个key在哪个file group里。原先的方式是要去匹配数据文件的页脚以查找布隆过滤器，这在整个数据集随机更新的情况下可能会很昂贵。</p>
+<p>引入元数据表中的bloom_filter分区来存储所有数据文件的bloom过滤器，避免扫描所有数据文件的页脚。该分区中的记录键由<strong>分区名</strong>和<strong>数据文件名</strong>组成。与 column_stats 索引类似，它利用点和前缀查找。</p>
+<h2 id="改进"><a href="#改进" class="headerlink" title="改进"></a>改进</h2><ul>
+<li><p>虽然可以与写入器同时创建索引，但删除索引需要表级锁定，因为表通常会被其他读取器/写入器线程使用。因此，一项工作是通过延迟删除索引并增加异步量来克服当前的限制，以便可以同时创建或删除多个索引。</p>
+</li>
+<li><p>另一项工作是增强索引器的可用性；与 SQL 和其他类型的索引集成，例如二级键的Bloom索引、基于Lucene的二级索引（RFC-52）等。</p>
+</li>
+</ul>
+<p>参考：</p>
+<p><a href="https://www.onehouse.ai/blog/introducing-multi-modal-index-for-the-lakehouse-in-apache-hudi" target="_blank" rel="noopener">introducing-multi-modal-index-for-the-lakehouse-in-apache-hudi</a></p>
+<p><a href="https://www.onehouse.ai/blog/asynchronous-indexing-using-hudi" target="_blank" rel="noopener">asynchronous-indexing-using-hudi</a></p>
+<p><a href="https://hudi.apache.org/docs/metadata_indexing/" target="_blank" rel="noopener">https://hudi.apache.org/docs/metadata_indexing/</a></p>
+<p><a href="https://github.com/apache/hudi/blob/master/rfc/rfc-45/rfc-45.md">https://github.com/apache/hudi/blob/master/rfc/rfc-45/rfc-45.md</a></p>
+<p><a href="https://cwiki.apache.org/confluence/display/HUDI/RFC-08++Record+level+indexing+mechanisms+for+Hudi+datasets" target="_blank" rel="noopener">https://cwiki.apache.org/confluence/display/HUDI/RFC-08++Record+level+indexing+mechanisms+for+Hudi+datasets</a></p>
+<p><a href="https://issues.apache.org/jira/browse/HUDI-2488" target="_blank" rel="noopener">https://issues.apache.org/jira/browse/HUDI-2488</a></p>
+<p><a href="https://mp.weixin.qq.com/s/IEDdmrYM3-eBS-rvqb0mWg" target="_blank" rel="noopener">https://mp.weixin.qq.com/s/IEDdmrYM3-eBS-rvqb0mWg</a></p>
+<p><a href="https://mp.weixin.qq.com/s?__biz=MzIyMzQ0NjA0MQ==&amp;mid=2247489259&amp;idx=1&amp;sn=1df6ebcc3dd4983dbe9cef91995be7cf&amp;chksm=e81f439ddf68ca8b16cb9f129069dc2d3d620ae66927fc168ced2f3be18f05c192198ab930db&amp;scene=21#wechat_redirect" target="_blank" rel="noopener">https://mp.weixin.qq.com/s?__biz=MzIyMzQ0NjA0MQ==&amp;mid=2247489259&amp;idx=1&amp;sn=1df6ebcc3dd4983dbe9cef91995be7cf&amp;chksm=e81f439ddf68ca8b16cb9f129069dc2d3d620ae66927fc168ced2f3be18f05c192198ab930db&amp;scene=21#wechat_redirect</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/hudi/" rel="tag"># hudi</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/06/22/%E7%89%A9%E5%8C%96%E8%A7%86%E5%9B%BE%E7%9A%84%E5%AE%9E%E7%8E%B0/" rel="next" title="物化视图的实现">
+                <i class="fa fa-chevron-left"></i> 物化视图的实现
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/06/24/%E7%89%A9%E5%8C%96%E5%92%8C%E5%BB%B6%E8%BF%9F%E7%89%A9%E5%8C%96/" rel="prev" title="物化和延迟物化">
+                物化和延迟物化 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#hudi探索–多模索引的原理"><span class="nav-number">1.</span> <span class="nav-text">hudi探索–多模索引的原理</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#前言"><span class="nav-number">1.1.</span> <span class="nav-text">前言</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#原先的索引有什么问题"><span class="nav-number">1.2.</span> <span class="nav-text">原先的索引有什么问题</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#多模索引是啥"><span class="nav-number">1.3.</span> <span class="nav-text">多模索引是啥</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#设计与实现"><span class="nav-number">1.4.</span> <span class="nav-text">设计与实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#可扩展的元数据"><span class="nav-number">1.4.1.</span> <span class="nav-text">可扩展的元数据</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#事务级别更新"><span class="nav-number">1.4.2.</span> <span class="nav-text">事务级别更新</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#快速查找"><span class="nav-number">1.4.3.</span> <span class="nav-text">快速查找</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#异步构建"><span class="nav-number">1.5.</span> <span class="nav-text">异步构建</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#hudi-file-layout"><span class="nav-number">1.5.1.</span> <span class="nav-text">hudi file layout</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#hybird-concurrency-control-model"><span class="nav-number">1.5.2.</span> <span class="nav-text">hybird concurrency control model</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#hudi-timeline"><span class="nav-number">1.5.3.</span> <span class="nav-text">hudi timeline</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#好处"><span class="nav-number">1.5.4.</span> <span class="nav-text">好处</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#场景应用"><span class="nav-number">1.6.</span> <span class="nav-text">场景应用</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#File-Listing"><span class="nav-number">1.6.1.</span> <span class="nav-text">File Listing</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Data-Skipping"><span class="nav-number">1.6.2.</span> <span class="nav-text">Data Skipping</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Upsert-Performance"><span class="nav-number">1.6.3.</span> <span class="nav-text">Upsert Performance</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#改进"><span class="nav-number">1.7.</span> <span class="nav-text">改进</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

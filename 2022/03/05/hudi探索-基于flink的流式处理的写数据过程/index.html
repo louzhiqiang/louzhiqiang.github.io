@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="hudi," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="hudi探索–基于flink的流式处理的写数据过程hudi的主要写入类是 HoodieTableSink ，其中的getSinkRuntimeProvider 跟source里的getSinkRuntimeProvider 是一样的作用，提供了 sink的流式写入的类。 1234567891011121314151617181920212223242526272829303132333435363">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hudi探索--基于flink的流式处理的写数据过程">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/03/05/hudi%E6%8E%A2%E7%B4%A2-%E5%9F%BA%E4%BA%8Eflink%E7%9A%84%E6%B5%81%E5%BC%8F%E5%A4%84%E7%90%86%E7%9A%84%E5%86%99%E6%95%B0%E6%8D%AE%E8%BF%87%E7%A8%8B/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="hudi探索–基于flink的流式处理的写数据过程hudi的主要写入类是 HoodieTableSink ，其中的getSinkRuntimeProvider 跟source里的getSinkRuntimeProvider 是一样的作用，提供了 sink的流式写入的类。 1234567891011121314151617181920212223242526272829303132333435363">
+<meta property="article:published_time" content="2022-03-05T12:46:22.000Z">
+<meta property="article:modified_time" content="2022-03-19T02:14:12.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="hudi">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/03/05/hudi探索-基于flink的流式处理的写数据过程/"/>
+
+
+
+
+
+  <title>hudi探索--基于flink的流式处理的写数据过程 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/03/05/hudi%E6%8E%A2%E7%B4%A2-%E5%9F%BA%E4%BA%8Eflink%E7%9A%84%E6%B5%81%E5%BC%8F%E5%A4%84%E7%90%86%E7%9A%84%E5%86%99%E6%95%B0%E6%8D%AE%E8%BF%87%E7%A8%8B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">hudi探索--基于flink的流式处理的写数据过程</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-03-05T20:46:22+08:00">
+                2022-03-05
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="hudi探索–基于flink的流式处理的写数据过程"><a href="#hudi探索–基于flink的流式处理的写数据过程" class="headerlink" title="hudi探索–基于flink的流式处理的写数据过程"></a>hudi探索–基于flink的流式处理的写数据过程</h2><p>hudi的主要写入类是 HoodieTableSink ，其中的getSinkRuntimeProvider 跟source里的getSinkRuntimeProvider 是一样的作用，提供了 sink的流式写入的类。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> SinkRuntimeProvider <span class="title">getSinkRuntimeProvider</span><span class="params">(Context context)</span> </span>&#123;</span><br><span class="line">    LOG.info(<span class="string">"--- lou into SinkRuntimeProvider from HoodieTableSink --- "</span>);</span><br><span class="line">    <span class="keyword">return</span> (DataStreamSinkProvider) dataStream -&gt; &#123;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// setup configuration</span></span><br><span class="line">      <span class="keyword">long</span> ckpTimeout = dataStream.getExecutionEnvironment()</span><br><span class="line">          .getCheckpointConfig().getCheckpointTimeout();</span><br><span class="line">      conf.setLong(FlinkOptions.WRITE_COMMIT_ACK_TIMEOUT, ckpTimeout);</span><br><span class="line"></span><br><span class="line">      RowType rowType = (RowType) schema.toSourceRowDataType().notNull().getLogicalType();</span><br><span class="line"></span><br><span class="line">      <span class="comment">// bulk_insert mode</span></span><br><span class="line">      <span class="comment">// 读取配置 默认  write.operation</span></span><br><span class="line">      <span class="keyword">final</span> String writeOperation = <span class="keyword">this</span>.conf.get(FlinkOptions.OPERATION);</span><br><span class="line">      LOG.info(<span class="string">"--- lou --- writeOperation : "</span> + writeOperation);</span><br><span class="line">      <span class="keyword">if</span> (WriteOperationType.fromValue(writeOperation) == WriteOperationType.BULK_INSERT) &#123;</span><br><span class="line">        <span class="keyword">return</span> context.isBounded() ? Pipelines.bulkInsert(conf, rowType, dataStream) : Pipelines.append(conf, rowType, dataStream);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// Append mode  不合并小文件  只是追加  只针对COW表</span></span><br><span class="line">      <span class="keyword">if</span> (OptionsResolver.isAppendMode(conf)) &#123;</span><br><span class="line">        <span class="keyword">return</span> Pipelines.append(conf, rowType, dataStream);</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// default parallelism</span></span><br><span class="line">      <span class="keyword">int</span> parallelism = dataStream.getExecutionConfig().getParallelism();</span><br><span class="line">      LOG.info(<span class="string">"--- lou --- : parallelism "</span> + parallelism);</span><br><span class="line">      DataStream&lt;Object&gt; pipeline;</span><br><span class="line"></span><br><span class="line">      <span class="comment">// bootstrap 初始化引导对象 无界集合的主要目标就是转化数据到hudi的格式</span></span><br><span class="line">      <span class="comment">// 创建RawData 到 hudi的数据格式</span></span><br><span class="line">      <span class="keyword">final</span> DataStream&lt;HoodieRecord&gt; hoodieRecordDataStream =</span><br><span class="line">          Pipelines.bootstrap(conf, rowType, parallelism, dataStream, context.isBounded(), overwrite);</span><br><span class="line">      <span class="comment">// write pipeline</span></span><br><span class="line">      pipeline = Pipelines.hoodieStreamWrite(conf, parallelism, hoodieRecordDataStream);</span><br><span class="line">      <span class="comment">// compaction</span></span><br><span class="line">      <span class="keyword">if</span> (StreamerUtil.needsAsyncCompaction(conf)) &#123;</span><br><span class="line">        <span class="keyword">return</span> Pipelines.compact(conf, pipeline);</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">return</span> Pipelines.clean(conf, pipeline);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>如果关注流式处理的话，那么主要重点关注的就是 Pipelines 里的几个操作类，bootstrap 是 操作RawData到hoodie数据的算子，而hoodieStreamWrite是写入的主要逻辑，最后一步是compact和clean的逻辑。</p>
+<h3 id="toHoodieRecord"><a href="#toHoodieRecord" class="headerlink" title="toHoodieRecord"></a>toHoodieRecord</h3><p>大体步骤有了，下面我们逐步看一下细节：主要是类是 RowDataToHoodieFunction 中的toHoodieRecord这个方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Converts the give record to a &#123;<span class="doctag">@link</span> HoodieRecord&#125;.</span></span><br><span class="line"><span class="comment">   *</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> record The input record</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@return</span> HoodieRecord based on the configuration</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@throws</span> IOException if error occurs</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="meta">@SuppressWarnings</span>(<span class="string">"rawtypes"</span>)</span><br><span class="line">  <span class="function"><span class="keyword">private</span> HoodieRecord <span class="title">toHoodieRecord</span><span class="params">(I record)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    GenericRecord gr = (GenericRecord) <span class="keyword">this</span>.converter.convert(<span class="keyword">this</span>.avroSchema, record);</span><br><span class="line">    <span class="keyword">final</span> HoodieKey hoodieKey = keyGenerator.getKey(gr);</span><br><span class="line"></span><br><span class="line">    HoodieRecordPayload payload = payloadCreation.createPayload(gr);</span><br><span class="line">    HoodieOperation operation = HoodieOperation.fromValue(record.getRowKind().toByteValue());</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> HoodieRecord&lt;&gt;(hoodieKey, payload, operation);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>从代码中可以看出来，RawData直接转化的数据格式avro格式。</p>
+<p>主要的转化代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line">      <span class="function"><span class="keyword">public</span> Object <span class="title">convert</span><span class="params">(Schema schema, Object object)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">final</span> RowData row = (RowData) object;</span><br><span class="line">        <span class="keyword">final</span> List&lt;Schema.Field&gt; fields = schema.getFields();</span><br><span class="line">        <span class="keyword">final</span> GenericRecord record = <span class="keyword">new</span> GenericData.Record(schema);</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; length; ++i) &#123;</span><br><span class="line">          <span class="keyword">final</span> Schema.Field schemaField = fields.get(i);</span><br><span class="line">          Object avroObject =</span><br><span class="line">              fieldConverters[i].convert(</span><br><span class="line">                  schemaField.schema(), fieldGetters[i].getFieldOrNull(row));</span><br><span class="line">          record.put(i, avroObject);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> record;</span><br><span class="line">      &#125;</span><br></pre></td></tr></table></figure>
+
+<p>converter是根据数据类型进行枚举的，有比较复杂的数类型都是单独来封装的这个converter的。</p>
+<hr>
+<h3 id="hoodieStreamWrite"><a href="#hoodieStreamWrite" class="headerlink" title="hoodieStreamWrite"></a>hoodieStreamWrite</h3><p>下边来说一下第二步，hoodieStreamWrite的实现主要是啥？</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> DataStream&lt;Object&gt; <span class="title">hoodieStreamWrite</span><span class="params">(Configuration conf, <span class="keyword">int</span> defaultParallelism, DataStream&lt;HoodieRecord&gt; dataStream)</span> </span>&#123;</span><br><span class="line">    WriteOperatorFactory&lt;HoodieRecord&gt; operatorFactory = StreamWriteOperator.getFactory(conf);</span><br><span class="line">    <span class="keyword">return</span> dataStream</span><br><span class="line">        <span class="comment">// Key-by record key, to avoid multiple subtasks write to a bucket at the same time</span></span><br><span class="line">        .keyBy(HoodieRecord::getRecordKey)</span><br><span class="line">        .transform(</span><br><span class="line">            <span class="string">"bucket_assigner"</span>,</span><br><span class="line">            TypeInformation.of(HoodieRecord<span class="class">.<span class="keyword">class</span>),</span></span><br><span class="line"><span class="class">            <span class="title">new</span> <span class="title">KeyedProcessOperator</span>&lt;&gt;(<span class="title">new</span> <span class="title">BucketAssignFunction</span>&lt;&gt;(<span class="title">conf</span>)))</span></span><br><span class="line">        .uid("uid_bucket_assigner_" + conf.getString(FlinkOptions.TABLE_NAME))</span><br><span class="line">        .setParallelism(conf.getOptional(FlinkOptions.BUCKET_ASSIGN_TASKS).orElse(defaultParallelism))</span><br><span class="line">        <span class="comment">// shuffle by fileId(bucket id)</span></span><br><span class="line">        .keyBy(record -&gt; record.getCurrentLocation().getFileId())</span><br><span class="line">        .transform(<span class="string">"hoodie_stream_write"</span>, TypeInformation.of(Object<span class="class">.<span class="keyword">class</span>), <span class="title">operatorFactory</span>)</span></span><br><span class="line">        .uid("uid_hoodie_stream_write" + conf.getString(FlinkOptions.TABLE_NAME))</span><br><span class="line">        .setParallelism(conf.getInteger(FlinkOptions.WRITE_TASKS));</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>整个过程，我们来看一下，他的主要过程如下：</p>
+<p>1、按照主键进行key by</p>
+<p>2、BucketAssignFunction</p>
+<p>3、按照fieldId进行key by</p>
+<p>4、hoodie_stream_write</p>
+<p>上边四步，第一步主要是就是为了bucket进行准备的，这个没什么说的。</p>
+<p>下边着重说一下  bucket主要是干啥了。</p>
+<h4 id="按照主键进行key-by"><a href="#按照主键进行key-by" class="headerlink" title="按照主键进行key by"></a>按照主键进行key by</h4><p>HoodieRecord 在初始化的时候，就已经有了这个recordkey，所以这个就是形成了一个keyByStream。</p>
+<h4 id="BucketAssignFunction"><a href="#BucketAssignFunction" class="headerlink" title="BucketAssignFunction"></a>BucketAssignFunction</h4><p>这一步是写入逻辑比较重要的一步。官方是这么写这个类的注释的：</p>
+<p>这个function是为检查点内的记录递增地构建写配置文件，然后使用{@link BucketAssigner}为桶分配ID。</p>
+<p>所有的记录都被标记为HoodieRecordLocation，而不是真正的即时时间，INSERT记录使用“I”，而UPSERT记录使用“U”作为即时时间。没有必要为每个记录保存“真实”的即时时间，bucket ID(分区路径和fileID)实际决定记录应该写入到哪里。“I”和“U”标签仅用于下游来决定数据桶是INSERT还是UPSERT，当底层写入器支持显式指定桶类型时，我们应该将标签分解出来。</p>
+<p>输出记录应该根据桶ID移动，从而进行可伸缩的写操作。</p>
+<blockquote>
+<p>bucket的设计对于数据集群伸缩性也是有影响的，按照单个集群的概念去思考，就可以想通这件事儿。</p>
+</blockquote>
+<p>BucketAssignFunction 中有几个主要的属性：</p>
+<p>1、ValueState<HoodieRecordGlobalLocation> indexState：Index cache(speed-up) state for the underneath file based(BloomFilter) indices.当一条记录进来的时候，需要做这样几个检查：</p>
+<ul>
+<li><p>Try to load all the records in the partition path where the record belongs to(尝试加载该记录所属分区路径中的所有记录)</p>
+</li>
+<li><p>Checks whether the state contains the record key(检查状态是否包含记录键)</p>
+</li>
+<li><p>If it does, tag the record with the location(如果是，则用位置标记该记录)</p>
+</li>
+<li><p>If it does not, use the {@link BucketAssigner} to generate a new bucket ID(如果没有，使用{@link BucketAssigner}生成一个新的桶ID)</p>
+</li>
+</ul>
+<p>2、BucketAssigner bucketAssigner;</p>
+<pre><code>Bucket assigner to assign new bucket IDs or reuse existing ones.</code></pre><p>3、final boolean globalIndex;</p>
+<p>If the index is global, update the index for the old partition path （如果索引是全局的，则更新旧分区路径的索引）</p>
+<p>if same key record with different partition path came in. (如果相同的键记录与不同的分区路径进来)</p>
+<p>主要是根据两个配置来辨别的：第一个是 index.global.enabled， 这个必须为真。这个配置的含义是:Whether to update index for the old partition path if same key record with different partition path came in, default true. 第二个是changelog.enabled  这个必须为假。这个配置的含义是：Whether to keep all the intermediate changes,we try to keep all the changes of a record when enabled:1). The sink accept the UPDATE_BEFORE message;2). The source try to emit every changes of a record.The semantics(语义) is best effort because the compaction job would finally merge all changes of a record into one.default false to have UPSERT semantics。</p>
+<p>4、final boolean isChangingRecords</p>
+<p>代表会基于已有数据做变更，主要是通过判断写入模式来确认，UPSERT 或者 DELETE模式  或者 UPSERT_PREPPED模式  </p>
+<p>在open方法里，主要是初始化一些配置，生成bucketAssigner，还有 payloadCreation 的创建。</p>
+<p>initializeState 方法主要是初始化state，里边会有有效期的配置，需要的配置：index.state.ttl  ： Index state ttl in days, default stores the index permanently。默认是0D 代表永不过期。</p>
+<p>processElement ：逐条处理数据的主要逻辑就在这里。</p>
+<p>这个方法里最重要的逻辑是 processRecord 这个方法的调用。</p>
+<p>1、put the record into the BucketAssigner;</p>
+<p>2、look up the state for location, if the record has a location, just send it out;</p>
+<p>3、if it is an INSERT, decide the location using the BucketAssigner then send it out.</p>
+<p>通过在 state中是否存在当前key的数据，以及isChangingRecords 标识来判断是新数据还是旧数据。</p>
+<p>如果location发生变化了，那么需要发送两条记录了，第一条是删除旧分区的，第二条是增加新分区的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (isChangingRecords &amp;&amp; oldLoc != <span class="keyword">null</span>) &#123;</span><br><span class="line">      <span class="comment">// Set up the instant time as "U" to mark the bucket as an update bucket.</span></span><br><span class="line">      <span class="keyword">if</span> (!Objects.equals(oldLoc.getPartitionPath(), partitionPath)) &#123;</span><br><span class="line">        <span class="keyword">if</span> (globalIndex) &#123;</span><br><span class="line">          <span class="comment">// if partition path changes, emit a delete record for old partition path,</span></span><br><span class="line">          <span class="comment">// then update the index state using location with new partition path.</span></span><br><span class="line">          HoodieRecord&lt;?&gt; deleteRecord = <span class="keyword">new</span> HoodieRecord&lt;&gt;(<span class="keyword">new</span> HoodieKey(recordKey, oldLoc.getPartitionPath()),</span><br><span class="line">              payloadCreation.createDeletePayload((BaseAvroPayload) record.getData()));</span><br><span class="line">          deleteRecord.setCurrentLocation(oldLoc.toLocal(<span class="string">"U"</span>));</span><br><span class="line">          deleteRecord.seal();</span><br><span class="line">          out.collect((O) deleteRecord);</span><br><span class="line">        &#125;</span><br><span class="line">        location = getNewRecordLocation(partitionPath);</span><br><span class="line">        updateIndexState(partitionPath, location);</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        location = oldLoc.toLocal(<span class="string">"U"</span>);</span><br><span class="line">        <span class="keyword">this</span>.bucketAssigner.addUpdate(partitionPath, location.getFileId());</span><br><span class="line">      &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      location = getNewRecordLocation(partitionPath);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>updateIndexState 主要是更新当前state里的数据，但是只更新 localtionPath的值。</p>
+<p>这里一个关键方法是 getNewRecordLocation ，用来确认分区所在位置的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> HoodieRecordLocation <span class="title">getNewRecordLocation</span><span class="params">(String partitionPath)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> BucketInfo bucketInfo = <span class="keyword">this</span>.bucketAssigner.addInsert(partitionPath);</span><br><span class="line">    <span class="keyword">final</span> HoodieRecordLocation location;</span><br><span class="line">    <span class="keyword">switch</span> (bucketInfo.getBucketType()) &#123;</span><br><span class="line">      <span class="keyword">case</span> INSERT:</span><br><span class="line">        <span class="comment">// This is an insert bucket, use HoodieRecordLocation instant time as "I".</span></span><br><span class="line">        <span class="comment">// Downstream operators can then check the instant time to know whether</span></span><br><span class="line">        <span class="comment">// a record belongs to an insert bucket.</span></span><br><span class="line">        location = <span class="keyword">new</span> HoodieRecordLocation(<span class="string">"I"</span>, bucketInfo.getFileIdPrefix());</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">      <span class="keyword">case</span> UPDATE:</span><br><span class="line">        location = <span class="keyword">new</span> HoodieRecordLocation(<span class="string">"U"</span>, bucketInfo.getFileIdPrefix());</span><br><span class="line">        <span class="keyword">break</span>;</span><br><span class="line">      <span class="keyword">default</span>:</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> AssertionError();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> location;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>首先会往 bucketAssigner 添加一个数据，返回对应的 bucketInfo，根据bucket的类型，返回对应类型的 HoodieRecordLocation。</p>
+<blockquote>
+<p>HoodieRecordLocation 包含操作标识的信息，这是一体的，体现了hudi里这一个设计。</p>
+</blockquote>
+<p>如果是有一个已经存在的数据，且没有改变分区，会经过 bucketAssigner 进行bucket确定。如果是update的数据，会走一个addUpdate，如果是一个insert数据，会走一个addInsert的方法。</p>
+<p>在open方法中，我们看到 bucketAssigner的初始化：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">this</span>.bucketAssigner = BucketAssigners.create(</span><br><span class="line">        getRuntimeContext().getIndexOfThisSubtask(),<span class="comment">//任务id  这个是flink提供的机制</span></span><br><span class="line">        getRuntimeContext().getMaxNumberOfParallelSubtasks(), <span class="comment">// 当前阶段的任务的最大数</span></span><br><span class="line">        getRuntimeContext().getNumberOfParallelSubtasks(), <span class="comment">// 当前阶段的任务总数</span></span><br><span class="line">        ignoreSmallFiles(), <span class="comment">// 如果是insert overiwrite 就忽略小文件</span></span><br><span class="line">        HoodieTableType.valueOf(conf.getString(FlinkOptions.TABLE_TYPE)),</span><br><span class="line">        context,</span><br><span class="line">        writeConfig);</span><br></pre></td></tr></table></figure>
+
+<p>这里主要带着配置进行初始化，而且也会把当前bucketAssigner任务的任务信息进行了初始化。下边我们来看一下这些参数都有啥用处。</p>
+<p>BucketAssigner 的类注释是这么写的：</p>
+<p>Bucket assigner that assigns the data buffer of one checkpoint into buckets.</p>
+<p>This assigner assigns the record one by one.</p>
+<p> If the record is an update, checks and reuse existing UPDATE bucket or generates a new one;If the record is an insert, checks the record partition for small files first, try to find a small file；that has space to append new records and reuse the small file’s data bucket, if there is no small file(or no left space for new records), generates an INSERT bucket.</p>
+<p>如果记录是一个更新、检查和重用现有更新桶或生成一个新的。如果是一个插入记录，首先看当前记录对应分区下是否有小文件，如果还有文件有空间可以进行追加，那就对小文件追加，如果没有小文件，就生成一个新的bucket。</p>
+<p>Use {partition}_{fileId} as the bucket identifier, so that the bucket is unique within and among partitions.</p>
+<p>用分区和文件id作为bucket唯一标识，这样 bucket 就是唯一的。</p>
+<p>在bucket中有这样的几个属性，需要关注一下：</p>
+<p>1、final Map&lt;String, SmallFileAssign&gt; smallFileAssignMap  记录每个分区下的小文件</p>
+<p>2、final Map&lt;String, NewFileAssignState&gt; newFileAssignStates  ： Bucket ID(partition + fileId) -&gt; new file assign state. 这个主要是针对一个新文件的映射。</p>
+<p>NewFileAssignState 的 主要作用： Candidate bucket state for a new file. It records the total number of records that the bucket can append and the current number of assigned records.</p>
+<p>新文件的候选桶状态。它记录bucket可以追加的记录总数和当前分配的记录数。</p>
+<p>这里更凸显bucket的意义，一批数据，按照既定规则写入。</p>
+<p>这个类的属性也比较简单很多，就是fileId  以及 分配总数量 以及 已经分配的总数量。 </p>
+<p>3、int accCkp = 0; 统计成功的checkPoint。used for cleaning the new file assign state.</p>
+<p>下边来说一下addUpdate方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> BucketInfo <span class="title">addUpdate</span><span class="params">(String partitionPath, String fileIdHint)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> String key = StreamerUtil.generateBucketKey(partitionPath, fileIdHint);</span><br><span class="line">    <span class="keyword">if</span> (!bucketInfoMap.containsKey(key)) &#123;</span><br><span class="line">      BucketInfo bucketInfo = <span class="keyword">new</span> BucketInfo(BucketType.UPDATE, fileIdHint, partitionPath);</span><br><span class="line">      bucketInfoMap.put(key, bucketInfo);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// else do nothing because the bucket already exists.</span></span><br><span class="line">    <span class="keyword">return</span> bucketInfoMap.get(key);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个方法逻辑比较简单一些，主要就是根据partition和fileId进行了一次辨别，直接添加到指定的bucket。</p>
+<p>下边说一下addInsert逻辑，逻辑会复杂一些，如下：</p>
+<p>1、获取当前分区下的小文件分布。</p>
+<p>2、如果有小文件，那就生成一个update的bucket，当前数据会追加到那个小文件中。</p>
+<p>3、如果分区里没有小文件，就来看新生成的文件，如果新文件里有还有空间，就直接到这个新文件里，反之就生成一个Insert类型的bucket。</p>
+<blockquote>
+<p>如果bucket是insert类型，就要生成一个新的文件。如果是update，代表就是在已有文件中进行更新。</p>
+</blockquote>
+<p>后边会解析一下两种类型的bucket的操作。</p>
+<p>4、如果确认是需要添加的bucketinfo，就需要生成一个新的，fileId也是新的，fileId的生成是通过uuid来的，uuid需要满足hash值可以映射到下游的任务id。</p>
+<p>5、把这个bucket添加到上边的两个map中。这里会新生成一个NewFileAssignState，我们可以看到他设置的总数量是来自配置  hoodie.copyonwrite.insert.split.size ： Number of inserts assigned for each partition/bucket for writing.We based the default on writing out 100MB files, with at least 1kb records (100K records per file), and over provision to 500K. As long as auto-tuning of splits is turned on, this only affects the first write, where there is no history to learn record sizes from. 默认是500000。</p>
+<p>上述就是addInsert的主要逻辑。下边说一下如何判断小文件分布的：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">synchronized</span> SmallFileAssign <span class="title">getSmallFileAssign</span><span class="params">(String partitionPath)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (smallFileAssignMap.containsKey(partitionPath)) &#123;</span><br><span class="line">      <span class="keyword">return</span> smallFileAssignMap.get(partitionPath);</span><br><span class="line">    &#125;</span><br><span class="line">    List&lt;SmallFile&gt; smallFiles = smallFilesOfThisTask(writeProfile.getSmallFiles(partitionPath));</span><br><span class="line">    <span class="keyword">if</span> (smallFiles.size() &gt; <span class="number">0</span>) &#123;</span><br><span class="line">      LOG.info(<span class="string">"For partitionPath : "</span> + partitionPath + <span class="string">" Small Files =&gt; "</span> + smallFiles);</span><br><span class="line">      SmallFileAssignState[] states = smallFiles.stream()</span><br><span class="line">          .map(smallFile -&gt; <span class="keyword">new</span> SmallFileAssignState(config.getParquetMaxFileSize(), smallFile, writeProfile.getAvgSize()))</span><br><span class="line">          .toArray(SmallFileAssignState[]::<span class="keyword">new</span>);</span><br><span class="line">      SmallFileAssign assign = <span class="keyword">new</span> SmallFileAssign(states);</span><br><span class="line">      smallFileAssignMap.put(partitionPath, assign);</span><br><span class="line">      <span class="keyword">return</span> assign;</span><br><span class="line">    &#125;</span><br><span class="line">    smallFileAssignMap.put(partitionPath, <span class="keyword">null</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里首先是获取所有的小文件。小文件的获取逻辑起是WriteProfile里，方法smallFilesProfile，根据路径，获取所有的baseFiles，然后根据配置  hoodie.parquet.small.file.limit 对比，小于这个配置的，且大小大于0的就是小文件。注意这个文件是baseFile的大小，也就是parquet文件。</p>
+<p>配置默认值是 104857600 大约是100M ， 配置注释： During upsert operation, we opportunistically expand existing small files on storage, instead of writing  new files, to keep number of files to an optimum. This config sets the file size limit below which a file on storage  becomes a candidate to be selected as such a <code>small file</code>. By default, treat any file &lt;= 100MB as a small file.</p>
+<p>smallFilesOfThisTask 的主要作用就是过滤当前任务id下的小文件。这样保持一个同步的扩展。</p>
+<blockquote>
+<p>TODO : 这块的任务数量变化，需要思考一下。</p>
+</blockquote>
+<p>上边的代码，会生成一个SmallFileAssign，代表这个SmallFileAssign是一个分区下一个小文件分布对象，里边会记录所有的小文件，然后确认当前分区是否可以分配记录的方式，就是从第一个小文件去遍历，也就是 SmallFileAssignState 对象，每个对象确认是否有空间，有空间就分布，然后遍历终止，知道所有文件都填满到指定大小。</p>
+<p>每个state都有自己的统计，遵循统一的canAssign()方法。</p>
+<p>到这里我们看完了BucketAssigner的处理，主要核心点就是确认这个数据应该写到哪个文件中。</p>
+<h4 id="按照fieldId进行key-by"><a href="#按照fieldId进行key-by" class="headerlink" title="按照fieldId进行key by"></a>按照fieldId进行key by</h4><p>这一部比较简单，就是根据record的fileId进行keyBy</p>
+<h4 id="hoodie-stream-write"><a href="#hoodie-stream-write" class="headerlink" title="hoodie_stream_write"></a>hoodie_stream_write</h4><p>这是 hoodie_stream_write 的最后一步，把上边根据fileId进行keyBy的数据进行写入。而这里用到的是算子 </p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">WriteOperatorFactory&lt;HoodieRecord&gt; operatorFactory = StreamWriteOperator.getFactory(conf);</span><br></pre></td></tr></table></figure>
+
+<p>任务数量是根据配置：write.tasks  默认是 4。</p>
+<p>下边就来看一下这个算子的逻辑：</p>
+<p>他的注释如下：</p>
+<p>Sink function to write the data to the underneath filesystem.</p>
+<ul>
+<li><p>Work Flow</p>
+<ul>
+<li>The function firstly buffers the data as a batch of {@link HoodieRecord}s,It flushes(write) the records batch when the batch size exceeds the configured size {@link FlinkOptions#WRITE_BATCH_SIZE} or the total buffer size exceeds the configured size {@link FlinkOptions#WRITE_TASK_MAX_SIZE} or a Flink checkpoint starts. After a batch has been written successfully, the function notifies its operator coordinator {@link StreamWriteOperatorCoordinator} to mark a successful write.</li>
+</ul>
+</li>
+<li><p>The Semantics</p>
+<ul>
+<li><p>The task implements exactly-once semantics by buffering the data between checkpoints. The operator coordinator  starts a new instant on the timeline when a checkpoint triggers, the coordinator checkpoints always start before its operator, so when this function starts a checkpoint, a REQUESTED instant already exists.</p>
+</li>
+<li><p>The function process thread blocks data buffering after the checkpoint thread finishes flushing the existing data buffer until  the current checkpoint succeed and the coordinator starts a new instant. Any error triggers the job failure during the metadata committing,  when the job recovers from a failure, the write function re-send the write metadata to the coordinator to see if these metadata  can re-commit, thus if unexpected error happens during the instant committing, the coordinator would retry to commit when the job  recovers.</p>
+</li>
+</ul>
+</li>
+<li><p>Fault Tolerance</p>
+<ul>
+<li>The operator coordinator checks and commits the last instant then starts a new one after a checkpoint finished successfully.  It rolls back any inflight instant before it starts a new instant, this means one hoodie instant only span one checkpoint,  the write function blocks data buffer flushing for the configured checkpoint timeout  before it throws exception, any checkpoint failure would finally trigger the job failure.</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>The function task requires the input stream be shuffled by the file IDs</p>
+</blockquote>
+<p>根据以上可以看出，StreamWriteOperatorCoordinator 是一个比较重要的角色，是协调当前任务和checkpoint的纽带，这个设计方式需要反复回顾一下，这样才能确认数据写入的细节，对于后续问题解决才能提供有效的思路。</p>
+<p>StreamWriteFunction 是 继承自  AbstractStreamWriteFunction， 而这个类里的主要属性也需要说明说明一下。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="keyword">transient</span> OperatorEventGateway eventGateway;</span><br></pre></td></tr></table></figure>
+
+<p>这个是task任务和jobmanager里的任务进行交互的中间类，这个要熟悉一下flink是如何协调这部分流程的，这样才能比较清楚里边的细节。</p>
+<blockquote>
+<p>TODO flink如何进行通信</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> <span class="keyword">volatile</span> <span class="keyword">boolean</span> confirming = <span class="keyword">false</span>;</span><br></pre></td></tr></table></figure>
+
+<p>Flag saying whether the write task is waiting for the checkpoint success notification after it finished a checkpoint.</p>
+<p>The flag is needed because the write task does not block during the waiting time interval,some data buckets still flush out with old instant time. There are two cases that the flush may produce corrupted(损坏) files if the old instant is committed successfully: </p>
+<p>1) the write handle was writing data but interrupted, left a corrupted parquet file;<br>2) the write handle finished the write but was not closed, left an empty parquet file.</p>
+<p>To solve, when this flag was set to true, we block the data flushing thus the #processElement method,the flag was reset to false if the task receives the checkpoint success event or the latest inflight instant time changed(the last instant committed successfully).</p>
+<p>confirming 这个属性比较关键，这个会影响数据的准确性。 这个翻译过来就是  确认中</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">transient</span> ListState&lt;WriteMetadataEvent&gt; writeMetadataState;</span><br></pre></td></tr></table></figure>
+
+<p>List state of the write metadata events.</p>
+<p>WriteMetadataEvent ： An operator event to mark successful checkpoint batch write.</p>
+<p>这个事件主要的实现也是为了数据是否提交这件事情来同步的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> List&lt;WriteStatus&gt; writeStatuses;</span><br></pre></td></tr></table></figure>
+
+<p>Write status list for the current checkpoint. WriteStatus 标识 Status of a write operation.</p>
+<p>AbstractStreamWriteFunction 也会在writer任务初始化的时候，会运行的。所以他里边的方法也要逐个了解一下。</p>
+<p>先来看一下 initializaState方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">initializeState</span><span class="params">(FunctionInitializationContext context)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>.taskID = getRuntimeContext().getIndexOfThisSubtask();</span><br><span class="line">    <span class="keyword">this</span>.metaClient = StreamerUtil.createMetaClient(<span class="keyword">this</span>.config);</span><br><span class="line">    <span class="keyword">this</span>.writeClient = StreamerUtil.createWriteClient(<span class="keyword">this</span>.config, getRuntimeContext());</span><br><span class="line">    <span class="keyword">this</span>.writeStatuses = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">    <span class="comment">// 这个state主要存储了WriteMetadataEvent</span></span><br><span class="line">    <span class="keyword">this</span>.writeMetadataState = context.getOperatorStateStore().getListState(</span><br><span class="line">        <span class="keyword">new</span> ListStateDescriptor&lt;&gt;(</span><br><span class="line">            <span class="string">"write-metadata-state"</span>,</span><br><span class="line">            TypeInformation.of(WriteMetadataEvent<span class="class">.<span class="keyword">class</span>)</span></span><br><span class="line"><span class="class">        ))</span>;</span><br><span class="line">    <span class="comment">// 获取最后一个 inflight 状态的commit</span></span><br><span class="line">    <span class="keyword">this</span>.currentInstant = lastPendingInstant();</span><br><span class="line">    <span class="keyword">if</span> (context.isRestored()) &#123;</span><br><span class="line">        <span class="comment">// 有历史state的数据  会对比里边是否有未提交的事件，如果有，会发送一个WriteMetaDataEvent</span></span><br><span class="line">        <span class="comment">// 如果没有提交时间   会触发 sendBootstrapEvent</span></span><br><span class="line">      restoreWriteMetadata();</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="comment">// 会发送 bootstrap write metadata event  这个事件是啥作用我们稍后再写数据的时候可以看到</span></span><br><span class="line">      sendBootstrapEvent();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// blocks flushing until the coordinator starts a new instant</span></span><br><span class="line">    <span class="comment">// coordinator 会发起一个新的instant</span></span><br><span class="line">    <span class="keyword">this</span>.confirming = <span class="keyword">true</span>;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>coordinator 的作用稍后会给出来 TODO</p>
+</blockquote>
+<p>instantToWrite方法也很重要：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment">   * Prepares the instant time to write with for next checkpoint.</span></span><br><span class="line"><span class="comment">   *</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@param</span> hasData Whether the task has buffering data</span></span><br><span class="line"><span class="comment">   * <span class="doctag">@return</span> The instant time</span></span><br><span class="line"><span class="comment">   */</span></span><br><span class="line">  <span class="function"><span class="keyword">protected</span> String <span class="title">instantToWrite</span><span class="params">(<span class="keyword">boolean</span> hasData)</span> </span>&#123;</span><br><span class="line">    String instant = lastPendingInstant();</span><br><span class="line">    <span class="comment">// if exactly-once semantics turns on,</span></span><br><span class="line">    <span class="comment">// waits for the checkpoint notification until the checkpoint timeout threshold hits.</span></span><br><span class="line">    TimeWait timeWait = TimeWait.builder()</span><br><span class="line">        .timeout(config.getLong(FlinkOptions.WRITE_COMMIT_ACK_TIMEOUT))</span><br><span class="line">        .action(<span class="string">"instant initialize"</span>)</span><br><span class="line">        .build();</span><br><span class="line">    <span class="keyword">while</span> (confirming) &#123;</span><br><span class="line">      <span class="comment">// wait condition:</span></span><br><span class="line">      <span class="comment">// 1. there is no inflight instant</span></span><br><span class="line">      <span class="comment">// 2. the inflight instant does not change and the checkpoint has buffering data</span></span><br><span class="line">      <span class="keyword">if</span> (instant == <span class="keyword">null</span> || (instant.equals(<span class="keyword">this</span>.currentInstant) &amp;&amp; hasData)) &#123;</span><br><span class="line">        <span class="comment">// sleep for a while</span></span><br><span class="line">        timeWait.waitFor();</span><br><span class="line">        <span class="comment">// refresh the inflight instant</span></span><br><span class="line">        instant = lastPendingInstant();</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">// the pending instant changed, that means the last instant was committed</span></span><br><span class="line">        <span class="comment">// successfully.</span></span><br><span class="line">        confirming = <span class="keyword">false</span>;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> instant;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个方法是说在一波数据提交过重中，instant的状态是有先后顺序的，这个在应用过程中考虑并发情况下的影响。</p>
+<p>目前短暂地说完了 AbstractStreamWriteFunction ，但是却发现了一个很重要的角色就是 StreamWriteOperatorCoordinator ， 这里的基础知识点是 flink里关于Coordinator的使用。他是一个怎样的角色呢？</p>
+<p>这个类<mark>StreamWriteOperatorCoordinator</mark>是所有写入的开始以及核心协调角色，中间数据一致性的保证都是靠这个节点来实现的，所以这个很重要。</p>
+<p>这里先带过，稍后专题来解释这个类的主要作用。</p>
+<p>现在我们回到 StreamWriteFunction ，他的主要属性如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">private</span> <span class="keyword">transient</span> Map&lt;String, DataBucket&gt; buckets;</span><br></pre></td></tr></table></figure>
+
+<p> Write buffer as buckets for a checkpoint. The key is bucket ID. 这个也就是这一波需要写入的数据集合。</p>
+<p>DataBucket 是 内部类，主要是写数据之前的一个buffer，会记录大小以及写数据时的buffer。</p>
+<p>这块还是融合了一些buffer的设计的，这样写入可以更加稳定。</p>
+<p>他的open方法如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">open</span><span class="params">(Configuration parameters)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>.tracer = <span class="keyword">new</span> TotalSizeTracer(<span class="keyword">this</span>.config);</span><br><span class="line">    initBuffer();</span><br><span class="line">    initWriteFunction();</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>TotalSizeTracer是用来跟踪写入数据的大小。</p>
+<p>initBuffer 就是初始化 buckets。</p>
+<p>initWriteFunction 是在初始化写入的function，针对不同的写入类型有不同的WriteFunction。这些function都是定义在flinkWriteClient端。</p>
+<p>方法processElement就是逐条函数处理，主要调用的bufferRecord：</p>
+<p>Buffers the given record.</p>
+<p>Flush the data bucket first if the bucket records size is greater than  the configured value {@link FlinkOptions#WRITE_BATCH_SIZE}.</p>
+<p>Flush the max size data bucket if the total buffer size exceeds the configured  threshold {@link FlinkOptions#WRITE_TASK_MAX_SIZE}</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">bufferRecord</span><span class="params">(HoodieRecord&lt;?&gt; value)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> String bucketID = getBucketID(value);</span><br><span class="line"></span><br><span class="line">    DataBucket bucket = <span class="keyword">this</span>.buckets.computeIfAbsent(bucketID,</span><br><span class="line">        k -&gt; <span class="keyword">new</span> DataBucket(<span class="keyword">this</span>.config.getDouble(FlinkOptions.WRITE_BATCH_SIZE), value));</span><br><span class="line">    <span class="keyword">final</span> DataItem item = DataItem.fromHoodieRecord(value);</span><br><span class="line"></span><br><span class="line">    bucket.records.add(item);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">boolean</span> flushBucket = bucket.detector.detect(item);</span><br><span class="line">    <span class="keyword">boolean</span> flushBuffer = <span class="keyword">this</span>.tracer.trace(bucket.detector.lastRecordSize);</span><br><span class="line">    <span class="keyword">if</span> (flushBucket) &#123;</span><br><span class="line">      <span class="keyword">if</span> (flushBucket(bucket)) &#123;</span><br><span class="line">        <span class="keyword">this</span>.tracer.countDown(bucket.detector.totalSize);</span><br><span class="line">        bucket.reset();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (flushBuffer) &#123;</span><br><span class="line">      <span class="comment">// find the max size bucket and flush it out</span></span><br><span class="line">      List&lt;DataBucket&gt; sortedBuckets = <span class="keyword">this</span>.buckets.values().stream()</span><br><span class="line">          .sorted((b1, b2) -&gt; Long.compare(b2.detector.totalSize, b1.detector.totalSize))</span><br><span class="line">          .collect(Collectors.toList());</span><br><span class="line">      <span class="keyword">final</span> DataBucket bucketToFlush = sortedBuckets.get(<span class="number">0</span>);</span><br><span class="line">      <span class="keyword">if</span> (flushBucket(bucketToFlush)) &#123;</span><br><span class="line">        <span class="keyword">this</span>.tracer.countDown(bucketToFlush.detector.totalSize);</span><br><span class="line">        bucketToFlush.reset();</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        LOG.warn(<span class="string">"The buffer size hits the threshold &#123;&#125;, but still flush the max size data bucket failed!"</span>, <span class="keyword">this</span>.tracer.maxBufferSize);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>拿到数据之后会先去找bucket，如果没有，就创建一个。这个bucket就是上边说的那个DataBucket。</p>
+<p>这里把数据转换为了 DataItem，注释里是说 这个机构会较少内存空间占用，对比了一下HoodieRecord，后者比前者多了一个oldlocation的属性以及一个bool值。</p>
+<p>BufferSizeDetector 就是一个数据探查，有一定的几率对数据大小进行重算，然后把更新的值作为当前数据大小的一个估算值。这种方式存在风险误差，如果数据大小变化比较大的话，这点会被放大。</p>
+<p>在 TotalSizeTracer 里会根据一个配置以及当前总的bufferSize的大小来确认是需要是flush。这个计算maxBufferSize 是根据配置  conf.getDouble(FlinkOptions.WRITE_TASK_MAX_SIZE) - mergeReaderMem - mergeMapMaxMem 计算来的，而 WRITE_TASK_MAX_SIZE 是配置 write.task.max.size 的值，默认1g，而 mergeReaderMem的大小是100M 固定的，mergeMapMaxMem是来自配置 write.merge.max_memory 默认100M。</p>
+<p>如果需要 flushBucket ，就触发 flushBucket() 方法。</p>
+<p>这里注意  flushBucket  和  flushBuffer  是不一样的。后者是计算使用的totalbufferSize是否大于刚才看到的计算公式。</p>
+<p>而flushBucket 是判断 当前的totalSize 是否大于 write.batch.size 的大小，这个大小默认是256M。（Batch buffer size in MB to flush data into the underneath filesystem）</p>
+<p>flushbucket的逻辑是这样的：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">boolean</span> <span class="title">flushBucket</span><span class="params">(DataBucket bucket)</span> </span>&#123;</span><br><span class="line">    String instant = instantToWrite(<span class="keyword">true</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (instant == <span class="keyword">null</span>) &#123;</span><br><span class="line">      <span class="comment">// in case there are empty checkpoints that has no input data</span></span><br><span class="line">      LOG.info(<span class="string">"No inflight instant when flushing data, skip."</span>);</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    List&lt;HoodieRecord&gt; records = bucket.writeBuffer();</span><br><span class="line">    ValidationUtils.checkState(records.size() &gt; <span class="number">0</span>, <span class="string">"Data bucket to flush has no buffering records"</span>);</span><br><span class="line">    <span class="keyword">if</span> (config.getBoolean(FlinkOptions.PRE_COMBINE)) &#123;</span><br><span class="line">      records = FlinkWriteHelper.newInstance().deduplicateRecords(records, (HoodieIndex) <span class="keyword">null</span>, -<span class="number">1</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    bucket.preWrite(records);</span><br><span class="line">    <span class="keyword">final</span> List&lt;WriteStatus&gt; writeStatus = <span class="keyword">new</span> ArrayList&lt;&gt;(writeFunction.apply(records, instant));</span><br><span class="line">    records.clear();</span><br><span class="line">    <span class="keyword">final</span> WriteMetadataEvent event = WriteMetadataEvent.builder()</span><br><span class="line">        .taskID(taskID)</span><br><span class="line">        .instantTime(instant) <span class="comment">// the write instant may shift but the event still use the currentInstant.</span></span><br><span class="line">        .writeStatus(writeStatus)</span><br><span class="line">        .lastBatch(<span class="keyword">false</span>)</span><br><span class="line">        .endInput(<span class="keyword">false</span>)</span><br><span class="line">        .build();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">this</span>.eventGateway.sendEventToCoordinator(event);</span><br><span class="line">    writeStatuses.addAll(writeStatus);</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这段逻辑的主要概念就是 把dataBucket里的数据转化成HoodieRecord，然后进行preCombine。不过这里关于preWrite的逻辑，没太看懂。</p>
+<blockquote>
+<p>preWrite的作用是啥？ TODO</p>
+</blockquote>
+<p>在perWrite之后就开始进行数据的写入操作。调用的就是client的upsert操作。</p>
+<blockquote>
+<p>UPSERT逻辑稍后给出。</p>
+</blockquote>
+<p>这之后，就会发送一个完成的逻辑事件给到Coordinator。</p>
+<p>回到bufferRecord，在判断完是否需要flushBucket之后，接着会判断flushbuffer，而buffer就是把所有的bucket进行排序，然后选择一个最大的bucket进行flushBucket的操作。这样就相当于释放出来了空间。这样我们知道两个触发flush的时机。一个是当前bucket达到了最大值，一个是总值达到了最大值。</p>
+<p>现在我们看一下flushBucket里的upsert操作都做了啥。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> List&lt;WriteStatus&gt; <span class="title">upsert</span><span class="params">(List&lt;HoodieRecord&lt;T&gt;&gt; records, String instantTime)</span> </span>&#123;</span><br><span class="line">    HoodieTable&lt;T, List&lt;HoodieRecord&lt;T&gt;&gt;, List&lt;HoodieKey&gt;, List&lt;WriteStatus&gt;&gt; table =</span><br><span class="line">        getTableAndInitCtx(WriteOperationType.UPSERT, instantTime);</span><br><span class="line">    table.validateUpsertSchema();</span><br><span class="line">    preWrite(instantTime, WriteOperationType.UPSERT, table.getMetaClient());</span><br><span class="line">    <span class="keyword">final</span> HoodieWriteHandle&lt;?, ?, ?, ?&gt; writeHandle = getOrCreateWriteHandle(records.get(<span class="number">0</span>), getConfig(),</span><br><span class="line">        instantTime, table, records.listIterator());</span><br><span class="line">    HoodieWriteMetadata&lt;List&lt;WriteStatus&gt;&gt; result = ((HoodieFlinkTable&lt;T&gt;) table).upsert(context, writeHandle, instantTime, records);</span><br><span class="line">    <span class="keyword">if</span> (result.getIndexLookupDuration().isPresent()) &#123;</span><br><span class="line">      metrics.updateIndexMetrics(LOOKUP_STR, result.getIndexLookupDuration().get().toMillis());</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> postWrite(result, instantTime, table);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>上边生成的table最终生成的是  HoodieFlinkMergeOnReadTable ，而他的upsert操作调用的是 FlinkUpsertDeltaCommitActionExecutor 的 execute 方法。</p>
+<p>通过uml图我们会发现FlinkUpsertDeltaCommitActionExecutor是一个已经实现了多层次抽象类的对象，他在初始化的时候，会把writeHandle、以及事务相关的对象都进行初始化。比如 txnManager 和 lastCompletedTxn 在BaseCommitActionExecutor中，会进行初始化。这两个都是事务相关的主类。</p>
+<blockquote>
+<p>关于这两个事务我们稍后写文章专门陈述他们的使用。</p>
+</blockquote>
+<p>数据写入的实际的类是来自 BaseFlinkCommitActionExecutor 中的execute方法，如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> HoodieWriteMetadata&lt;List&lt;WriteStatus&gt;&gt; execute(List&lt;HoodieRecord&lt;T&gt;&gt; inputRecords) &#123;</span><br><span class="line">    HoodieWriteMetadata&lt;List&lt;WriteStatus&gt;&gt; result = <span class="keyword">new</span> HoodieWriteMetadata&lt;&gt;();</span><br><span class="line"></span><br><span class="line">    List&lt;WriteStatus&gt; writeStatuses = <span class="keyword">new</span> LinkedList&lt;&gt;();</span><br><span class="line">    <span class="keyword">final</span> HoodieRecord&lt;?&gt; record = inputRecords.get(<span class="number">0</span>);</span><br><span class="line">    <span class="keyword">final</span> String partitionPath = record.getPartitionPath();</span><br><span class="line">    <span class="keyword">final</span> String fileId = record.getCurrentLocation().getFileId();</span><br><span class="line">    <span class="keyword">final</span> BucketType bucketType = record.getCurrentLocation().getInstantTime().equals(<span class="string">"I"</span>)</span><br><span class="line">        ? BucketType.INSERT</span><br><span class="line">        : BucketType.UPDATE;</span><br><span class="line">    handleUpsertPartition(</span><br><span class="line">        instantTime,</span><br><span class="line">        partitionPath,</span><br><span class="line">        fileId,</span><br><span class="line">        bucketType,</span><br><span class="line">        inputRecords.iterator())</span><br><span class="line">        .forEachRemaining(writeStatuses::addAll);</span><br><span class="line">    setUpWriteMetadata(writeStatuses, result);</span><br><span class="line">    <span class="keyword">return</span> result;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>在这里我们发现，根据不同的bucket类型，来逐个区分进行处理。而这里确认分区和fileId等信息都是通过第一条数据来确认的，所以这里在上文提到会对第一条数据进行校验，以及重新赋值的原因，应该也是因为并发等写入问题，需要屏蔽掉其他因素，所以上边那里就有一个argue的方法。</p>
+<p>上边比较重要的方法主要是 handleUpsertPartition 和 forEachRemaining。</p>
+<p>先看 handleUpsertPartition ： </p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (<span class="keyword">this</span>.writeHandle <span class="keyword">instanceof</span> HoodieCreateHandle) &#123;</span><br><span class="line">        <span class="comment">// During one checkpoint interval, an insert record could also be updated,</span></span><br><span class="line">        <span class="comment">// for example, for an operation sequence of a record:</span></span><br><span class="line">        <span class="comment">//    I, U,   | U, U</span></span><br><span class="line">        <span class="comment">// - batch1 - | - batch2 -</span></span><br><span class="line">        <span class="comment">// the first batch(batch1) operation triggers an INSERT bucket,</span></span><br><span class="line">        <span class="comment">// the second batch batch2 tries to reuse the same bucket</span></span><br><span class="line">        <span class="comment">// and append instead of UPDATE.</span></span><br><span class="line">        <span class="keyword">return</span> handleInsert(fileIdHint, recordItr);</span><br><span class="line">      &#125; <span class="keyword">else</span> <span class="keyword">if</span> (<span class="keyword">this</span>.writeHandle <span class="keyword">instanceof</span> HoodieMergeHandle) &#123;</span><br><span class="line">        <span class="keyword">return</span> handleUpdate(partitionPath, fileIdHint, recordItr);</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">switch</span> (bucketType) &#123;</span><br><span class="line">          <span class="keyword">case</span> INSERT:</span><br><span class="line">            <span class="keyword">return</span> handleInsert(fileIdHint, recordItr);</span><br><span class="line">          <span class="keyword">case</span> UPDATE:</span><br><span class="line">            <span class="keyword">return</span> handleUpdate(partitionPath, fileIdHint, recordItr);</span><br><span class="line">          <span class="keyword">default</span>:</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> AssertionError();</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br></pre></td></tr></table></figure>
+
+<p>他的主要逻辑就是根据 bucketType 来划分单独的操作，目前只有插入和更新。而这里实际还有一点，就是上边针对createHandle的优化，会进行合并。</p>
+<p>handleinsert的逻辑：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> Iterator&lt;List&lt;WriteStatus&gt;&gt; handleInsert(String idPfx, Iterator&lt;HoodieRecord&lt;T&gt;&gt; recordItr)</span><br><span class="line">      <span class="keyword">throws</span> Exception &#123;</span><br><span class="line">    <span class="comment">// This is needed since sometimes some buckets are never picked in getPartition() and end up with 0 records</span></span><br><span class="line">    <span class="keyword">if</span> (!recordItr.hasNext()) &#123;</span><br><span class="line">      LOG.info(<span class="string">"Empty partition"</span>);</span><br><span class="line">      <span class="keyword">return</span> Collections.singletonList((List&lt;WriteStatus&gt;) Collections.EMPTY_LIST).iterator();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> FlinkLazyInsertIterable&lt;&gt;(recordItr, <span class="keyword">true</span>, config, instantTime, table, idPfx,</span><br><span class="line">        taskContextSupplier, <span class="keyword">new</span> ExplicitWriteHandleFactory&lt;&gt;(writeHandle));</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>主要实现是  FlinkLazyInsertIterable 这个类。这个类属于flink的实现，通过uml发现，他的上层实际是 HoodieLazyInsertIterable ，这个是支持底层insert操作的基础类。</p>
+<p>至于后边insert的逻辑是啥？我们在说完update之后会再接着说一下。</p>
+<p>下边是handleUpdate的主要逻辑，他实际上调用的是 handleUpdateInternal ：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">protected</span> Iterator&lt;List&lt;WriteStatus&gt;&gt; handleUpdateInternal(HoodieMergeHandle&lt;?, ?, ?, ?&gt; upsertHandle, String fileId)</span><br><span class="line">      <span class="keyword">throws</span> IOException &#123;</span><br><span class="line">    <span class="keyword">if</span> (upsertHandle.getOldFilePath() == <span class="keyword">null</span>) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> HoodieUpsertException(</span><br><span class="line">          <span class="string">"Error in finding the old file path at commit "</span> + instantTime + <span class="string">" for fileId: "</span> + fileId);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      FlinkMergeHelper.newInstance().runMerge(table, upsertHandle);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// TODO(vc): This needs to be revisited</span></span><br><span class="line">    <span class="keyword">if</span> (upsertHandle.getPartitionPath() == <span class="keyword">null</span>) &#123;</span><br><span class="line">      LOG.info(<span class="string">"Upsert Handle has partition path as null "</span> + upsertHandle.getOldFilePath() + <span class="string">", "</span></span><br><span class="line">          + upsertHandle.writeStatuses());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> Collections.singletonList(upsertHandle.writeStatuses()).iterator();</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>merge的主逻辑是来自 FlinkMergeHelper 的runMerge 方法，方法比较长，我这里以主要逻辑表述为主。</p>
+<p>1、读取basefile。</p>
+<p>2、生成一个producer。是有一个 MergingIterator ， 三个参数 ： baseFile的迭代器，实际数据的迭代器，以及一个 数据转换为 GenericRecord 的mergeFunction。</p>
+<p>3、生成一个consumer： 最终执行的时候会调用 consmer方法消费队列。</p>
+<p>4、在 BoundedInMemoryExecutor 进行初始化，中间传入了一个transformer</p>
+<p>5、运行BoundedInMemoryExecutor的execute()方法。</p>
+<p>在BoundedInMemoryExecutor内部，实际是一个指定buffer的queue，生产者就是basefile。而consumer就是UpdateHandler，包装的是 HoodieMergeHandle ，最终调用对应handle的write方法来写入一条数据。</p>
+<p>这部transformer的逻辑主要就是 融合schema的转变。</p>
+<p>consumer和producer都是线程池里，执行的时候都是异步的，producer进行异步地写入，consumer进行异步地读取。</p>
+<blockquote>
+<p>上边说的那个队列是用 LinkedBlockingQueue 实现的</p>
+</blockquote>
+<p>consumer消费的动作就是上边定义的 FlinkAppendHandler的 write方法的实现。这里调用write的实现实际上是 HoodieAppendHandle 的write方法。主要是实现了三个方法：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">init(record);</span><br><span class="line">flushToDiskIfRequired(record);</span><br><span class="line">writeToBuffer(record);</span><br></pre></td></tr></table></figure>
+
+<p>init 方法主要是生成 FileSlice ，初始化stat，创建.mark文件，是用来说明当前此次事务的运行过程信息的。同时初始化 writer，HoodieLogFormatWriter。</p>
+<p>flushToDiskIfRequired 是说缓存数据如果超过指定的大小，就会缓存到硬盘上。</p>
+<p>writeToBuffer 数据会写入到一个数组buffer里，然后标记出需要删除的key，以及一个基础的写入记录数的统计。</p>
+<p>接着上边的流程，在consumer的consume的流程里，逻辑是这样的：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> O <span class="title">consume</span><span class="params">(BoundedInMemoryQueue&lt;?, I&gt; queue)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">  Iterator&lt;I&gt; iterator = queue.iterator();</span><br><span class="line"></span><br><span class="line">  <span class="keyword">while</span> (iterator.hasNext()) &#123;</span><br><span class="line">    consumeOneRecord(iterator.next());</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Notifies done</span></span><br><span class="line">  finish();</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> getResult();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>consumeOneRecord 调用的就是 CopyOnWriteInsertHandler 的 consumeOneRecord，里边会用到write方法，这个write就是上边HoodieAppendHandle里的wirite方法。这里的consumeOneRecord 的比较重要的作用就是 每个分区都创建一个handle，然后通过这些handle对写入数据进行管理。包括数据是否可写入以及创建新文件等问题。也就是在细化到分区之后，每个分区的写入只有一个点可以写入数据。防止冲突问题。</p>
+<p>在 consumeOneRecord 之后，会调用一个finish方法。这个方法会调用  closeOpenHandles ， 这个方法会调用 handle  的close() 方法。这个close 是来自  HoodieAppendHandle 的方法。这个时候会触发 创建Block的操作以及 写入数据的操作。主要方法是来自  appendDataAndDeleteBlocks ：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">appendDataAndDeleteBlocks</span><span class="params">(Map&lt;HeaderMetadataType, String&gt; header)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      header.put(HoodieLogBlock.HeaderMetadataType.INSTANT_TIME, instantTime);</span><br><span class="line">      header.put(HoodieLogBlock.HeaderMetadataType.SCHEMA, writeSchemaWithMetaFields.toString());</span><br><span class="line">      List&lt;HoodieLogBlock&gt; blocks = <span class="keyword">new</span> ArrayList&lt;&gt;(<span class="number">2</span>);</span><br><span class="line">      <span class="keyword">if</span> (recordList.size() &gt; <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">if</span> (config.populateMetaFields()) &#123;</span><br><span class="line">          blocks.add(HoodieDataBlock.getBlock(hoodieTable.getLogDataBlockFormat(), recordList, header));</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">          <span class="keyword">final</span> String keyField = hoodieTable.getMetaClient().getTableConfig().getRecordKeyFieldProp();</span><br><span class="line">          blocks.add(HoodieDataBlock.getBlock(hoodieTable.getLogDataBlockFormat(), recordList, header, keyField));</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">if</span> (keysToDelete.size() &gt; <span class="number">0</span>) &#123;</span><br><span class="line">        blocks.add(<span class="keyword">new</span> HoodieDeleteBlock(keysToDelete.toArray(<span class="keyword">new</span> HoodieKey[keysToDelete.size()]), header));</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (blocks.size() &gt; <span class="number">0</span>) &#123;</span><br><span class="line">        AppendResult appendResult = writer.appendBlocks(blocks);</span><br><span class="line">        processAppendResult(appendResult);</span><br><span class="line">        recordList.clear();</span><br><span class="line">        keysToDelete.clear();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> HoodieAppendException(<span class="string">"Failed while appending records to "</span> + writer.getLogFile().getPath(), e);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里第一件事是先创建个block，代码如下：HoodieDataBlock</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> HoodieLogBlock <span class="title">getBlock</span><span class="params">(HoodieLogBlockType logDataBlockFormat, List&lt;IndexedRecord&gt; recordList,</span></span></span><br><span class="line"><span class="function"><span class="params">                                        Map&lt;HeaderMetadataType, String&gt; header, String keyField)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">switch</span> (logDataBlockFormat) &#123;</span><br><span class="line">      <span class="keyword">case</span> AVRO_DATA_BLOCK:</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> HoodieAvroDataBlock(recordList, header, keyField);</span><br><span class="line">      <span class="keyword">case</span> HFILE_DATA_BLOCK:</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">new</span> HoodieHFileDataBlock(recordList, header, keyField);</span><br><span class="line">      <span class="keyword">default</span>:</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> HoodieException(<span class="string">"Data block format "</span> + logDataBlockFormat + <span class="string">" not implemented"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里根据不同的类型会创建不同类型的block。目前在flink写入流程中创建的是  AVRO_DATA_BLOCK。</p>
+<p>第二件事情就是 writer.appendBlocks 这里的writer 就是 hoodieLogFormatWriter， 在这个方法里主要就是 创建文件，并且写入数据。逐个block进行写入，不过文件就是一个文件。逐个block写入 outputStream之后，再统一flush到对应的文件中。这个flush调用的就是hadoop的接口。</p>
+<p>processAppendResult 主要就是处理stat等相关信息。确保统计是正确的。</p>
+<p>到这里，一个 insert 写入类型就完成了。在初始flink流数据写入过程中，实际上就是生成了log文件。只有在compact的过程中才会进行parquet文件的生成。</p>
+<p>下边顺便捋一下update的流程：主要是来自上边说的  BaseFlinkCommitActionExecutor 的execute 方法，这个方法会调用 handleIUpdate方法。然后会调用 FlinkMergeHelper的 runMerge 方法。</p>
+<p>另一个重要的区别就是 update操作的handle 就是 HoodieMergeHandle 这个类。其余的流程都是跟上边insert的流程是一致的。</p>
+<p>下边就关注一下 HoodieMergeHandle 里跟边流程一样的一些方法。</p>
+<p>在对象形成的时候有两部分初始化：两个init方法：</p>
+<p>1、void init(String fileId, Iterator&lt;HoodieRecord<T>&gt; newRecordsItr)   ： Load the new incoming records in a map and return partitionPath.</p>
+<p>2、void init(String fileId, String partitionPath, HoodieBaseFile baseFileToMerge) ： Extract old file path, initialize StorageWriter and WriteStatus. 这个里边还会创建marker。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/hudi/" rel="tag"># hudi</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/02/13/hudi%E6%8E%A2%E7%B4%A2-flink%E4%BB%8Ehudi%E7%9A%84changelog%E8%BF%9B%E8%A1%8C%E6%95%B0%E6%8D%AE%E7%94%9F%E4%BA%A7/" rel="next" title="hudi探索--flink从hudi的changelog进行数据生产">
+                <i class="fa fa-chevron-left"></i> hudi探索--flink从hudi的changelog进行数据生产
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/03/30/parquet%E6%96%87%E4%BB%B6%E7%9A%84%E8%AF%BB%E5%8F%96%E8%BF%87%E7%A8%8B/" rel="prev" title="parquet文件的读取过程">
+                parquet文件的读取过程 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#hudi探索–基于flink的流式处理的写数据过程"><span class="nav-number">1.</span> <span class="nav-text">hudi探索–基于flink的流式处理的写数据过程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#toHoodieRecord"><span class="nav-number">1.1.</span> <span class="nav-text">toHoodieRecord</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#hoodieStreamWrite"><span class="nav-number">1.2.</span> <span class="nav-text">hoodieStreamWrite</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#按照主键进行key-by"><span class="nav-number">1.2.1.</span> <span class="nav-text">按照主键进行key by</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#BucketAssignFunction"><span class="nav-number">1.2.2.</span> <span class="nav-text">BucketAssignFunction</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#按照fieldId进行key-by"><span class="nav-number">1.2.3.</span> <span class="nav-text">按照fieldId进行key by</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#hoodie-stream-write"><span class="nav-number">1.2.4.</span> <span class="nav-text">hoodie_stream_write</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

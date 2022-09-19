@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="kylin," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="kylin的查询原理client端入口方法如下： 12345@RequestMapping(value &#x3D; &quot;&#x2F;query&quot;, method &#x3D; RequestMethod.POST, produces &#x3D; &amp;#123; &quot;application&#x2F;json&quot; &amp;#125;)@ResponseBodypublic SQLResponse query(@RequestBody PrepareSqlRe">
+<meta property="og:type" content="article">
+<meta property="og:title" content="kylin--查询原理">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/08/22/kylin-%E6%9F%A5%E8%AF%A2%E5%8E%9F%E7%90%86/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="kylin的查询原理client端入口方法如下： 12345@RequestMapping(value &#x3D; &quot;&#x2F;query&quot;, method &#x3D; RequestMethod.POST, produces &#x3D; &amp;#123; &quot;application&#x2F;json&quot; &amp;#125;)@ResponseBodypublic SQLResponse query(@RequestBody PrepareSqlRe">
+<meta property="article:published_time" content="2022-08-22T03:53:00.000Z">
+<meta property="article:modified_time" content="2022-09-01T13:13:56.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="kylin">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/08/22/kylin-查询原理/"/>
+
+
+
+
+
+  <title>kylin--查询原理 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/08/22/kylin-%E6%9F%A5%E8%AF%A2%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">kylin--查询原理</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-08-22T11:53:00+08:00">
+                2022-08-22
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/olap/" itemprop="url" rel="index">
+                    <span itemprop="name">olap</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="kylin的查询原理"><a href="#kylin的查询原理" class="headerlink" title="kylin的查询原理"></a>kylin的查询原理</h1><p>client端入口方法如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@RequestMapping</span>(value = <span class="string">"/query"</span>, method = RequestMethod.POST, produces = &#123; <span class="string">"application/json"</span> &#125;)</span><br><span class="line"><span class="meta">@ResponseBody</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> SQLResponse <span class="title">query</span><span class="params">(@RequestBody PrepareSqlRequest sqlRequest)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> queryService.doQueryWithCache(sqlRequest);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>后续的操作基本都是封装在queryService中，doQueryWithCache方法如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> SQLResponse <span class="title">doQueryWithCache</span><span class="params">(SQLRequest sqlRequest, <span class="keyword">boolean</span> isQueryInspect)</span> </span>&#123;</span><br><span class="line">	......</span><br><span class="line">	<span class="comment">// kylin.query.cache-enabled 默认是true</span></span><br><span class="line">    <span class="keyword">boolean</span> isQueryCacheEnabled = isQueryCacheEnabled(kylinConfig);</span><br><span class="line">    logger.info(<span class="string">"Using project: "</span> + project);</span><br><span class="line">    logger.info(<span class="string">"The original query:  "</span> + sql);</span><br><span class="line">    <span class="comment">// 去掉sql里的注释字符  比如双斜杠或者/**/之类的sql注释</span></span><br><span class="line">    sql = QueryUtil.removeCommentInSql(sql);</span><br><span class="line">    <span class="comment">// 处理sal转化为with语法的使用方式， 因为默认是相关配置是false  所以boolean是false</span></span><br><span class="line">    Pair&lt;Boolean, String&gt; result = TempStatementUtil.handleTempStatement(sql, kylinConfig);</span><br><span class="line">    <span class="keyword">boolean</span> isCreateTempStatement = result.getFirst(); <span class="comment">// false</span></span><br><span class="line">    sql = result.getSecond();</span><br><span class="line">    sqlRequest.setSql(sql);</span><br><span class="line">	......</span><br><span class="line">	<span class="comment">// real execution if required</span></span><br><span class="line">    <span class="keyword">if</span> (sqlResponse == <span class="keyword">null</span>) &#123;</span><br><span class="line">        <span class="comment">// QueryRequestLimits就是查询线程的数量的校验</span></span><br><span class="line">        <span class="keyword">try</span> (QueryRequestLimits limit = <span class="keyword">new</span> QueryRequestLimits(sqlRequest.getProject())) &#123;</span><br><span class="line">            sqlResponse = queryAndUpdateCache(sqlRequest, isQueryCacheEnabled);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">private</span> SQLResponse <span class="title">queryAndUpdateCache</span><span class="params">(SQLRequest sqlRequest, <span class="keyword">boolean</span> queryCacheEnabled)</span> </span>&#123;</span><br><span class="line">	......</span><br><span class="line">	<span class="keyword">if</span> (isSelect) &#123;</span><br><span class="line">        <span class="comment">// 这个方法就是查询的主题方法  后续的逻辑都输处理异常和检查的。</span></span><br><span class="line">        sqlResponse = query(sqlRequest, queryContext.getQueryId());</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (kylinConfig.isPushDownEnabled() &amp;&amp; kylinConfig.isPushDownUpdateEnabled()) &#123;</span><br><span class="line">        sqlResponse = update(sqlRequest);</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        logger.debug(<span class="string">"Directly return exception as the sql is unsupported, and query pushdown is disabled"</span>);</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> BadRequestException(msg.getNOT_SUPPORTED_SQL());</span><br><span class="line">    &#125;</span><br><span class="line">	...</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">public</span> SQLResponse <span class="title">query</span><span class="params">(SQLRequest sqlRequest, String queryId)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    SQLResponse ret = <span class="keyword">null</span>;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">final</span> String user = SecurityContextHolder.getContext().getAuthentication().getName();</span><br><span class="line">        <span class="comment">// Detector 探测器  其中badQueryDetector是一个单起的线程，用来统计和监测bad query的</span></span><br><span class="line">        <span class="comment">// 当有bad query时notify相关的观察者，做一些操作，如打印日志，记录bad query等。</span></span><br><span class="line">         badQueryDetector.queryStart(Thread.currentThread(), sqlRequest, user, queryId);</span><br><span class="line">        <span class="comment">// 这个方法是查询的主要方法</span></span><br><span class="line">        ret = queryWithSqlMassage(sqlRequest);</span><br><span class="line">        <span class="keyword">return</span> ret;</span><br><span class="line"></span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        String badReason = (ret != <span class="keyword">null</span> &amp;&amp; ret.isPushDown()) ? BadQueryEntry.ADJ_PUSHDOWN : <span class="keyword">null</span>;</span><br><span class="line">        badQueryDetector.queryEnd(Thread.currentThread(), badReason);</span><br><span class="line">        Thread.interrupted(); <span class="comment">//reset if interrupted</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">private</span> SQLResponse <span class="title">queryWithSqlMassage</span><span class="params">(SQLRequest sqlRequest)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    Connection conn = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// 获取calcite的连接</span></span><br><span class="line">        <span class="comment">// 主要是通过OLAPSchemaFactory.createTempOLAPJson()生成了连接的元数据文件，用来创建连接</span></span><br><span class="line">        <span class="comment">// OLAPSchemaFactory 实现了calcite的 SchemaFactory接口，实现了create方法，用来创建连接时生成Schema</span></span><br><span class="line">        conn = QueryConnection.getConnection(sqlRequest.getProject());</span><br><span class="line"></span><br><span class="line">        String userInfo = SecurityContextHolder.getContext().getAuthentication().getName();</span><br><span class="line">        QueryContext context = QueryContextFacade.current();</span><br><span class="line"></span><br><span class="line">		......</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 是否命中tableau测试语句 TODO 这个可以去掉 没啥用</span></span><br><span class="line">        SQLResponse fakeResponse = TableauInterceptor.tableauIntercept(sqlRequest.getSql());</span><br><span class="line">        <span class="keyword">if</span> (<span class="keyword">null</span> != fakeResponse) &#123;</span><br><span class="line">            logger.debug(<span class="string">"Return fake response, is exception? "</span> + fakeResponse.getIsException());</span><br><span class="line">            <span class="keyword">return</span> fakeResponse;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// 格式化sql的一些信息  设置limit offset 还有一些转化之类的 不过目前没有配置这样的一些转化</span></span><br><span class="line">        String correctedSql = QueryUtil.massageSql(sqlRequest.getSql(), sqlRequest.getProject(),</span><br><span class="line">                sqlRequest.getLimit(), sqlRequest.getOffset(), conn.getSchema());</span><br><span class="line">        <span class="keyword">if</span> (!correctedSql.equals(sqlRequest.getSql())) &#123;</span><br><span class="line">            logger.info(<span class="string">"The corrected query: "</span> + correctedSql);</span><br><span class="line"></span><br><span class="line">            <span class="comment">//CAUTION: should not change sqlRequest content!</span></span><br><span class="line">            <span class="comment">//sqlRequest.setSql(correctedSql);</span></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// add extra parameters into olap context, like acceptPartial</span></span><br><span class="line">        Map&lt;String, String&gt; parameters = <span class="keyword">new</span> HashMap&lt;String, String&gt;();</span><br><span class="line">        parameters.put(OLAPContext.PRM_USER_AUTHEN_INFO, userInfo);</span><br><span class="line">        parameters.put(OLAPContext.PRM_ACCEPT_PARTIAL_RESULT, String.valueOf(sqlRequest.isAcceptPartial()));</span><br><span class="line">        OLAPContext.setParameters(parameters);</span><br><span class="line">        <span class="comment">// force clear the query context before a new query</span></span><br><span class="line">        OLAPContext.clearThreadLocalContexts();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> execute(correctedSql, sqlRequest, conn);</span><br><span class="line"></span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        DBUtils.closeQuietly(conn);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>关于代码，多解读两句：</p>
+<blockquote>
+<p>conn = QueryConnection.getConnection(sqlRequest.getProject());</p>
+</blockquote>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> Connection <span class="title">getConnection</span><span class="params">(String project)</span> <span class="keyword">throws</span> SQLException </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (!isRegister) &#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            Class&lt;?&gt; aClass = Thread.currentThread().getContextClassLoader()</span><br><span class="line">                    .loadClass(<span class="string">"org.apache.calcite.jdbc.Driver"</span>);</span><br><span class="line">            Driver o = (Driver) aClass.newInstance();</span><br><span class="line">            DriverManager.registerDriver(o);</span><br><span class="line">        &#125; <span class="keyword">catch</span> (ClassNotFoundException | InstantiationException | IllegalAccessException e) &#123;</span><br><span class="line">            e.printStackTrace();</span><br><span class="line">        &#125;</span><br><span class="line">        isRegister = <span class="keyword">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    File olapTmp = OLAPSchemaFactory.createTempOLAPJson(project, KylinConfig.getInstanceFromEnv());</span><br><span class="line">    Properties info = <span class="keyword">new</span> Properties();</span><br><span class="line">    info.put(<span class="string">"model"</span>, olapTmp.getAbsolutePath());</span><br><span class="line">    info.put(<span class="string">"typeSystem"</span>, <span class="string">"org.apache.kylin.query.calcite.KylinRelDataTypeSystem"</span>);</span><br><span class="line">    <span class="keyword">return</span> DriverManager.getConnection(<span class="string">"jdbc:calcite:"</span>, info);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">OLAPSchemaFactory</span> <span class="keyword">implements</span> <span class="title">SchemaFactory</span> </span>&#123;</span><br><span class="line">    ......</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> File <span class="title">createTempOLAPJson</span><span class="params">(String project, KylinConfig config)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">        Collection&lt;TableDesc&gt; tables = ProjectManager.getInstance(config).listExposedTables(project, exposeMore());</span><br><span class="line"></span><br><span class="line">        <span class="comment">// "database" in TableDesc correspond to our schema</span></span><br><span class="line">        <span class="comment">// the logic to decide which schema to be "default" in calcite:</span></span><br><span class="line">        <span class="comment">// if some schema are named "default", use it.</span></span><br><span class="line">        <span class="comment">// other wise use the schema with most tables</span></span><br><span class="line">        HashMap&lt;String, Integer&gt; schemaCounts = DatabaseDesc.extractDatabaseOccurenceCounts(tables);</span><br><span class="line">        String majoritySchemaName = <span class="string">""</span>;</span><br><span class="line">        <span class="keyword">int</span> majoritySchemaCount = <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">for</span> (Map.Entry&lt;String, Integer&gt; e : schemaCounts.entrySet()) &#123;</span><br><span class="line">            <span class="keyword">if</span> (e.getKey().equalsIgnoreCase(<span class="string">"default"</span>)) &#123;</span><br><span class="line">                majoritySchemaCount = Integer.MAX_VALUE;</span><br><span class="line">                majoritySchemaName = e.getKey();</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (e.getValue() &gt;= majoritySchemaCount) &#123;</span><br><span class="line">                majoritySchemaCount = e.getValue();</span><br><span class="line">                majoritySchemaName = e.getKey();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line"></span><br><span class="line">            StringBuilder out = <span class="keyword">new</span> StringBuilder();</span><br><span class="line">            out.append(<span class="string">"&#123;\n"</span>);</span><br><span class="line">            out.append(<span class="string">"    \"version\": \"1.0\",\n"</span>);</span><br><span class="line">            out.append(<span class="string">"    \"defaultSchema\": \""</span> + majoritySchemaName + <span class="string">"\",\n"</span>);</span><br><span class="line">            out.append(<span class="string">"    \"schemas\": [\n"</span>);</span><br><span class="line"></span><br><span class="line">            <span class="keyword">int</span> counter = <span class="number">0</span>;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">            <span class="keyword">for</span> (String schemaName : schemaCounts.keySet()) &#123;</span><br><span class="line">                out.append(<span class="string">"        &#123;\n"</span>);</span><br><span class="line">                out.append(<span class="string">"            \"type\": \"custom\",\n"</span>);</span><br><span class="line">                out.append(<span class="string">"            \"name\": \""</span> + schemaName + <span class="string">"\",\n"</span>);</span><br><span class="line">                out.append(<span class="string">"            \"factory\": \""</span> + KylinConfig.getInstanceFromEnv().getSchemaFactory()+ <span class="string">"\",\n"</span>);</span><br><span class="line">                out.append(<span class="string">"            \"operand\": &#123;\n"</span>);</span><br><span class="line">                out.append(<span class="string">"                \""</span> + SCHEMA_PROJECT + <span class="string">"\": \""</span> + project + <span class="string">"\"\n"</span>);</span><br><span class="line">                out.append(<span class="string">"            &#125;,\n"</span>);</span><br><span class="line">                createOLAPSchemaFunctions(out);</span><br><span class="line">                out.append(<span class="string">"        &#125;\n"</span>);</span><br><span class="line"></span><br><span class="line">                <span class="keyword">if</span> (++counter != schemaCounts.size()) &#123;</span><br><span class="line">                    out.append(<span class="string">",\n"</span>);</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            out.append(<span class="string">"    ]\n"</span>);</span><br><span class="line">            out.append(<span class="string">"&#125;\n"</span>);</span><br><span class="line"></span><br><span class="line">            String jsonContent = out.toString();</span><br><span class="line">            File file = cachedJsons.get(jsonContent);</span><br><span class="line">            <span class="keyword">if</span> (file == <span class="keyword">null</span>) &#123;</span><br><span class="line">                file = File.createTempFile(<span class="string">"olap_model_"</span>, <span class="string">".json"</span>);</span><br><span class="line">                file.deleteOnExit();</span><br><span class="line">                FileUtils.writeStringToFile(file, jsonContent);</span><br><span class="line"></span><br><span class="line">                logger.debug(<span class="string">"Adding new schema file &#123;&#125; to cache"</span>, file.getName());</span><br><span class="line">                logger.debug(<span class="string">"Schema json: "</span> + jsonContent);</span><br><span class="line">                cachedJsons.put(jsonContent, file);</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">return</span> file;</span><br><span class="line"></span><br><span class="line">        &#125; <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> RuntimeException(e);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>以上代码是为了给calcite创建model的json文件。连接的元数据文件。<br>OLAPSchemaFactory 实现了calcite的 SchemaFactory接口，实现了create方法，用来创建连接时生成Schema。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> Schema <span class="title">create</span><span class="params">(SchemaPlus parentSchema, String schemaName, Map&lt;String, Object&gt; operand)</span> </span>&#123;</span><br><span class="line">    String project = (String) operand.get(SCHEMA_PROJECT);</span><br><span class="line">    <span class="comment">//在OLAPSchema的init方法中调用了KylinConfigBase.getStorageUrl方法，此方法返回了我们在配置文件中配置的kylin数据的存储信息</span></span><br><span class="line">    Schema newSchema = <span class="keyword">new</span> OLAPSchema(project, schemaName, exposeMore());</span><br><span class="line">    <span class="keyword">return</span> newSchema;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>而在olapschema类中，初始化的时候指定了数据存储是hbase</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">init</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>.config = KylinConfig.getInstanceFromEnv();</span><br><span class="line">    <span class="keyword">this</span>.storageUrl = config.getStorageUrl();</span><br><span class="line">    <span class="keyword">this</span>.starSchemaUrl = config.getHiveUrl();</span><br><span class="line">    <span class="keyword">this</span>.starSchemaUser = config.getHiveUser();</span><br><span class="line">    <span class="keyword">this</span>.starSchemaPassword = config.getHivePassword();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">OLAPSchema</span><span class="params">(String project, String schemaName, <span class="keyword">boolean</span> exposeMore)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">this</span>.projectName = project;</span><br><span class="line">    <span class="keyword">this</span>.schemaName = schemaName;</span><br><span class="line">    <span class="keyword">this</span>.exposeMore = exposeMore;</span><br><span class="line">    init();</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 构建表结构的映射  可见这里实现的table是OLAPTable</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> Map&lt;String, Table&gt; <span class="title">buildTableMap</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    Map&lt;String, Table&gt; olapTables = <span class="keyword">new</span> HashMap&lt;String, Table&gt;();</span><br><span class="line"></span><br><span class="line">    Collection&lt;TableDesc&gt; projectTables = ProjectManager.getInstance(config).listExposedTables(projectName,</span><br><span class="line">            exposeMore);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (TableDesc tableDesc : projectTables) &#123;</span><br><span class="line">        <span class="keyword">if</span> (tableDesc.getDatabase().equals(schemaName)) &#123;</span><br><span class="line">            <span class="keyword">final</span> String tableName = tableDesc.getName();<span class="comment">//safe to use tableDesc.getName() here, it is in a DB context now</span></span><br><span class="line">            <span class="keyword">final</span> OLAPTable table = <span class="keyword">new</span> OLAPTable(<span class="keyword">this</span>, tableDesc, exposeMore);</span><br><span class="line">            olapTables.put(tableName, table);</span><br><span class="line">            <span class="comment">//logger.debug("Project " + projectName + " exposes table " + tableName);</span></span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> olapTables;</span><br><span class="line">&#125;</span><br><span class="line">OLAPTable的实现如下：</span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">OLAPTable</span> <span class="keyword">extends</span> <span class="title">AbstractQueryableTable</span> <span class="keyword">implements</span> <span class="title">TranslatableTable</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line">calcite总共支持三种表类型：</span><br><span class="line">ScannableTable  FilterableTable  TranslatableTable</span><br><span class="line">a simple implementation of Table, using the ScannableTable <span class="class"><span class="keyword">interface</span>, <span class="title">that</span> <span class="title">enumerates</span> <span class="title">all</span> <span class="title">rows</span> <span class="title">directly</span></span>;</span><br><span class="line">a more advanced implementation that implements FilterableTable, and can filter out rows according to simple predicates;</span><br><span class="line">advanced implementation of Table, using TranslatableTable, that translates to relational operators using planner rules.</span><br><span class="line">当使用ScannableTable的时候，我们只需要实现函数Enumerable&lt;Object[]&gt; scan(DataContext root);，该函数返回Enumerable对象，通过该对象可以一行行的获取这个Table的全部数据（也就意味着每次的查询都是扫描这个表的数据）；当使用FilterableTable的时候，我们需要实现函数Enumerable&lt;Object[]&gt; scan(DataContext root, List&lt;RexNode&gt; filters );参数中多了filters数组，这个数据包含了针对这个表的过滤条件，这样我们根据过滤条件只返回过滤之后的行，减少上层进行其它运算的数据集；当使用TranslatableTable的时候，我们需要实现<span class="function">RelNode <span class="title">toRel</span><span class="params">( RelOptTable.ToRelContext context, RelOptTable relOptTable)</span></span>;，该函数可以让我们根据上下文自己定义表扫描的物理执行计划，至于为什么不在返回一个Enumerable对象了，因为上面两种其实使用的是默认的执行计划，转换成EnumerableTableAccessRel算子，通过TranslatableTable我们可以实现自定义的算子，以及执行一些其他的rule，Kylin就是使用这个类型的Table实现查询。</span><br><span class="line">看上边OLAPTable就是继承了TranslatableTable.</span><br><span class="line">TranslatableTable 默认的查询方法是 asQueryable 这个方法被重写了：</span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="keyword">public</span> &lt;T&gt; <span class="function">Queryable&lt;T&gt; <span class="title">asQueryable</span><span class="params">(QueryProvider queryProvider, SchemaPlus schema, String tableName)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> AbstractTableQueryable&lt;T&gt;(queryProvider, schema, <span class="keyword">this</span>, tableName) &#123;</span><br><span class="line">        <span class="meta">@SuppressWarnings</span>(<span class="string">"unchecked"</span>)</span><br><span class="line">        <span class="function"><span class="keyword">public</span> Enumerator&lt;T&gt; <span class="title">enumerator</span><span class="params">()</span> </span>&#123;</span><br><span class="line">            <span class="keyword">final</span> OLAPQuery query = <span class="keyword">new</span> OLAPQuery(EnumeratorTypeEnum.OLAP, <span class="number">0</span>);</span><br><span class="line">            <span class="keyword">return</span> (Enumerator&lt;T&gt;) query.enumerator();</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;;</span><br><span class="line">&#125;</span><br><span class="line">在OLAPQuery类中 enumerator方法如下：</span><br><span class="line"><span class="keyword">public</span> Enumerator&lt;Object[]&gt; enumerator() &#123;</span><br><span class="line">    OLAPContext olapContext = OLAPContext.getThreadLocalContextById(contextId);</span><br><span class="line">    <span class="keyword">switch</span> (type) &#123;</span><br><span class="line">    <span class="keyword">case</span> OLAP:</span><br><span class="line">        <span class="keyword">return</span> BackdoorToggles.getPrepareOnly() ? <span class="keyword">new</span> EmptyEnumerator()</span><br><span class="line">                : <span class="keyword">new</span> OLAPEnumerator(olapContext, optiqContext);</span><br><span class="line">    <span class="keyword">case</span> LOOKUP_TABLE:</span><br><span class="line">        <span class="keyword">return</span> BackdoorToggles.getPrepareOnly() ? <span class="keyword">new</span> EmptyEnumerator() : <span class="keyword">new</span> LookupTableEnumerator(olapContext);</span><br><span class="line">    <span class="keyword">case</span> HIVE:</span><br><span class="line">        <span class="keyword">return</span> BackdoorToggles.getPrepareOnly() ? <span class="keyword">new</span> EmptyEnumerator() : <span class="keyword">new</span> HiveEnumerator(olapContext);</span><br><span class="line">    <span class="keyword">default</span>:</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"Wrong type "</span> + type + <span class="string">"!"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">这里调用的olap类型OLAPEnumerator，该类中有查库操作如下：</span><br><span class="line"><span class="function"><span class="keyword">private</span> ITupleIterator <span class="title">queryStorage</span><span class="params">()</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    logger.debug(<span class="string">"query storage..."</span>);</span><br><span class="line">    <span class="comment">// bind dynamic variables</span></span><br><span class="line">    olapContext.bindVariable(optiqContext);</span><br><span class="line"></span><br><span class="line">    olapContext.resetSQLDigest();</span><br><span class="line">    SQLDigest sqlDigest = olapContext.getSQLDigest();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// query storage engine</span></span><br><span class="line">    IStorageQuery storageEngine = StorageFactory.createQuery(olapContext.realization);</span><br><span class="line">    ITupleIterator iterator = storageEngine.search(olapContext.storageContext, sqlDigest,</span><br><span class="line">            olapContext.returnTupleInfo);</span><br><span class="line">    <span class="keyword">if</span> (logger.isDebugEnabled()) &#123;</span><br><span class="line">        logger.debug(<span class="string">"return TupleIterator..."</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> iterator;</span><br><span class="line">&#125;</span><br><span class="line">到这里，就看到查询语句了。但是在这里要校验一下怎么出来的startKey和endKey，以及怎么使用的协处理器</span><br></pre></td></tr></table></figure>
+
+<p>下边说一下hbase查询,按照上边的语句，storageEngine来自按照cube初始化出来的，代码如下：在HBaseStorage类中：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">static</span> String v2CubeStorageQuery = <span class="string">"org.apache.kylin.storage.hbase.cube.v2.CubeStorageQuery"</span>;</span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> IStorageQuery <span class="title">createQuery</span><span class="params">(IRealization realization)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (realization.getType() == RealizationType.CUBE) &#123;</span><br><span class="line"></span><br><span class="line">        CubeInstance cubeInstance = (CubeInstance) realization;</span><br><span class="line">        String cubeStorageQuery;</span><br><span class="line">        <span class="keyword">if</span> (cubeInstance.getStorageType() == IStorageAware.ID_HBASE) &#123;<span class="comment">//v2 query engine cannot go with v1 storage now</span></span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IllegalStateException(<span class="string">"Storage Engine (id="</span> + IStorageAware.ID_HBASE + <span class="string">") is not supported any more"</span>);</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            cubeStorageQuery = v2CubeStorageQuery;<span class="comment">//by default use v2</span></span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// v2CubeStorageQuery 是</span></span><br><span class="line">        IStorageQuery ret;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            ret = (IStorageQuery) Class.forName(cubeStorageQuery).getConstructor(CubeInstance<span class="class">.<span class="keyword">class</span>).<span class="title">newInstance</span>((<span class="title">CubeInstance</span>) <span class="title">realization</span>)</span>;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> RuntimeException(<span class="string">"Failed to initialize storage query for "</span> + cubeStorageQuery, e);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> ret;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"Unknown realization type "</span> + realization.getType());</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>根据上边可以知道初始化的是 org.apache.kylin.storage.hbase.cube.v2.CubeStorageQuery 这个类</p>
+<p>这个类继承自 public class CubeStorageQuery extends GTCubeStorageQueryBase {}</p>
+<p>search方法在GTCubeStorageQueryBase类中，query语句如下:</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> ITupleIterator <span class="title">search</span><span class="params">(StorageContext context, SQLDigest sqlDigest, TupleInfo returnTupleInfo)</span> </span>&#123;</span><br><span class="line">    <span class="comment">//这一步有个很重要的步骤就是根据查询条件找到对应的cuboid（findCuboid）</span></span><br><span class="line">    GTCubeStorageQueryRequest request = getStorageQueryRequest(context, sqlDigest, returnTupleInfo);</span><br><span class="line"></span><br><span class="line">    List&lt;CubeSegmentScanner&gt; scanners = Lists.newArrayList();</span><br><span class="line">    <span class="keyword">for</span> (CubeSegment cubeSeg : cubeInstance.getSegments(SegmentStatusEnum.READY)) &#123;</span><br><span class="line">        CubeSegmentScanner scanner;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (cubeDesc.getConfig().isSkippingEmptySegments() &amp;&amp; cubeSeg.getInputRecords() == <span class="number">0</span>) &#123;</span><br><span class="line">            logger.info(<span class="string">"Skip cube segment &#123;&#125; because its input record is 0"</span>, cubeSeg);</span><br><span class="line">            <span class="keyword">continue</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        scanner = <span class="keyword">new</span> CubeSegmentScanner(cubeSeg, request.getCuboid(), request.getDimensions(), request.getGroups(),</span><br><span class="line">                request.getMetrics(), request.getFilter(), request.getHavingFilter(), request.getContext());</span><br><span class="line">        <span class="keyword">if</span> (!scanner.isSegmentSkipped())</span><br><span class="line">            scanners.add(scanner);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (scanners.isEmpty())</span><br><span class="line">        <span class="keyword">return</span> ITupleIterator.EMPTY_TUPLE_ITERATOR;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> SequentialCubeTupleIterator(scanners, request.getCuboid(), request.getDimensions(),</span><br><span class="line">            request.getGroups(), request.getMetrics(), returnTupleInfo, request.getContext(), sqlDigest);</span><br><span class="line">&#125;</span><br><span class="line">CubeSegmentScanner代码如下：</span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">CubeSegmentScanner</span><span class="params">(CubeSegment cubeSeg, Cuboid cuboid, Set&lt;TblColRef&gt; dimensions, Set&lt;TblColRef&gt; groups, //</span></span></span><br><span class="line"><span class="function"><span class="params">        Collection&lt;FunctionDesc&gt; metrics, TupleFilter originalfilter, TupleFilter havingFilter, StorageContext context)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    logger.info(<span class="string">"Init CubeSegmentScanner for segment &#123;&#125;"</span>, cubeSeg.getName());</span><br><span class="line"></span><br><span class="line">    <span class="keyword">this</span>.cuboid = cuboid;</span><br><span class="line">    <span class="keyword">this</span>.cubeSeg = cubeSeg;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//the filter might be changed later in this CubeSegmentScanner (In ITupleFilterTransformer)</span></span><br><span class="line">    <span class="comment">//to avoid issues like in https://issues.apache.org/jira/browse/KYLIN-1954, make sure each CubeSegmentScanner</span></span><br><span class="line">    <span class="comment">//is working on its own copy</span></span><br><span class="line">    <span class="keyword">byte</span>[] serialize = TupleFilterSerializer.serialize(originalfilter, StringCodeSystem.INSTANCE);</span><br><span class="line">    TupleFilter filter = TupleFilterSerializer.deserialize(serialize, StringCodeSystem.INSTANCE);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// translate FunctionTupleFilter to IN clause</span></span><br><span class="line">    ITupleFilterTransformer translator = <span class="keyword">new</span> BuiltInFunctionTransformer(cubeSeg.getDimensionEncodingMap());</span><br><span class="line">    filter = translator.transform(filter);</span><br><span class="line"></span><br><span class="line">    CubeScanRangePlanner scanRangePlanner;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        scanRangePlanner = <span class="keyword">new</span> CubeScanRangePlanner(cubeSeg, cuboid, filter, dimensions, groups, metrics, havingFilter, context);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (RuntimeException e) &#123;</span><br><span class="line">        <span class="keyword">throw</span> e;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> RuntimeException(e);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    scanRequest = scanRangePlanner.planScanRequest();</span><br><span class="line">    <span class="comment">// gtStorage为配置项kylin.storage.hbase.gtstorage, 默认值为</span></span><br><span class="line">    <span class="comment">// org.apache.kylin.storage.hbase.cube.v2.CubeHBaseEndpointRPC</span></span><br><span class="line">    String gtStorage = ((GTCubeStorageQueryBase) context.getStorageQuery()).getGTStorage();</span><br><span class="line">    scanner = <span class="keyword">new</span> ScannerWorker(cubeSeg, cuboid, scanRequest, gtStorage, context);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>关键步骤ScannerWorker代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="title">ScannerWorker</span><span class="params">(ISegment segment, Cuboid cuboid, GTScanRequest scanRequest, String gtStorage,</span></span></span><br><span class="line"><span class="function"><span class="params">            StorageContext context)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    inputArgs = <span class="keyword">new</span> Object[] &#123; segment, cuboid, scanRequest, gtStorage, context &#125;;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (scanRequest == <span class="keyword">null</span>) &#123;</span><br><span class="line">        logger.info(<span class="string">"Segment &#123;&#125; will be skipped"</span>, segment);</span><br><span class="line">        internal = <span class="keyword">new</span> EmptyGTScanner();</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> GTInfo info = scanRequest.getInfo();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// 这里的rpc为org.apache.kylin.storage.hbase.cube.v2.CubeHBaseEndpointRPC</span></span><br><span class="line">        IGTStorage rpc = (IGTStorage) Class.forName(gtStorage)</span><br><span class="line">                .getConstructor(ISegment<span class="class">.<span class="keyword">class</span>, <span class="title">Cuboid</span>.<span class="title">class</span>, <span class="title">GTInfo</span>.<span class="title">class</span>, <span class="title">StorageContext</span>.<span class="title">class</span>)</span></span><br><span class="line"><span class="class">                .<span class="title">newInstance</span>(<span class="title">segment</span>, <span class="title">cuboid</span>, <span class="title">info</span>, <span class="title">context</span>)</span>; <span class="comment">// default behavior</span></span><br><span class="line">        <span class="comment">// rpc 发起查询请求</span></span><br><span class="line">        <span class="comment">// internal为每个segment的查询结果，后面会调用iterator获取结果，calcite会将各个segment</span></span><br><span class="line">         <span class="comment">// 的结果进行聚合, EnumerableDefaults中的aggr</span></span><br><span class="line">        internal = rpc.getGTScanner(scanRequest);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> RuntimeException(e);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    checkNPE();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>在CubeHBaseEndpointRPC方法中有两个方法比较关键，一个是getGTScanner，发起请求的，另一个就是获取startKey和endKey的方法，getEPKeyRanges</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@SuppressWarnings</span>(<span class="string">"checkstyle:methodlength"</span>)</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> IGTScanner <span class="title">getGTScanner</span><span class="params">(<span class="keyword">final</span> GTScanRequest scanRequest)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">    Pair&lt;Short, Short&gt; shardNumAndBaseShard = getShardNumAndBaseShard();</span><br><span class="line">    <span class="keyword">short</span> shardNum = shardNumAndBaseShard.getFirst();</span><br><span class="line">    <span class="keyword">short</span> cuboidBaseShard = shardNumAndBaseShard.getSecond();</span><br><span class="line">    <span class="keyword">int</span> totalShards = cubeSeg.getTotalShards(cuboid.getId());</span><br><span class="line"></span><br><span class="line">    ByteString scanRequestByteString = <span class="keyword">null</span>;</span><br><span class="line">    ByteString rawScanByteString = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// primary key (also the 0th column block) is always selected</span></span><br><span class="line">    <span class="keyword">final</span> ImmutableBitSet selectedColBlocks = scanRequest.getSelectedColBlocks().set(<span class="number">0</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">// globally shared connection, does not require close</span></span><br><span class="line">    <span class="keyword">final</span> Connection conn = HBaseConnection.get(cubeSeg.getCubeInstance().getConfig().getStorageUrl());</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> List&lt;IntList&gt; hbaseColumnsToGTIntList = Lists.newArrayList();</span><br><span class="line">    List&lt;List&lt;Integer&gt;&gt; hbaseColumnsToGT = getHBaseColumnsGTMapping(selectedColBlocks);</span><br><span class="line">    <span class="keyword">for</span> (List&lt;Integer&gt; list : hbaseColumnsToGT) &#123;</span><br><span class="line">        hbaseColumnsToGTIntList.add(IntList.newBuilder().addAllInts(list).build());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//<span class="doctag">TODO:</span> raw scan can be constructed at region side to reduce traffic</span></span><br><span class="line">    List&lt;RawScan&gt; rawScans = preparedHBaseScans(scanRequest.getGTScanRanges(), selectedColBlocks);</span><br><span class="line">    rawScanByteString = serializeRawScans(rawScans);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">long</span> coprocessorTimeout = getCoprocessorTimeoutMillis();</span><br><span class="line">    scanRequest.setTimeout(coprocessorTimeout);</span><br><span class="line">    scanRequest.clearScanRanges();<span class="comment">//since raw scans are sent to coprocessor, we don't need to duplicate sending it</span></span><br><span class="line">    scanRequestByteString = serializeGTScanReq(scanRequest);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> ExpectedSizeIterator epResultItr = <span class="keyword">new</span> ExpectedSizeIterator(queryContext, shardNum, coprocessorTimeout);</span><br><span class="line"></span><br><span class="line">    logger.info(<span class="string">"Serialized scanRequestBytes &#123;&#125; bytes, rawScanBytesString &#123;&#125; bytes"</span>, scanRequestByteString.size(), rawScanByteString.size());</span><br><span class="line"></span><br><span class="line">    logger.info(<span class="string">"The scan &#123;&#125; for segment &#123;&#125; is as below with &#123;&#125; separate raw scans, shard part of start/end key is set to 0"</span>, Integer.toHexString(System.identityHashCode(scanRequest)), cubeSeg, rawScans.size());</span><br><span class="line">    <span class="keyword">for</span> (RawScan rs : rawScans) &#123;</span><br><span class="line">        logScan(rs, cubeSeg.getStorageLocationIdentifier());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    logger.debug(<span class="string">"Submitting rpc to &#123;&#125; shards starting from shard &#123;&#125;, scan range count &#123;&#125;"</span>, shardNum, cuboidBaseShard, rawScans.size());</span><br><span class="line"></span><br><span class="line">    <span class="comment">// KylinConfig: use env instance instead of CubeSegment, because KylinConfig will share among queries</span></span><br><span class="line">    <span class="comment">// for different cubes until redeployment of coprocessor jar.</span></span><br><span class="line">    <span class="keyword">final</span> KylinConfig kylinConfig = KylinConfig.getInstanceFromEnv();</span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">boolean</span> compressionResult = kylinConfig.getCompressionResult();</span><br><span class="line">    <span class="keyword">final</span> CubeVisitProtos.CubeVisitRequest.Builder builder = CubeVisitProtos.CubeVisitRequest.newBuilder();</span><br><span class="line">    builder.setGtScanRequest(scanRequestByteString).setHbaseRawScan(rawScanByteString);</span><br><span class="line">    <span class="keyword">for</span> (IntList intList : hbaseColumnsToGTIntList) &#123;</span><br><span class="line">        builder.addHbaseColumnsToGT(intList);</span><br><span class="line">    &#125;</span><br><span class="line">    builder.setRowkeyPreambleSize(cubeSeg.getRowKeyPreambleSize());</span><br><span class="line">    builder.setKylinProperties(kylinConfig.exportAllToString());</span><br><span class="line">    <span class="keyword">final</span> String queryId = queryContext.getQueryId();</span><br><span class="line">    <span class="keyword">if</span> (queryId != <span class="keyword">null</span>) &#123;</span><br><span class="line">        builder.setQueryId(queryId);</span><br><span class="line">    &#125;</span><br><span class="line">    builder.setSpillEnabled(cubeSeg.getConfig().getQueryCoprocessorSpillEnabled());</span><br><span class="line">    builder.setMaxScanBytes(cubeSeg.getConfig().getPartitionMaxScanBytes());</span><br><span class="line">    builder.setIsExactAggregate(storageContext.isExactAggregation());</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> String logHeader = String.format(<span class="string">"&lt;sub-thread for Query %s GTScanRequest %s&gt;"</span>, queryContext.getQueryId(),</span><br><span class="line">            Integer.toHexString(System.identityHashCode(scanRequest)));</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">final</span> Pair&lt;<span class="keyword">byte</span>[], <span class="keyword">byte</span>[]&gt; epRange : getEPKeyRanges(cuboidBaseShard, shardNum, totalShards)) &#123;</span><br><span class="line">        executorService.submit(<span class="keyword">new</span> Runnable() &#123;</span><br><span class="line">            <span class="meta">@Override</span></span><br><span class="line">            <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</span><br><span class="line">                runEPRange(queryContext, logHeader, compressionResult, builder.build(), conn, epRange.getFirst(),</span><br><span class="line">                        epRange.getSecond(), epResultItr);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> StorageResponseGTScatter(scanRequest, <span class="keyword">new</span> DummyPartitionStreamer(epResultItr), storageContext);</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 这里会获取 startKey 和 endKey</span></span><br><span class="line"><span class="meta">@SuppressWarnings</span>(<span class="string">"unchecked"</span>)</span><br><span class="line"><span class="keyword">private</span> List&lt;Pair&lt;<span class="keyword">byte</span>[], <span class="keyword">byte</span>[]&gt;&gt; getEPKeyRanges(<span class="keyword">short</span> baseShard, <span class="keyword">short</span> shardNum, <span class="keyword">int</span> totalShards) &#123;</span><br><span class="line">    <span class="keyword">if</span> (shardNum == <span class="number">0</span>) &#123;</span><br><span class="line">        <span class="keyword">return</span> Lists.newArrayList();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (shardNum == totalShards) &#123;</span><br><span class="line">        <span class="comment">//all shards</span></span><br><span class="line">        <span class="keyword">return</span> Lists.newArrayList(Pair.newPair(getByteArrayForShort((<span class="keyword">short</span>) <span class="number">0</span>), getByteArrayForShort((<span class="keyword">short</span>) (shardNum - <span class="number">1</span>))));</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (baseShard + shardNum &lt;= totalShards) &#123;</span><br><span class="line">        <span class="comment">//endpoint end key is inclusive, so no need to append 0 or anything</span></span><br><span class="line">        <span class="keyword">return</span> Lists.newArrayList(Pair.newPair(getByteArrayForShort(baseShard), getByteArrayForShort((<span class="keyword">short</span>) (baseShard + shardNum - <span class="number">1</span>))));</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        <span class="comment">//0,1,2,3,4 wants 4,0</span></span><br><span class="line">        <span class="keyword">return</span> Lists.newArrayList(Pair.newPair(getByteArrayForShort(baseShard), getByteArrayForShort((<span class="keyword">short</span>) (totalShards - <span class="number">1</span>))), <span class="comment">//</span></span><br><span class="line">                Pair.newPair(getByteArrayForShort((<span class="keyword">short</span>) <span class="number">0</span>), getByteArrayForShort((<span class="keyword">short</span>) (baseShard + shardNum - totalShards - <span class="number">1</span>))));</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 查询的实际方法</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">runEPRange</span><span class="params">(<span class="keyword">final</span> QueryContext queryContext, <span class="keyword">final</span> String logHeader, <span class="keyword">final</span> <span class="keyword">boolean</span> compressionResult,</span></span></span><br><span class="line"><span class="function"><span class="params">            <span class="keyword">final</span> CubeVisitProtos.CubeVisitRequest request, <span class="keyword">final</span> Connection conn, <span class="keyword">byte</span>[] startKey, <span class="keyword">byte</span>[] endKey,</span></span></span><br><span class="line"><span class="function"><span class="params">            <span class="keyword">final</span> ExpectedSizeIterator epResultItr)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">final</span> String queryId = queryContext.getQueryId();</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">final</span> Table table = conn.getTable(TableName.valueOf(cubeSeg.getStorageLocationIdentifier()),</span><br><span class="line">                HBaseConnection.getCoprocessorPool());</span><br><span class="line"></span><br><span class="line">        table.coprocessorService(CubeVisitService<span class="class">.<span class="keyword">class</span>, <span class="title">startKey</span>, <span class="title">endKey</span>, //</span></span><br><span class="line"><span class="class">                <span class="title">new</span> <span class="title">Batch</span>.<span class="title">Call</span>&lt;<span class="title">CubeVisitService</span>, <span class="title">CubeVisitResponse</span>&gt;() </span>&#123;</span><br><span class="line"></span><br><span class="line">                    <span class="function"><span class="keyword">public</span> CubeVisitResponse <span class="title">call</span><span class="params">(CubeVisitService rowsService)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">                        <span class="keyword">if</span> (queryContext.isStopped()) &#123;</span><br><span class="line">                            logger.warn(</span><br><span class="line">                                    <span class="string">"Query-&#123;&#125;: the query has been stopped, not send request to region server any more."</span>,</span><br><span class="line">                                    queryId);</span><br><span class="line">                            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">                        &#125;</span><br><span class="line"></span><br><span class="line">                        HRegionLocation regionLocation = getStartRegionLocation(rowsService);</span><br><span class="line">                        String regionServerName = regionLocation == <span class="keyword">null</span> ? <span class="string">"UNKNOWN"</span> : regionLocation.getHostname();</span><br><span class="line">                        logger.info(<span class="string">"Query-&#123;&#125;: send request to the init region server &#123;&#125; on table &#123;&#125; "</span>, queryId,</span><br><span class="line">                                regionServerName, table.getName());</span><br><span class="line"></span><br><span class="line">                        queryContext.addQueryStopListener(<span class="keyword">new</span> QueryContext.QueryStopListener() &#123;</span><br><span class="line">                            <span class="keyword">private</span> Thread hConnThread = Thread.currentThread();</span><br><span class="line"></span><br><span class="line">                            <span class="meta">@Override</span></span><br><span class="line">                            <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">stop</span><span class="params">(QueryContext query)</span> </span>&#123;</span><br><span class="line">                                <span class="keyword">try</span> &#123;</span><br><span class="line">                                    hConnThread.interrupt();</span><br><span class="line">                                &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">                                    logger.warn(<span class="string">"Exception happens during interrupt thread &#123;&#125; due to &#123;&#125;"</span>,</span><br><span class="line">                                            hConnThread.getName(), e);</span><br><span class="line">                                &#125;</span><br><span class="line">                            &#125;</span><br><span class="line">                        &#125;);</span><br><span class="line"></span><br><span class="line">                        ServerRpcController controller = <span class="keyword">new</span> ServerRpcController();</span><br><span class="line">                        BlockingRpcCallback&lt;CubeVisitResponse&gt; rpcCallback = <span class="keyword">new</span> BlockingRpcCallback&lt;&gt;();</span><br><span class="line">                        <span class="keyword">try</span> &#123;</span><br><span class="line">                            <span class="comment">//发送请求到hbase的协处理器进行数据查询</span></span><br><span class="line">                            rowsService.visitCube(controller, request, rpcCallback);</span><br><span class="line">                            <span class="comment">// 这句代码就是阻塞的原因</span></span><br><span class="line">                            CubeVisitResponse response = rpcCallback.get();</span><br><span class="line">                            <span class="keyword">if</span> (controller.failedOnException()) &#123;</span><br><span class="line">                                <span class="keyword">throw</span> controller.getFailedOn();</span><br><span class="line">                            &#125;</span><br><span class="line">                            <span class="keyword">return</span> response;</span><br><span class="line">                        &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">                            <span class="keyword">throw</span> e;</span><br><span class="line">                        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">                            <span class="comment">// Reset the interrupted state</span></span><br><span class="line">                            Thread.interrupted();</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line"></span><br><span class="line">                    <span class="function"><span class="keyword">private</span> HRegionLocation <span class="title">getStartRegionLocation</span><span class="params">(CubeVisitProtos.CubeVisitService rowsService)</span> </span>&#123;</span><br><span class="line">                        <span class="keyword">try</span> &#123;</span><br><span class="line">                            CubeVisitProtos.CubeVisitService.Stub rowsServiceStub = (CubeVisitProtos.CubeVisitService.Stub) rowsService;</span><br><span class="line">                            RegionCoprocessorRpcChannel channel = (RegionCoprocessorRpcChannel) rowsServiceStub</span><br><span class="line">                                    .getChannel();</span><br><span class="line">                            <span class="keyword">byte</span>[] row = (<span class="keyword">byte</span>[]) channelRowField.get(channel);</span><br><span class="line">                            <span class="keyword">return</span> conn.getRegionLocator(table.getName()).getRegionLocation(row, <span class="keyword">false</span>);</span><br><span class="line">                        &#125; <span class="keyword">catch</span> (Throwable throwable) &#123;</span><br><span class="line">                            logger.warn(<span class="string">"error when get region server name"</span>, throwable);</span><br><span class="line">                        &#125;</span><br><span class="line">                        <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;, <span class="keyword">new</span> Batch.Callback&lt;CubeVisitResponse&gt;() &#123;</span><br><span class="line">                    <span class="comment">// 接收到协处理器发回的查询结果</span></span><br><span class="line">                    <span class="meta">@Override</span></span><br><span class="line">                    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">update</span><span class="params">(<span class="keyword">byte</span>[] region, <span class="keyword">byte</span>[] row, CubeVisitResponse result)</span> </span>&#123;</span><br><span class="line">                        <span class="keyword">if</span> (result == <span class="keyword">null</span>) &#123;</span><br><span class="line">                            <span class="keyword">return</span>;</span><br><span class="line">                        &#125;</span><br><span class="line">                        <span class="keyword">if</span> (region == <span class="keyword">null</span>) &#123;</span><br><span class="line">                            <span class="keyword">return</span>;</span><br><span class="line">                        &#125;</span><br><span class="line"></span><br><span class="line">                        <span class="comment">// if the query is stopped, skip further processing</span></span><br><span class="line">                        <span class="comment">// this may be caused by</span></span><br><span class="line">                        <span class="comment">//      * Any other region has responded with error</span></span><br><span class="line">                        <span class="comment">//      * ServerRpcController.failedOnException</span></span><br><span class="line">                        <span class="comment">//      * ResourceLimitExceededException</span></span><br><span class="line">                        <span class="comment">//      * Exception happened during CompressionUtils.decompress()</span></span><br><span class="line">                        <span class="comment">//      * Outside exceptions, like KylinTimeoutException in SequentialCubeTupleIterator</span></span><br><span class="line">                        <span class="keyword">if</span> (queryContext.isStopped()) &#123;</span><br><span class="line">                            <span class="keyword">return</span>;</span><br><span class="line">                        &#125;</span><br><span class="line"></span><br><span class="line">                        logger.info(logHeader + getStatsString(region, result));</span><br><span class="line">                        <span class="comment">// 获取hbase协处理器返回的查询结果中的相关状态数据</span></span><br><span class="line">                        Stats stats = result.getStats();</span><br><span class="line">                        queryContext.addAndGetScannedRows(stats.getScannedRowCount());</span><br><span class="line">                        queryContext.addAndGetScannedBytes(stats.getScannedBytes());</span><br><span class="line">                        queryContext.addAndGetReturnedRows(stats.getScannedRowCount()</span><br><span class="line">                                - stats.getAggregatedRowCount() - stats.getFilteredRowCount());</span><br><span class="line"></span><br><span class="line">                        RuntimeException rpcException = <span class="keyword">null</span>;</span><br><span class="line">                        <span class="keyword">if</span> (result.getStats().getNormalComplete() != <span class="number">1</span>) &#123;</span><br><span class="line">                            <span class="comment">// record coprocessor error if happened</span></span><br><span class="line">                            rpcException = getCoprocessorException(result);</span><br><span class="line">                        &#125;</span><br><span class="line">                        queryContext.addRPCStatistics(storageContext.ctxId, stats.getHostname(),</span><br><span class="line">                                cubeSeg.getCubeDesc().getName(), cubeSeg.getName(), cuboid.getInputID(),</span><br><span class="line">                                cuboid.getId(), storageContext.getFilterMask(), rpcException,</span><br><span class="line">                                stats.getServiceEndTime() - stats.getServiceStartTime(), <span class="number">0</span>,</span><br><span class="line">                                stats.getScannedRowCount(),</span><br><span class="line">                                stats.getScannedRowCount() - stats.getAggregatedRowCount()</span><br><span class="line">                                        - stats.getFilteredRowCount(),</span><br><span class="line">                                stats.getAggregatedRowCount(), stats.getScannedBytes());</span><br><span class="line"></span><br><span class="line">                        <span class="keyword">if</span> (queryContext.getScannedBytes() &gt; cubeSeg.getConfig().getQueryMaxScanBytes()) &#123;</span><br><span class="line">                            rpcException = <span class="keyword">new</span> ResourceLimitExceededException(</span><br><span class="line">                                    <span class="string">"Query scanned "</span> + queryContext.getScannedBytes() + <span class="string">" bytes exceeds threshold "</span></span><br><span class="line">                                            + cubeSeg.getConfig().getQueryMaxScanBytes());</span><br><span class="line">                        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (queryContext.getReturnedRows() &gt; cubeSeg.getConfig().getQueryMaxReturnRows()) &#123;</span><br><span class="line">                            rpcException = <span class="keyword">new</span> ResourceLimitExceededException(</span><br><span class="line">                                    <span class="string">"Query returned "</span> + queryContext.getReturnedRows() + <span class="string">" rows exceeds threshold "</span></span><br><span class="line">                                            + cubeSeg.getConfig().getQueryMaxReturnRows());</span><br><span class="line">                        &#125;</span><br><span class="line"></span><br><span class="line">                        <span class="keyword">if</span> (rpcException != <span class="keyword">null</span>) &#123;</span><br><span class="line">                            queryContext.stop(rpcException);</span><br><span class="line">                            <span class="keyword">return</span>;</span><br><span class="line">                        &#125;</span><br><span class="line"></span><br><span class="line">                        <span class="keyword">try</span> &#123;</span><br><span class="line">                            <span class="keyword">if</span> (compressionResult) &#123;</span><br><span class="line">                                <span class="comment">// 对返回的查询结果数据进行处理（查询结果数据可能被压缩）</span></span><br><span class="line">                                epResultItr.append(CompressionUtils.decompress(</span><br><span class="line">                                        HBaseZeroCopyByteString.zeroCopyGetBytes(result.getCompressedRows())));</span><br><span class="line">                            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                                epResultItr.append(</span><br><span class="line">                                        HBaseZeroCopyByteString.zeroCopyGetBytes(result.getCompressedRows()));</span><br><span class="line">                            &#125;</span><br><span class="line">                        &#125; <span class="keyword">catch</span> (IOException | DataFormatException e) &#123;</span><br><span class="line">                            <span class="keyword">throw</span> <span class="keyword">new</span> RuntimeException(logHeader + <span class="string">"Error when decompressing"</span>, e);</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;);</span><br><span class="line"></span><br><span class="line">    &#125; <span class="keyword">catch</span> (Throwable ex) &#123;</span><br><span class="line">        queryContext.stop(ex);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (queryContext.isStopped()) &#123;</span><br><span class="line">        logger.error(logHeader + <span class="string">"Error when visiting cubes by endpoint"</span>, queryContext.getThrowable()); <span class="comment">// double log coz the query thread may already timeout</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Kylin通过发送visitCube请求到HBase协处理器进行查询，协处理器中执行的函数位于CubeVisitService中，函数名为visitCube：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@SuppressWarnings</span>(<span class="string">"checkstyle:methodlength"</span>)</span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">visitCube</span><span class="params">(<span class="keyword">final</span> RpcController controller, <span class="keyword">final</span> CubeVisitProtos.CubeVisitRequest request,</span></span></span><br><span class="line"><span class="function"><span class="params">        RpcCallback&lt;CubeVisitProtos.CubeVisitResponse&gt; done)</span> </span>&#123;</span><br><span class="line">    List&lt;RegionScanner&gt; regionScanners = Lists.newArrayList();</span><br><span class="line">    HRegion region = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">    StringBuilder sb = <span class="keyword">new</span> StringBuilder();</span><br><span class="line">    <span class="keyword">byte</span>[] allRows;</span><br><span class="line">    String debugGitTag = <span class="string">""</span>;</span><br><span class="line"></span><br><span class="line">    CubeVisitProtos.CubeVisitResponse.ErrorInfo errorInfo = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">    String queryId = request.hasQueryId() ? request.getQueryId() : <span class="string">"UnknownId"</span>;</span><br><span class="line">    logger.info(<span class="string">"start query &#123;&#125; in thread &#123;&#125;"</span>, queryId, Thread.currentThread().getName());</span><br><span class="line">    <span class="keyword">try</span> (SetThreadName ignored = <span class="keyword">new</span> SetThreadName(<span class="string">"Query %s"</span>, queryId)) &#123;</span><br><span class="line">        <span class="keyword">final</span> <span class="keyword">long</span> serviceStartTime = System.currentTimeMillis();</span><br><span class="line"></span><br><span class="line">        region = (HRegion) env.getRegion();</span><br><span class="line">        region.startRegionOperation();</span><br><span class="line"></span><br><span class="line">        <span class="comment">// if user change kylin.properties on kylin server, need to manually redeploy coprocessor jar to update KylinConfig of Env.</span></span><br><span class="line">        KylinConfig kylinConfig = KylinConfig.createKylinConfig(request.getKylinProperties());</span><br><span class="line">        KylinConfig.setKylinConfigThreadLocal(kylinConfig);</span><br><span class="line"></span><br><span class="line">        debugGitTag = region.getTableDesc().getValue(IRealizationConstants.HTableGitTag);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">final</span> GTScanRequest scanReq = GTScanRequest.serializer</span><br><span class="line">                .deserialize(ByteBuffer.wrap(HBaseZeroCopyByteString.zeroCopyGetBytes(request.getGtScanRequest())));</span><br><span class="line">        <span class="comment">// 获取查询超时时间</span></span><br><span class="line">        <span class="keyword">final</span> <span class="keyword">long</span> deadline = scanReq.getStartTime() + scanReq.getTimeout();</span><br><span class="line"></span><br><span class="line">        checkDeadline(deadline);</span><br><span class="line"></span><br><span class="line">        List&lt;List&lt;Integer&gt;&gt; hbaseColumnsToGT = Lists.newArrayList();</span><br><span class="line">        <span class="comment">// 获取要查询的hbase的 Column列（例如，F1:M）</span></span><br><span class="line">        <span class="keyword">for</span> (IntList intList : request.getHbaseColumnsToGTList()) &#123;</span><br><span class="line">            hbaseColumnsToGT.add(intList.getIntsList());</span><br><span class="line">        &#125;</span><br><span class="line">        StorageSideBehavior behavior = StorageSideBehavior.valueOf(scanReq.getStorageBehavior());</span><br><span class="line">        <span class="comment">// 从request请求体中获RawScan</span></span><br><span class="line">        <span class="keyword">final</span> List&lt;RawScan&gt; hbaseRawScans = deserializeRawScans(</span><br><span class="line">                ByteBuffer.wrap(HBaseZeroCopyByteString.zeroCopyGetBytes(request.getHbaseRawScan())));</span><br><span class="line"></span><br><span class="line">        appendProfileInfo(sb, <span class="string">"start latency: "</span> + (serviceStartTime - scanReq.getStartTime()), serviceStartTime);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">final</span> List&lt;InnerScannerAsIterator&gt; cellListsForeachRawScan = Lists.newArrayList();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (RawScan hbaseRawScan : hbaseRawScans) &#123;</span><br><span class="line">            <span class="keyword">if</span> (request.getRowkeyPreambleSize() - RowConstants.ROWKEY_CUBOIDID_LEN &gt; <span class="number">0</span>) &#123;</span><br><span class="line">                <span class="comment">//if has shard, fill region shard to raw scan start/end</span></span><br><span class="line">                updateRawScanByCurrentRegion(hbaseRawScan, region,</span><br><span class="line">                        request.getRowkeyPreambleSize() - RowConstants.ROWKEY_CUBOIDID_LEN);</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="comment">// 根据RawScan来构建HBase的Scan（确定startRow，stopRow，fuzzyKeys和hbase</span></span><br><span class="line">            <span class="comment">// columns）</span></span><br><span class="line">            Scan scan = CubeHBaseRPC.buildScan(hbaseRawScan);</span><br><span class="line">            RegionScanner innerScanner = region.getScanner(scan);</span><br><span class="line">            regionScanners.add(innerScanner);</span><br><span class="line"></span><br><span class="line">            InnerScannerAsIterator cellListIterator = <span class="keyword">new</span> InnerScannerAsIterator(innerScanner);</span><br><span class="line">            cellListsForeachRawScan.add(cellListIterator);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">final</span> Iterator&lt;List&lt;Cell&gt;&gt; allCellLists = Iterators.concat(cellListsForeachRawScan.iterator());</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (behavior.ordinal() &lt; StorageSideBehavior.SCAN.ordinal()) &#123;</span><br><span class="line">            <span class="comment">//this is only for CoprocessorBehavior.RAW_SCAN case to profile hbase scan speed</span></span><br><span class="line">            List&lt;Cell&gt; temp = Lists.newArrayList();</span><br><span class="line">            <span class="keyword">int</span> counter = <span class="number">0</span>;</span><br><span class="line">            <span class="keyword">for</span> (RegionScanner innerScanner : regionScanners) &#123;</span><br><span class="line">                <span class="keyword">while</span> (innerScanner.nextRaw(temp)) &#123;</span><br><span class="line">                    counter++;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">            appendProfileInfo(sb, <span class="string">"scanned "</span> + counter, serviceStartTime);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (behavior.ordinal() &lt; StorageSideBehavior.SCAN_FILTER_AGGR_CHECKMEM.ordinal()) &#123;</span><br><span class="line">            scanReq.disableAggCacheMemCheck(); <span class="comment">// disable mem check if so told</span></span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">final</span> <span class="keyword">long</span> storagePushDownLimit = scanReq.getStoragePushDownLimit();</span><br><span class="line"></span><br><span class="line">        ResourceTrackingCellListIterator cellListIterator = <span class="keyword">new</span> ResourceTrackingCellListIterator(allCellLists,</span><br><span class="line">                scanReq.getStorageScanRowNumThreshold(), <span class="comment">// for old client (scan threshold)</span></span><br><span class="line">                !request.hasMaxScanBytes() ? Long.MAX_VALUE : request.getMaxScanBytes(), <span class="comment">// for new client</span></span><br><span class="line">                deadline);</span><br><span class="line"></span><br><span class="line">        IGTStore store = <span class="keyword">new</span> HBaseReadonlyStore(cellListIterator, scanReq, hbaseRawScans.get(<span class="number">0</span>).hbaseColumns,</span><br><span class="line">                hbaseColumnsToGT, request.getRowkeyPreambleSize(), behavior.delayToggledOn(),</span><br><span class="line">                request.getIsExactAggregate());</span><br><span class="line"></span><br><span class="line">        IGTScanner rawScanner = store.scan(scanReq);</span><br><span class="line">        <span class="comment">// 这里会根据查询中是否有聚合来将rawScanner进行包装，包装成GTAggregateScanner来对这个</span></span><br><span class="line">        <span class="comment">// region中查询出来的数据进行聚合操作</span></span><br><span class="line">        IGTScanner finalScanner = scanReq.decorateScanner(rawScanner, behavior.filterToggledOn(),</span><br><span class="line">                behavior.aggrToggledOn(), <span class="keyword">false</span>, request.getSpillEnabled());</span><br><span class="line"></span><br><span class="line">        ByteBuffer buffer = ByteBuffer.allocate(BufferedMeasureCodec.DEFAULT_BUFFER_SIZE);</span><br><span class="line"></span><br><span class="line">        ByteArrayOutputStream outputStream = <span class="keyword">new</span> ByteArrayOutputStream(BufferedMeasureCodec.DEFAULT_BUFFER_SIZE);<span class="comment">//ByteArrayOutputStream will auto grow</span></span><br><span class="line">        <span class="keyword">long</span> finalRowCount = <span class="number">0L</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">// 对查询的每条Record进行处理</span></span><br><span class="line">            <span class="keyword">for</span> (GTRecord oneRecord : finalScanner) &#123;</span><br><span class="line">                buffer.clear();</span><br><span class="line">                <span class="keyword">try</span> &#123;</span><br><span class="line">                    oneRecord.exportColumns(scanReq.getColumns(), buffer);</span><br><span class="line">                &#125; <span class="keyword">catch</span> (BufferOverflowException boe) &#123;</span><br><span class="line">                    buffer = ByteBuffer.allocate(oneRecord.sizeOf(scanReq.getColumns()) * <span class="number">2</span>);</span><br><span class="line">                    oneRecord.exportColumns(scanReq.getColumns(), buffer);</span><br><span class="line">                &#125;</span><br><span class="line"></span><br><span class="line">                outputStream.write(buffer.array(), <span class="number">0</span>, buffer.position());</span><br><span class="line"></span><br><span class="line">                finalRowCount++;</span><br><span class="line"></span><br><span class="line">                <span class="comment">//if it's doing storage aggr, then should rely on GTAggregateScanner's limit check</span></span><br><span class="line">                <span class="keyword">if</span> (!scanReq.isDoingStorageAggregation()</span><br><span class="line">                        &amp;&amp; (scanReq.getStorageLimitLevel() != StorageLimitLevel.NO_LIMIT</span><br><span class="line">                                &amp;&amp; finalRowCount &gt;= storagePushDownLimit)) &#123;</span><br><span class="line">                    <span class="comment">//read one more record than limit</span></span><br><span class="line">                    logger.info(<span class="string">"The finalScanner aborted because storagePushDownLimit is satisfied"</span>);</span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">catch</span> (KylinTimeoutException e) &#123;</span><br><span class="line">            logger.info(<span class="string">"Abort scan: &#123;&#125;"</span>, e.getMessage());</span><br><span class="line">            errorInfo = CubeVisitProtos.CubeVisitResponse.ErrorInfo.newBuilder()</span><br><span class="line">                    .setType(CubeVisitProtos.CubeVisitResponse.ErrorType.TIMEOUT).setMessage(e.getMessage())</span><br><span class="line">                    .build();</span><br><span class="line">        &#125; <span class="keyword">catch</span> (ResourceLimitExceededException e) &#123;</span><br><span class="line">            logger.info(<span class="string">"Abort scan: &#123;&#125;"</span>, e.getMessage());</span><br><span class="line">            errorInfo = CubeVisitProtos.CubeVisitResponse.ErrorInfo.newBuilder()</span><br><span class="line">                    .setType(CubeVisitProtos.CubeVisitResponse.ErrorType.RESOURCE_LIMIT_EXCEEDED)</span><br><span class="line">                    .setMessage(e.getMessage()).build();</span><br><span class="line">        &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">            finalScanner.close();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">long</span> rowCountBeforeAggr = finalScanner <span class="keyword">instanceof</span> GTAggregateScanner</span><br><span class="line">                ? ((GTAggregateScanner) finalScanner).getInputRowCount()</span><br><span class="line">                : finalRowCount;</span><br><span class="line"></span><br><span class="line">        appendProfileInfo(sb, <span class="string">"agg done"</span>, serviceStartTime);</span><br><span class="line">        logger.info(<span class="string">"Total scanned &#123;&#125; rows and &#123;&#125; bytes"</span>, cellListIterator.getTotalScannedRowCount(),</span><br><span class="line">                cellListIterator.getTotalScannedRowBytes());</span><br><span class="line"></span><br><span class="line">        <span class="comment">//outputStream.close() is not necessary</span></span><br><span class="line">        <span class="keyword">byte</span>[] compressedAllRows;</span><br><span class="line">        <span class="keyword">if</span> (errorInfo == <span class="keyword">null</span>) &#123;</span><br><span class="line">            allRows = outputStream.toByteArray();</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            allRows = <span class="keyword">new</span> <span class="keyword">byte</span>[<span class="number">0</span>];</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (!kylinConfig.getCompressionResult()) &#123;</span><br><span class="line">            compressedAllRows = allRows;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">// 对结果进行压缩传输，减少网络传输数据量</span></span><br><span class="line">            compressedAllRows = CompressionUtils.compress(allRows);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        appendProfileInfo(sb, <span class="string">"compress done"</span>, serviceStartTime);</span><br><span class="line">        logger.info(<span class="string">"Size of final result = &#123;&#125; (&#123;&#125; before compressing)"</span>, compressedAllRows.length, allRows.length);</span><br><span class="line"></span><br><span class="line">        OperatingSystemMXBean operatingSystemMXBean = (OperatingSystemMXBean) ManagementFactory</span><br><span class="line">                .getOperatingSystemMXBean();</span><br><span class="line">        <span class="keyword">double</span> systemCpuLoad = operatingSystemMXBean.getSystemCpuLoad();</span><br><span class="line">        <span class="keyword">double</span> freePhysicalMemorySize = operatingSystemMXBean.getFreePhysicalMemorySize();</span><br><span class="line">        <span class="keyword">double</span> freeSwapSpaceSize = operatingSystemMXBean.getFreeSwapSpaceSize();</span><br><span class="line"></span><br><span class="line">        appendProfileInfo(sb, <span class="string">"server stats done"</span>, serviceStartTime);</span><br><span class="line">        sb.append(<span class="string">" debugGitTag:"</span> + debugGitTag);</span><br><span class="line"></span><br><span class="line">        CubeVisitProtos.CubeVisitResponse.Builder responseBuilder = CubeVisitProtos.CubeVisitResponse.newBuilder();</span><br><span class="line">        <span class="keyword">if</span> (errorInfo != <span class="keyword">null</span>) &#123;</span><br><span class="line">            responseBuilder.setErrorInfo(errorInfo);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// 向请求端发送查询结果</span></span><br><span class="line">        done.run(responseBuilder.<span class="comment">//</span></span><br><span class="line">                setCompressedRows(HBaseZeroCopyByteString.wrap(compressedAllRows)).<span class="comment">//too many array copies</span></span><br><span class="line">                setStats(CubeVisitProtos.CubeVisitResponse.Stats.newBuilder()</span><br><span class="line">                        .setFilteredRowCount(cellListIterator.getTotalScannedRowCount() - rowCountBeforeAggr)</span><br><span class="line">                        .setAggregatedRowCount(rowCountBeforeAggr - finalRowCount)</span><br><span class="line">                        .setScannedRowCount(cellListIterator.getTotalScannedRowCount())</span><br><span class="line">                        .setScannedBytes(cellListIterator.getTotalScannedRowBytes())</span><br><span class="line">                        .setServiceStartTime(serviceStartTime).setServiceEndTime(System.currentTimeMillis())</span><br><span class="line">                        .setSystemCpuLoad(systemCpuLoad).setFreePhysicalMemorySize(freePhysicalMemorySize)</span><br><span class="line">                        .setFreeSwapSpaceSize(freeSwapSpaceSize)</span><br><span class="line">                        .setHostname(InetAddress.getLocalHost().getHostName()).setEtcMsg(sb.toString())</span><br><span class="line">                        .setNormalComplete(errorInfo == <span class="keyword">null</span> ? <span class="number">1</span> : <span class="number">0</span>).build())</span><br><span class="line">                .build());</span><br><span class="line"></span><br><span class="line">    &#125; <span class="keyword">catch</span> (DoNotRetryIOException e) &#123;</span><br><span class="line">        ResponseConverter.setControllerException(controller, e);</span><br><span class="line"></span><br><span class="line">    &#125; <span class="keyword">catch</span> (IOException ioe) &#123;</span><br><span class="line">        logger.error(ioe.toString(), ioe);</span><br><span class="line">        IOException wrapped = <span class="keyword">new</span> IOException(<span class="string">"Error in coprocessor "</span> + debugGitTag, ioe);</span><br><span class="line">        ResponseConverter.setControllerException(controller, wrapped);</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">        <span class="keyword">for</span> (RegionScanner innerScanner : regionScanners) &#123;</span><br><span class="line">            IOUtils.closeQuietly(innerScanner);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (region != <span class="keyword">null</span>) &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                region.closeRegionOperation();</span><br><span class="line">            &#125; <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">                <span class="keyword">throw</span> <span class="keyword">new</span> RuntimeException(e);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>总结：<br>以上过程会根据calcite进行解析，首先会根据查询涉及的列计算出cuboid的id为265（100001001）,由于涉及minute_start，而minute_start、hour_start和day_start为衍生维度，所以最终的cuboid为457（111001001），后面会根据查询的条件计算出scan，包括范围(5个维度列和3个度量列)为[null, null, null, 10, CANADA, null, null, null]（pkStart）到[null, null, null, 15, INDIA, null, null, null]（pkEnd）（后面的三个null值会被忽略掉）和根据笛卡尔积会计算出18个filter值（fuzzyKeys）：<br>用于后面查询过滤（使用FuzzyRowFilter过滤器）；还有就是查询hbase涉及的column也会根据查询语句中涉及的列来进行确定。然后后面会使用getGTScanner中的preparedHBaseScans来对scan的range（pkStart和pkEnd）和fuzzyKeys进行编码转化然后序列化形成请求体中的hbaseRawScan，后面的hbase协处理器就是用这个参数来构建HBase的Scan进行查询。</p>
+<p>Kylin通过Calcite将SQL语句解析优化后，得到具体的hbase的scan查询，然后使用hbase的协处理器（endpoint模式）来查询，将查询请求通过protobuf协议发送到hbase的regionServer，然后通过协处理器来进行过滤查询和初步聚合，最后会将查询结果进行压缩然后发回请求端，然后再进一步聚合得到最终的查询结果。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/kylin/" rel="tag"># kylin</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/08/22/kylin-build%E5%8E%9F%E7%90%86/" rel="next" title="kylin--build原理">
+                <i class="fa fa-chevron-left"></i> kylin--build原理
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/08/22/kylin-%E4%BC%98%E5%8C%96%E5%8E%9F%E7%90%86/" rel="prev" title="kylin--优化原理">
+                kylin--优化原理 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#kylin的查询原理"><span class="nav-number">1.</span> <span class="nav-text">kylin的查询原理</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

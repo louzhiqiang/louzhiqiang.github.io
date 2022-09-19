@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="为什么," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="背景123456public class Pair&lt;T&gt;&amp;#123;    public void info()&amp;#123;        System.out.println(&quot;I am Pair&quot;);    &amp;#125;&amp;#125;Pair&lt;String&gt;[] p&#x3D;new Pair&lt;String&gt;[10];  该句编程环境会提示错误，连编译都不能通过 为什么">
+<meta property="og:type" content="article">
+<meta property="og:title" content="为什么java不允许泛型数组">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2020/10/26/%E4%B8%BA%E4%BB%80%E4%B9%88java%E4%B8%8D%E5%85%81%E8%AE%B8%E6%B3%9B%E5%9E%8B%E6%95%B0%E7%BB%84/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="背景123456public class Pair&lt;T&gt;&amp;#123;    public void info()&amp;#123;        System.out.println(&quot;I am Pair&quot;);    &amp;#125;&amp;#125;Pair&lt;String&gt;[] p&#x3D;new Pair&lt;String&gt;[10];  该句编程环境会提示错误，连编译都不能通过 为什么">
+<meta property="article:published_time" content="2020-10-26T10:50:10.000Z">
+<meta property="article:modified_time" content="2022-05-12T06:11:22.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="为什么">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2020/10/26/为什么java不允许泛型数组/"/>
+
+
+
+
+
+  <title>为什么java不允许泛型数组 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2020/10/26/%E4%B8%BA%E4%BB%80%E4%B9%88java%E4%B8%8D%E5%85%81%E8%AE%B8%E6%B3%9B%E5%9E%8B%E6%95%B0%E7%BB%84/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">为什么java不允许泛型数组</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2020-10-26T18:50:10+08:00">
+                2020-10-26
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/java/" itemprop="url" rel="index">
+                    <span itemprop="name">java</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Pair</span>&lt;<span class="title">T</span>&gt;</span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">info</span><span class="params">()</span></span>&#123;</span><br><span class="line">        System.out.println(<span class="string">"I am Pair"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line">Pair&lt;String&gt;[] p=<span class="keyword">new</span> Pair&lt;String&gt;[<span class="number">10</span>];</span><br></pre></td></tr></table></figure>
+
+<p>该句编程环境会提示错误，连编译都不能通过</p>
+<h2 id="为什么"><a href="#为什么" class="headerlink" title="为什么"></a>为什么</h2><h3 id="为什么会有泛型"><a href="#为什么会有泛型" class="headerlink" title="为什么会有泛型"></a>为什么会有泛型</h3><p>未引入泛型之前：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ArrayList</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> Object[] elementData;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> Object <span class="title">get</span><span class="params">(<span class="keyword">int</span> i)</span> </span>&#123;...&#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">add</span><span class="params">(Object o)</span> </span>&#123;...&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>两个问题:1、当获取一个值时必须进行强制类型转换。<br>       2、没有错误检查，可以向数组列表中添加任何类的对象。也就是add的时候不报错，因为所有对象是object的子类，数组是允许往当前数组中添加当前数组声明的类的子类（这个被称作是“协变(covariant)”）。但是在运行的时候，如果有转换操作，就会产生ClassCastException的异常。 而这样的操作实际上很多的，那么出错的风险就大大增加，安全性上没法对添加的元素去限制，安全性上也需要考量。</p>
+<p>所以，java引入了泛型。</p>
+<p>目的：1、将类型检查工作提前到编译时期。2、将类型强转（cast）工作交给编译器。</p>
+<p>这样你就可以 在编译时期就获得类型转换异常以及去掉源码中的类型强转代码。</p>
+<h3 id="为什么java的泛型被设计成可擦除的"><a href="#为什么java的泛型被设计成可擦除的" class="headerlink" title="为什么java的泛型被设计成可擦除的"></a>为什么java的泛型被设计成可擦除的</h3><p>参考帖子：<a href="https://www.zhihu.com/question/28665443" target="_blank" rel="noopener">入口</a></p>
+<p>总结：java其实在很早就有过泛型的开发，在其中的某一个版本上就实现过基于jvm底层的泛型机制，这个版本是pizza，但是这个项目后来消亡了，相关开发人员就投入了另一个java分支的项目，又扩展了通配符等特性之后，就构成了现在java泛型的雏形，所以java从一开始对泛型的开发投入就是有限的，支持并不到位。</p>
+<p>而且鉴于java的用户团体的庞大，考虑大版本升级会带来程序员用户的流失，所以Java所强调的兼容性，是“二进制向后兼容性”，例如，一个在java1.2、java1.4版本上可以正常运行的class文件，放在一个java5、6、7、8的JRE（JVM和标准库）上仍然可以正常运行。而class文件这里就是java程序的二进制表现。</p>
+<blockquote>
+<p>“二进制兼容性”并不等价于“源码兼容性”（source compatibility）</p>
+</blockquote>
+<p>Java从来都不支持高版本的Java编译生成的Class文件在低版本的JRE上运行。如果有人尝试这样做，就会得到UnsupportedClassVersionError—-class文件开头所记录的版本号信息的一个主要用途就是这个。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">ArrayList thx = <span class="keyword">new</span> ArrayList();</span><br><span class="line">thx.add(Integer.valueOf(<span class="number">42</span>));</span><br><span class="line">thx.add(<span class="string">"hello world"</span>);</span><br></pre></td></tr></table></figure>
+
+<p>以上这段代码，在做泛型化的时候，务必要考虑的，因为实现泛型之后，这段代码也要能够在新的JRE上运行。所以有两个方向的思路：<br>1、需要泛型化的类型（主要是collection），以前有的保持不变，然后平行地加一套泛型化版本的新类型。也就是通过新加类型的方式来兼容。<br>2、直接把已有的类型泛型化，让所有需要泛型化的已有类型都原地泛型化，不添加任何平行于已有类型的泛型版。</p>
+<p>Java选择了第二个方案。.net选择了第一个方案。</p>
+<p>.net这个选择很明白：实际应用的代码量有限（用户没有那么庞大）；可以主动变更，因为都在微软的掌控之下。</p>
+<p>java就不一样，那时候java已经有大量用户，发布了新功能之后，如果用户需要改动大量源码才能使用上泛型，那势必会被大量吐槽。针对于方案一的方式，java早起就经历过那样的方案实例，就是关于java collections frameWork的新版本，在java 1.1 –&gt; 1.2的时候，共存了两个版本的容器（Collections），这个当时的用户吐槽疯了。所以后来java就选了第二个方案。</p>
+<p>但是为了兼容ArrayList的写法,怎么兼容呢?在原地泛型化之后,现在这个类型变成了ArrayList<E>,为了让ArrayList也可以直接使用，所以就引出了一个”raw type“的概念—-一个类型虽然被泛型化了，但还可以把它当作非泛型化的类型用。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">ArrayList          - raw type</span><br><span class="line">ArrayList&lt;E&gt;       - <span class="function">open generic <span class="title">type</span> <span class="params">(assuming E is type variable)</span></span></span><br><span class="line"><span class="function">ArrayList&lt;String&gt;  - closed generic type</span></span><br><span class="line"><span class="function">ArrayList&lt;?&gt;       - unbounded wildcard type</span></span><br></pre></td></tr></table></figure>
+
+<p>注意，这三者并不等价。这个可以在effecttive java中有实际case的说明。</p>
+<p>要支持raw type，最直接的办法就是通过擦除法来实现泛型—-编译时类型确实是泛型的，但是编译之后，泛型信息要被擦除，最后的结果就是raw type（加上一些额外的类型检查，如果有wildcard bounds的话还会带上bounds信息）。</p>
+<p>通过擦除法，下边这段代码就都可以正常运行了。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">ArrayList&lt;<span class="keyword">int</span>&gt; a = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">ArrayList&lt;String&gt; b = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">ArrayList l;</span><br><span class="line">l = a;</span><br><span class="line">l = b;</span><br></pre></td></tr></table></figure>
+
+<p>但是这里被忽略的一个点是原始类型。因为泛型E被擦除之后就是Object，这里需要Object和int或者string要互相兼容。在当初发布泛型的时候，由于工期原因，这个功能就被搁置了。所以初始的泛型中，不支持原始类型。</p>
+<p>后来java有了自动装箱和拆箱，这个结算是解了。</p>
+<h2 id="怎么做"><a href="#怎么做" class="headerlink" title="怎么做"></a>怎么做</h2><p>在Java中，Object[]数组可以是任何数组的父类，或者说，任何一个数组都可以向上转型成它在定义时指定元素类型的父类的数组，这个时候如果我们往里面放不同于原始数据类型 但是满足后来使用的父类类型的话，编译不会有问题，但是在运行时会检查加入数组的对象的类型，于是会抛ArrayStoreException：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">String[] strArray = <span class="keyword">new</span> String[<span class="number">20</span>];</span><br><span class="line">Object[] objArray = strArray;</span><br><span class="line">objArray[<span class="number">0</span>] = <span class="keyword">new</span> Integer(<span class="number">1</span>); <span class="comment">// throws ArrayStoreException at runtime</span></span><br></pre></td></tr></table></figure>
+
+<p>因为Java的范型会在编译后将类型信息抹掉，这样如果Java允许我们使用类似</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Map&lt;Integer, String&gt;[] mapArray = <span class="keyword">new</span> Map&lt;Integer, String&gt;[<span class="number">20</span>];</span><br></pre></td></tr></table></figure>
+
+<p>这样的代码，可以把它转型为Object[]然后往里面放Map&lt;Double, String&gt;实例，这样做不但编译器不能发现类型错误，就连运行时的数组存储检查对它也无能为力，它能看到的是我们往里面放Map的对象，我们定义的&lt;Integer, String&gt;在这个时候已经被抹掉了，于是而对它而言，只要是Map，都是合法的。想想看，我们本来定义的是装Map&lt;Integer, String&gt;的数组，结果我们却可以往里面放任何Map，接下来如果有代码试图按原有的定义去取值，后果是什么不言自明。</p>
+<p>所以，Java不允许创建泛型数组。</p>
+<h4 id="那么应该怎么使用泛型呢？（参考effective-java-第五章）"><a href="#那么应该怎么使用泛型呢？（参考effective-java-第五章）" class="headerlink" title="那么应该怎么使用泛型呢？（参考effective java 第五章）"></a>那么应该怎么使用泛型呢？（参考effective java 第五章）</h4><p>1、不要使用原生态类型。这个原生态主要是容器一类的原生态类型，比如Collections、List等。原生态类型是不安全的，多考虑通配符类型这样的操作。<br>2、列表优于数组。数组是协变且可以具体化的，泛型化是不可变的且可以被擦除的。数组提供了运行时的类型安全，但是没有编译时的类型安全；反之，对于泛型也是一样。两者不能混用，优先列表。因为java数组天然协变性的缺陷。<br>3、优先考虑泛型方法。<br>4、谨慎并用泛型和可变参数：可变参数的实现是数组，将值保存在泛型可变参数数组参数中，是不安全的，破坏了泛型系统的基本保证。<br>5、优先考虑类型安全的异构容器。</p>
+<h2 id="收益"><a href="#收益" class="headerlink" title="收益"></a>收益</h2><p>使用泛型的好处：</p>
+<p>通用一点说就是，在编译的时候检查类型安全，并能捕捉类型不匹配的错误，并且所有的强制转换都是隐式的和自动的，提高代码的重用率。也就是模板化和规范化，模板化就是不用写很多各种转换或者各种对比或者转换，而规范化，就是在使用泛型的时候，泛型会提供校验。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>尽管泛型有很多的限制，但是泛型加入Java语言所带来的价值是非常庞大的。如今很难去想象如果Java没有泛型支持将会是什么样的一幅景象。应该用泛型而不是原始类型（Collection<T>代替Collection, Callable&lt;T&amp;gt 代替 Callable, …）和Object来保证类型安全，在约定和算法上定义明确的类型约束，大大简化代码维护和重构。</p>
+<p>然而，请一定要注意当前Java中泛型实现的约束，类型擦除和我们所熟知的基本类型的隐式拆箱和装箱。泛型并不是解决所有可能遇到的问题的银弹并且任何东西都无法取代精心的设计和深思熟虑。</p>
+<p>最好的方式就是看一些泛型使用的真实的实例，领略泛型的合理使用给开发人员带来的工作上的便利。</p>
+<blockquote>
+<p>知道咋来的，再去结合case，你会知道他这么用到底对不对。</p>
+</blockquote>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/%E4%B8%BA%E4%BB%80%E4%B9%88/" rel="tag"># 为什么</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2020/10/21/%E4%B8%80%E4%B8%AApresto%E6%9F%A5%E8%AF%A2%E8%AE%A1%E5%88%92%E7%9A%84%E5%88%86%E6%9E%90/" rel="next" title="一个presto查询计划的分析">
+                <i class="fa fa-chevron-left"></i> 一个presto查询计划的分析
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2020/10/26/java%E5%AE%9E%E7%8E%B0%E7%AE%80%E5%8D%95%E8%AE%A1%E7%AE%97%E6%9C%BA%E4%BB%A3%E7%A0%81-%E9%80%86%E6%B3%A2%E5%85%B0%E8%A1%A8%E8%BE%BE%E5%BC%8F/" rel="prev" title="java实现简单计算机代码--逆波兰表达式">
+                java实现简单计算机代码--逆波兰表达式 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#背景"><span class="nav-number">1.</span> <span class="nav-text">背景</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#为什么"><span class="nav-number">2.</span> <span class="nav-text">为什么</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#为什么会有泛型"><span class="nav-number">2.1.</span> <span class="nav-text">为什么会有泛型</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#为什么java的泛型被设计成可擦除的"><span class="nav-number">2.2.</span> <span class="nav-text">为什么java的泛型被设计成可擦除的</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#怎么做"><span class="nav-number">3.</span> <span class="nav-text">怎么做</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#那么应该怎么使用泛型呢？（参考effective-java-第五章）"><span class="nav-number">3.0.1.</span> <span class="nav-text">那么应该怎么使用泛型呢？（参考effective java 第五章）</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#收益"><span class="nav-number">4.</span> <span class="nav-text">收益</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">5.</span> <span class="nav-text">总结</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="flink," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="flink原理–join的实现join的应用场景join本身的sql语义就是通过指定的条件进行数据关联。如果A join B，那么就需要把A和B的数据按照执行的join类型以及条件进行关联，形成一个基于两个数据集之后的数据。 实时数据流的join比批处理场景的join要更复杂，因为流处理本身的复杂场景加上join本身的实现，问题复杂度就直线上升。 这个时候就需要更加明确的分类，来判断不同场景应该如">
+<meta property="og:type" content="article">
+<meta property="og:title" content="flink原理--join">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/01/flink%E5%8E%9F%E7%90%86-join/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="flink原理–join的实现join的应用场景join本身的sql语义就是通过指定的条件进行数据关联。如果A join B，那么就需要把A和B的数据按照执行的join类型以及条件进行关联，形成一个基于两个数据集之后的数据。 实时数据流的join比批处理场景的join要更复杂，因为流处理本身的复杂场景加上join本身的实现，问题复杂度就直线上升。 这个时候就需要更加明确的分类，来判断不同场景应该如">
+<meta property="article:published_time" content="2022-04-01T08:39:51.000Z">
+<meta property="article:modified_time" content="2022-04-18T02:45:12.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="flink">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/01/flink原理-join/"/>
+
+
+
+
+
+  <title>flink原理--join | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/01/flink%E5%8E%9F%E7%90%86-join/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">flink原理--join</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-04-01T16:39:51+08:00">
+                2022-04-01
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="flink原理–join的实现"><a href="#flink原理–join的实现" class="headerlink" title="flink原理–join的实现"></a>flink原理–join的实现</h2><h3 id="join的应用场景"><a href="#join的应用场景" class="headerlink" title="join的应用场景"></a>join的应用场景</h3><p>join本身的sql语义就是通过指定的条件进行数据关联。如果A join B，那么就需要把A和B的数据按照执行的join类型以及条件进行关联，形成一个基于两个数据集之后的数据。</p>
+<p>实时数据流的join比批处理场景的join要更复杂，因为流处理本身的复杂场景加上join本身的实现，问题复杂度就直线上升。</p>
+<p>这个时候就需要更加明确的分类，来判断不同场景应该如何实现，</p>
+<h3 id="join的算法实现"><a href="#join的算法实现" class="headerlink" title="join的算法实现"></a>join的算法实现</h3><p>join的算法实现依赖于数据源的特性和需要输出的数据的样子。</p>
+<p>在批处理场景，数据是确定的，这个时候的算法选择的前置就是可以确定的，比如数据源的大小，范围，数据特征也可以通过一次处理来获取，然后在算法选择上就有依赖了，然后再根据输出要求。</p>
+<p>比如spark本身的join实现有三种，分别是 Nested-loop Join、Sort-Merge Join 和 Hash Join。</p>
+<p>Nested-loop Join 效率不高，但是可以覆盖所有的join类型自己join的条件，这是目前最基础的join方案，基本上每个系统都会实现这个策略。</p>
+<p>Sort-Merge Join 是目前spark的默认join策略，分为两个 Sort 和 Merge 阶段。首先将两个数据集进行分别排序，然后对两个有序数据集分别进行遍历和匹配，类似于归并排序的合并。值得注意的是，Sort-Merge 只适用于 Equi-Join（Join 条件均使用等于作为比较算子）。Sort-Merge Join 要求对两个数据集进行排序，成本很高，通常作为输入本就是有序数据集的情况下的优化方案。</p>
+<p>Hash Join 同样分为两个阶段，首先将一个数据集转换为 Hash Table，然后遍历另外一个数据集元素并与 Hash Table 内的元素进行匹配。第一阶段和第一个数据集分别称为 build 阶段和 build table，第二个阶段和第二个数据集分别称为 probe 阶段和 probe table。Hash Join 效率较高但对空间要求较大，通常是作为 Join 其中一个表为适合放入内存的小表的情况下的优化方案。和 Sort-Merge Join 类似，Hash Join 也只适用于 Equi-Join。</p>
+<p>实时 Streaming SQL（面向无界数据集的 SQL）无法缓存所有数据，因此 Sort-Merge Join 要求的对数据集进行排序基本是无法做到的，而 Nested-loop Join 和 Hash Join 经过一定的改良则可以满足实时 SQL 的要求。</p>
+<p>目前flink对于join的策略是 Nested-loop Join ， 也即使双循环实现的join，主要考虑这个join策略可以覆盖的join场景以及基于微批数据的场景。</p>
+<p>实时领域 Streaming SQL 中的 Join 与离线 Batch SQL 中的 Join 最大不同点在于无法缓存完整数据集，而是要给缓存设定基于时间的清理条件以限制 Join 涉及的数据范围。根据清理策略的不同，Flink SQL 分别提供了 Regular Join、Time-Windowed Join 和 Temporal Table Join 来应对不同业务场景。</p>
+<blockquote>
+<p>Temporal Table 也叫版本表</p>
+</blockquote>
+<h3 id="join的分类"><a href="#join的分类" class="headerlink" title="join的分类"></a>join的分类</h3><ul>
+<li>CROSS JOIN - 交叉连接，计算笛卡儿积；</li>
+<li>INNER JOIN - 内连接，返回满足条件的记录；</li>
+<li>OUTER JOIN<ul>
+<li>LEFT - 返回左表所有行，右表不存在补NULL；</li>
+<li>RIGHT - 返回右表所有行，左边不存在补NULL；</li>
+<li>FULL - 返回左表和右表的并集，不存在一边补NULL;</li>
+</ul>
+</li>
+<li>SELF JOIN - 自连接，将表查询时候命名不同的别名。</li>
+</ul>
+<h3 id="join的回撤"><a href="#join的回撤" class="headerlink" title="join的回撤"></a>join的回撤</h3><p>在流式join的实现中，因为涉及表的步调并不一致，那么在实际运行的时候，就会有A join B，但是B表的数据还没有达到的情形，这时候可以给下游的数据就只能是A 和一个用来给B表字段填补空位的NULL。然而当B表数据到达的时候，且B表数据对应的KEY 在A表的state中存在的话，也就是可以join成功的话，就会触发一次回撤操作。</p>
+<blockquote>
+<p>flink为了实现这个state，在join操作的节点上，会实现两个state 用来保存两边的数据。</p>
+<p>在上游节点往state节点进行下发的时候，两个流是按照统一的规则进行下发的，这样同样的key保证在同一个物理节点上，减少传输。</p>
+</blockquote>
+<p>在这里就要区分回撤的触发机制以及在不同的join场景中，回撤的实现逻辑有哪些？</p>
+<p>双流 JOIN 的 State 的数据结构：</p>
+<p>Map&lt;JoinKey, Map&lt;rowData, count&gt;&gt;;</p>
+<ul>
+<li>第一级 MAP 的 key 是 Join key，比如示例中的 P001， value 是流上面的所有完整事件;</li>
+<li>第二级 MAP 的 key 是行数据，比如示例中的 P001, 2，value 是相同事件值的个数</li>
+</ul>
+<p>如何使用：</p>
+<ul>
+<li>记录重复记录 - 利用第二级 MAP 的 value 记录重复记录的个数，这样大大减少存储和读取</li>
+<li>正向记录和撤回记录 - 利用第二级 MAP 的 value 记录，当 count=0 时候删除该元素</li>
+<li>判断右边是否产生撤回记录 - 根据第一级 MAP 的 value 的 size 来判断是否产生撤回，只有 size 由 0 变成 1 的时候（第一条和左可以 JOIN 的事件）才产生撤回</li>
+</ul>
+<p>回撤原理直观一些理解就是发送一个delete事件，再发送一个修正之后的insert事件。</p>
+<p>但是如果考虑到聚合、过滤、窗口计算、精确去重等场景，就会发现复杂度是指数级地上升，因为是针对上边说的每种情况，都要单独考虑回撤的处理方式。</p>
+<p>对于不同的节点类型，回撤模式也是单独考虑的。比如聚合阶段的中间节点，数据下沉的sink节点。</p>
+<p>回撤的影响是贯穿在事件、聚合计算逻辑、sink如何消化过来的两个事件等等这些逻辑中。</p>
+<blockquote>
+<p>在max、min以及top计算中，聚合计算的状态中都是保存多个值的，实际输出只有有一个值，考虑搭配回撤的逻辑，也是需要输出值中包含回滚逻辑的。</p>
+</blockquote>
+<blockquote>
+<p>关于回撤的触发，在源头数据中，如果有跟当前join不相关的字段发生了变化，那么也会触发flink的计算，这是在flink + hudi的计算中发现的一个问题，他也同样会产生一次回撤，而这个最大的问题就是一个计算的放大，会根据不同的处理场景，放大呈现不同的影响。</p>
+</blockquote>
+<h3 id="join的优化"><a href="#join的优化" class="headerlink" title="join的优化"></a>join的优化</h3><p>flink的里join要注意以下两个问题，有比较致命的影响：</p>
+<ul>
+<li><p>flink没有对join的顺序做优化，也就是你写了一个a join b join c的操作，他就会按照a join b 产生一个join节点，然后以这个节点再去join c节点。所以这个时候<mark>join的顺序以及join的类型</mark>就有很大影响，比如在平行逻辑里存在inner join的话，要优先写inner join相关的逻辑，这样后续算子的逻辑接收的数据可以filter掉一部分。</p>
+</li>
+<li><p>flink中join算子，如果不是窗口聚合的话，会存储所有接入进来的数据，而数据在join计算节点中，会存储两个state，左边数据流的state和右边数据流的state，这两个state里会按照需要的key进行关联。那么如果你有多个join，这里也是两个两个进行关联的，也就是后边的join会保留前边join过来的所有相关数据。而根据第一个问题，<mark>在同一平行里，数据量越大的表应该越靠后，因为越靠前的数据中存在更多的数据副本。当然中间如果存在一些数据可以进行filter的逻辑，也可以适当调整。</mark></p>
+</li>
+<li><p>rockdb的性能就成为比较关键的因素，这里主要是rockdb的查询、快照的效率，在数据量越来越大的情况下会比较受考验，需要比较充足的准备：一个是监控，监控内存的使用，查询效率，可以多关注一下flink本身的指标里是否有对rocksdb的监控。第二个是rocksdb的优化查询改进，目前在flink 1.14以及更新的版本里，对于state的效率优化开放了更多的调优参数，务必了解一下。</p>
+</li>
+</ul>
+<p>参考：</p>
+<p><a href="https://blog.csdn.net/weixin_44904816/article/details/103616325" target="_blank" rel="noopener">Flink SQL 如何实现数据流的 Join？_Apache Flink的博客-CSDN博客_flink sql 多流join</a></p>
+<p><a href="https://enjoyment.cool/2019/03/06/Apache%20Flink%20%E6%BC%AB%E8%B0%88%E7%B3%BB%E5%88%97%20-%20JOIN%20%E7%AE%97%E5%AD%90/" target="_blank" rel="noopener">Apache Flink 漫谈系列 - JOIN 算子 | Pretty Cool Enjoyment</a></p>
+<p><a href="https://blog.csdn.net/hellojoy/article/details/121004077" target="_blank" rel="noopener">flink实战–双流join之原理解析_吃鱼的羊的博客-CSDN博客_flink双流join数据延迟</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/flink/" rel="tag"># flink</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/03/31/flink%E5%8E%9F%E7%90%86-state%E7%9A%84%E4%BD%BF%E7%94%A8%E3%80%81%E5%8E%9F%E7%90%86%E3%80%81rescale%E7%9A%84%E6%93%8D%E4%BD%9C/" rel="next" title="flink原理--state的使用、原理、rescale的操作">
+                <i class="fa fa-chevron-left"></i> flink原理--state的使用、原理、rescale的操作
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/04/04/completableFuture%E7%9A%84%E5%8E%9F%E7%90%86/" rel="prev" title="completableFuture的原理">
+                completableFuture的原理 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#flink原理–join的实现"><span class="nav-number">1.</span> <span class="nav-text">flink原理–join的实现</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#join的应用场景"><span class="nav-number">1.1.</span> <span class="nav-text">join的应用场景</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#join的算法实现"><span class="nav-number">1.2.</span> <span class="nav-text">join的算法实现</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#join的分类"><span class="nav-number">1.3.</span> <span class="nav-text">join的分类</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#join的回撤"><span class="nav-number">1.4.</span> <span class="nav-text">join的回撤</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#join的优化"><span class="nav-number">1.5.</span> <span class="nav-text">join的优化</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

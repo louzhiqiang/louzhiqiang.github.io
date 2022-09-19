@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="spark," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="spark原理–存储spark中存储是非常非常重要的部分，因为所有环节都有他的影子，而且他对于扩展性的要求也是很高的，在介质的角度，要包括内存和硬盘，在系统上，对于扩展性也要足够灵活，比如不同的分布式系统。 spark的存储主要是三种数据：rdd缓存数据、shuffle中间文件、广播变量。 RDD 缓存指的是将 RDD 以缓存的形式物化到内存或磁盘的过程。 Shuffle 中间文件实际上就是 Sh">
+<meta property="og:type" content="article">
+<meta property="og:title" content="spark原理-存储">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/02/spark%E5%8E%9F%E7%90%86-%E5%AD%98%E5%82%A8/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="spark原理–存储spark中存储是非常非常重要的部分，因为所有环节都有他的影子，而且他对于扩展性的要求也是很高的，在介质的角度，要包括内存和硬盘，在系统上，对于扩展性也要足够灵活，比如不同的分布式系统。 spark的存储主要是三种数据：rdd缓存数据、shuffle中间文件、广播变量。 RDD 缓存指的是将 RDD 以缓存的形式物化到内存或磁盘的过程。 Shuffle 中间文件实际上就是 Sh">
+<meta property="og:image" content="https://github.com/images/store_1.png">
+<meta property="og:image" content="https://github.com/images/store_2.png">
+<meta property="og:image" content="https://github.com/images/context.png">
+<meta property="article:published_time" content="2021-10-02T00:56:54.000Z">
+<meta property="article:modified_time" content="2022-05-13T03:51:50.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="spark">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/store_1.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/02/spark原理-存储/"/>
+
+
+
+
+
+  <title>spark原理-存储 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/02/spark%E5%8E%9F%E7%90%86-%E5%AD%98%E5%82%A8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">spark原理-存储</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-02T08:56:54+08:00">
+                2021-10-02
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+                  ， 
+                
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/spark/" itemprop="url" rel="index">
+                    <span itemprop="name">spark</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="spark原理–存储"><a href="#spark原理–存储" class="headerlink" title="spark原理–存储"></a>spark原理–存储</h2><p>spark中存储是非常非常重要的部分，因为所有环节都有他的影子，而且他对于扩展性的要求也是很高的，在介质的角度，要包括内存和硬盘，在系统上，对于扩展性也要足够灵活，比如不同的分布式系统。</p>
+<p>spark的存储主要是三种数据：rdd缓存数据、shuffle中间文件、广播变量。</p>
+<p>RDD 缓存指的是将 RDD 以缓存的形式物化到内存或磁盘的过程。</p>
+<p>Shuffle 中间文件实际上就是 Shuffle Map 阶段的输出结果，这些结果会以文件的形式暂存于本地磁盘。在 Shuffle Reduce 阶段，Reducer 通过网络拉取这些中间文件用于聚合计算，如求和、计数等。在集群范围内，Reducer 想要拉取属于自己的那部分中间数据，就必须要知道这些数据都存储在哪些节点，以及什么位置。而这些关键的元信息，正是由 Spark 存储系统保存并维护的。</p>
+<p>利用存储系统，广播变量可以在 Executors 进程范畴内保存全量数据。</p>
+<p>Spark 存储系统是一个囊括了众多组件的复合系统，如<strong>BlockManager、BlockManagerMaster、MemoryStore、DiskStore 和 DiskBlockManager</strong> 等等。</p>
+<p>BlockManager 是其中最为重要的组件，它在 Executors 端负责统一管理和协调数据的本地存取与跨节点传输。</p>
+<ul>
+<li>对外，BlockManager 与 Driver 端的 BlockManagerMaster 通信，不仅定期向 BlockManagerMaster 汇报本地数据元信息，还会不定时按需拉取全局数据存储状态。另外，不同 Executors 的 BlockManager 之间也会以 Server/Client 模式跨节点推送和拉取数据块。</li>
+<li>对内，BlockManager 通过组合存储系统内部组件的功能来实现数据的存与取、收与发。</li>
+</ul>
+<p><strong>Spark 存储系统提供了两种存储抽象：MemoryStore 和 DiskStore。BlockManager 正是利用它们来分别管理数据在内存和磁盘中的存取。</strong></p>
+<p>广播变量的全量数据存储在 Executors 进程中，因此它由 MemoryStore 管理。Shuffle 中间文件往往会落盘到本地节点，所以这些文件的落盘和访问就要经由 DiskStore。相比之下，RDD 缓存会稍微复杂一些，由于 RDD 缓存支持内存缓存和磁盘缓存两种模式，因此我们要视情况而定，缓存在内存中的数据会封装到 MemoryStore，缓存在磁盘上的数据则交由 DiskStore 管理。</p>
+<p>MemoryStore中几个比较重要的角色：</p>
+<ul>
+<li><strong>BlockInfoManager</strong>：主要职责是通过锁机制来保证多任务并发情况下数据访问的一致性。</li>
+<li><strong>SerializerMananger</strong>：负责 MemoryStore 中数据的序列化与反序列化。</li>
+<li><strong>MemoryManager</strong>：Spark 内存管理器，主要职能是维持不同内存区域（Storage memory, Shuffle memory, Runtime memory 等）之间的平衡、以及维持多任务并发下不同线程之间内存消耗的平衡。</li>
+<li><strong>BlockEvictionHandler</strong>：负责把 MemoryStore 中的数据块 “驱逐” 出内存 —— 通常情况下都会把这些被驱逐的 Block“撵”到 DiskStore 中去，也即把内存中物化的数据转移到磁盘存储中。一个典型的场景是当 RDD 缓存采用 MEMORY_AND_DISK 模式且内存不足以容纳整个 RDD 数据集时，根据 LRU 原则，访问频次较低且访问时间较为久远的 Block 就会被 BlockEvictionHandler“下放”到 DiskStore 中去。</li>
+</ul>
+<p><strong>对于数据的存储形式，Spark 存储系统支持两种类型：对象值（Object Values）和字节数组（Byte Array）。</strong>它们之间可以相互转换，其中，对象值压缩为字节数组的过程叫做序列化，而字节数组还原成原始对象值的过程就叫做反序列化。</p>
+<p>对象值这种存储形式的优点是拿来即用、所见即所得，缺点是所需的存储空间较大、占地儿。相比之下，序列化字节数组的空间利用率要高得多。不过要是你着急访问里面的数据对象，还得进行反序列化，有点麻烦。</p>
+<p><strong>如果想省地儿，你可以优先考虑字节数组；如果想以最快的速度访问对象，还是对象值更直接一些。</strong></p>
+<p>只有MemoryStore需要考虑使用哪种序列化，而DiskStore只能存储序列化之后的数据。</p>
+<p><strong>MemoryStore 同时支持存储对象值和字节数组这两种不同的数据形式，并且统一采用 MemoryEntry 数据抽象对它们进行封装。</strong></p>
+<p>MemoryEntry 有两个实现类：DeserializedMemoryEntry 和 SerializedMemoryEntry，分别用于封装原始对象值和序列化之后的字节数组。DeserializedMemoryEntry 用 Array[T]来存储对象值序列，其中 T 是对象类型，而 SerializedMemoryEntry 使用 ByteBuffer 来存储序列化后的字节序列。</p>
+<p>得益于 MemoryEntry 对于对象值和字节数组的统一封装，MemoryStore 能够借助一种高效的数据结构来统一存储与访问数据块：LinkedHashMap[BlockId, MemoryEntry]，即 Key 为 BlockId，Value 是 MemoryEntry 的链式哈希字典。在这个字典中，一个 Block 对应一个 MemoryEntry。显然，这里的 MemoryEntry 既可以是 DeserializedMemoryEntry，也可以是 SerializedMemoryEntry。有了这个字典，我们通过 BlockId 即可方便地查找和定位 MemoryEntry，实现数据块的快速存取。</p>
+<blockquote>
+<p>这里对于数据的同意管理和存储，设计的浑然天成，不管是扩展性和问题瓶颈点，都可以轻松去校正，甚至是更换。</p>
+</blockquote>
+<p><strong>在逻辑关系上，RDD 的数据分片与存储系统的 Block 一一对应，也就是说一个 RDD 数据分片会被物化成一个内存或磁盘上的 Block。</strong></p>
+<p><img src="/images/store_1.png" alt="rdd存储过程"></p>
+<ul>
+<li>第一步就是通过调用 putIteratorAsValues 或是 putIteratorAsBytes 方法，把 RDD 迭代器展开为数据值，然后把这些数据值暂存到一个叫做 ValuesHolder 的数据结构里。</li>
+<li>第二步，为了节省内存开销，我们可以在存储数据值的 ValuesHolder 上直接调用 toArray 或是 toByteBuffer 操作，把 ValuesHolder 转换为 MemoryEntry 数据结构。</li>
+<li>第三步，这些包含 RDD 数据值的 MemoryEntry 和与之对应的 BlockId，会被一起存入 Key 为 BlockId、Value 是 MemoryEntry 引用的链式哈希字典中。</li>
+</ul>
+<p>rdd在缓存数据的时候，如果内存不够了，spark会选择使用LRU的方式进行一部分清理，如果实在清理不了，才会选择磁盘的方式。</p>
+<p><strong>DiskStore 中数据的存取本质上就是字节序列与磁盘文件之间的转换</strong>，它通过 putBytes 方法把字节序列存入磁盘文件，再通过 getBytes 方法将文件内容转换为数据块。</p>
+<p>不过，要想完成两者之间的转换，像数据块与文件的对应关系、文件路径等等这些元数据是必不可少的。MemoryStore 采用链式哈希字典来维护类似的元数据，DiskStore 这个狡猾的家伙并没有亲自维护这些元数据，而是请了 *<em>DiskBlockManager *</em>这个给力的帮手。</p>
+<p><strong>DiskBlockManager 的主要职责就是，记录逻辑数据块 Block 与磁盘文件系统中物理文件的对应关系，每个 Block 都对应一个磁盘文件。</strong></p>
+<p>DiskBlockManager 在初始化的时候，首先根据配置项 spark.local.dir 在磁盘的相应位置创建文件目录。然后，在 spark.local.dir 指定的所有目录下分别创建子目录，子目录的个数由配置项 spark.diskStore.subDirectories 控制，它默认是 64。所有这些目录均用于存储通过 DiskStore 进行物化的数据文件，如 RDD 缓存文件、Shuffle 中间结果文件等。</p>
+<p><img src="/images/store_2.png" alt="diskStore流程"></p>
+<blockquote>
+<p>DiskStore中的数据存取相对直截了当一些，有 DiskBlockManager 这个 “管家” 协助维护 Block 与磁盘文件的对应关系，DiskStore 并不需要过多的抽象来封装读写逻辑。实际上，在数据存取的闭环中，DiskStore 仅在数据访问的过程中利用 BlockData 抽象来封装将磁盘文件内容转换为字节数组的操作。</p>
+<p>BlockData 的两个实现类 DiskBlockData 和 EncryptedBlockData 都是通过 open 函数获取 Java NIO 的 FileChannel，然后再通过 toByteBuffer 函数利用 FileChannel 将文件内容转换为字节数组。在数据访问过程中，getBytes 首先根据 BlockId 从 DiskBlockManager 获取对应磁盘文件，然后将 FileChannel 封装为 BlockData，最后通过 BlockData 的 toByteBuffer 方法得到所需的字节数组。数据写入的过程则更简单，首先根据 BlockId 从 DiskBlockManager 获取文件地址，然后再通过 FileChannel 将 ByteBuffer 内容落地到磁盘文件。</p>
+</blockquote>
+<p><strong>Spark 默认采用 SortShuffleManager 来管理 Stages 间的数据分发，在 Shuffle write 过程中，有 3 类结果文件：temp_shuffle_XXX、shuffle_XXX.data 和 shuffle_XXX.index。</strong>Data 文件存储分区数据，它是由 temp 文件合并而来的，而 index 文件记录 data 文件内不同分区的偏移地址。Shuffle 中间文件具体指的就是 data 文件和 index 文件，temp 文件作为暂存盘文件最终会被删除。</p>
+<p>在 Shuffle write 的不同阶段，Shuffle manager 通过 BlockManager 调用 DiskStore 的 putBytes 方法将数据块写入文件。文件由 DiskBlockManager 创建，文件名就是 putBytes 方法中的 Block ID，这些文件会以“temp_shuffle”或“shuffle”开头，保存在 spark.local.dir 目录下的子目录里。</p>
+<p>在 Shuffle read 阶段，Shuffle manager 再次通过 BlockManager 调用 DiskStore 的 getBytes 方法，读取 data 文件和 index 文件，将文件内容转化为数据块，最终这些数据块会通过网络分发到 Reducer 端进行聚合计算。</p>
+<p>可见，<strong>spark中模块抽象分层是扩展性极强的，每个点有每个点的作用，功能是足够明确的</strong>。</p>
+<p>MemoryStore 通过 getValues/getBytes 方法去访问 RDD 缓存内容的过程：</p>
+<p>getBytes/getValues 的实现都比较简单，都是先对LinkedHashMap加锁，通过blockId取出对应的MemoryEntry，然后通过模式匹配，getBytes负责处理序列化的SerializedMemoryEntry，并返回Option[ChunkedByteBuffer]，ChunkedByteBuffer是一个只读字节缓冲区，物理上存储为多个块而不是单个连续数组；getValues负责处理对象值序列DeserializedMemoryEntry，返回一个Iterator。</p>
+<p>广播变量存入 MemoryStore 的流程：</p>
+<p>先描述下调用链路：TorrentBroadcast#writeBlocks -&gt; BlockManager#putBytes -&gt; BlockManager#save 到这一步会判断存储级别，如果useMemory&amp;&amp;deserialized，会走这条链路：BlockManager#saveDeserializedValuesToMemoryStore -&gt; MemoryStore#putIteratorAsValues -&gt; MemoryStore#putIterator，这一步尝试将给定的块作为值或字节放入内存存储。 但是迭代器可能太大，无法具体化并存储在内存中。为了避免OOM异常，这里会逐渐展开迭代器，同时定期检查是否有足够的可用内存。如果块被成功物化，那么物化过程中使用的临时展开内存就被“转移”到存储内存中；再回到上面存储级别的判断，如果使用内存并且序列化，则走下面的调用链路：BlockManager#saveSerializedValuesToMemoryStore -&gt; MemoryStore#putBytes，这里会测试MemoryStore中是否有足够的空间。如果空间足够，则创建ByteBuffer并将其放入MemoryStore。否则就不会创建ByteBuffer。最终会用SerializedMemoryEntry将 ByteBuffer 封装起来，放到上边提到的LinkedHashMap。</p>
+<blockquote>
+<p>LinkedHashMap 之所以一个这个存储，就是因为删除cache的策略。</p>
+</blockquote>
+<p>补充一个sparkContext的模块图：</p>
+<p><img src="/images/context.png" alt="sparkContext"></p>
+<p>参考：</p>
+<p><a href="https://www.infoq.cn/article/civuder65orp1lyods8a" target="_blank" rel="noopener">https://www.infoq.cn/article/civuder65orp1lyods8a</a></p>
+<p><a href="https://time.geekbang.org/column/article/355081" target="_blank" rel="noopener">https://time.geekbang.org/column/article/355081</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/spark/" rel="tag"># spark</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/10/02/spark%E5%8E%9F%E7%90%86-%E8%B0%83%E5%BA%A6/" rel="next" title="spark原理-调度">
+                <i class="fa fa-chevron-left"></i> spark原理-调度
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/10/04/spark%E5%8E%9F%E7%90%86-%E5%86%85%E5%AD%98/" rel="prev" title="spark原理-内存">
+                spark原理-内存 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#spark原理–存储"><span class="nav-number">1.</span> <span class="nav-text">spark原理–存储</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="基础," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="零拷贝零拷贝机制(Zero-Copy)是在操作数据时不需要将数据从一块内存区域复制到另一块内存区域的技术,这样就避免了内存的拷贝,使得可以提高CPU的。零拷贝机制是一种操作数据的优化方案,通过避免数据在内存中拷贝达到的提高CPU性能的方案。 操作系统的零拷贝机制操作系统的存储空间包含硬盘和内存,而内存又分成用户空间和内核空间。以从文件服务器下载文件为例,服务器需要将硬盘中的数据通过网络通信发送给客">
+<meta property="og:type" content="article">
+<meta property="og:title" content="零拷贝">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/26/%E9%9B%B6%E6%8B%B7%E8%B4%9D/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="零拷贝零拷贝机制(Zero-Copy)是在操作数据时不需要将数据从一块内存区域复制到另一块内存区域的技术,这样就避免了内存的拷贝,使得可以提高CPU的。零拷贝机制是一种操作数据的优化方案,通过避免数据在内存中拷贝达到的提高CPU性能的方案。 操作系统的零拷贝机制操作系统的存储空间包含硬盘和内存,而内存又分成用户空间和内核空间。以从文件服务器下载文件为例,服务器需要将硬盘中的数据通过网络通信发送给客">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/5ddee028495124d401be8da61ccc20a9.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/30191e66bb8ca0d5e5a0def0737248ec.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/94c7cc71f09304bc9078f91e980888de.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/0f45989e4104abf7de59fb3bc01f4014.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/4447ff0c190802920f679644f6fa2818.png">
+<meta property="article:published_time" content="2022-06-26T08:47:34.000Z">
+<meta property="article:modified_time" content="2022-07-14T08:19:22.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="基础">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://img-blog.csdnimg.cn/img_convert/5ddee028495124d401be8da61ccc20a9.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/26/零拷贝/"/>
+
+
+
+
+
+  <title>零拷贝 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/26/%E9%9B%B6%E6%8B%B7%E8%B4%9D/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">零拷贝</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-26T16:47:34+08:00">
+                2022-06-26
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA/" itemprop="url" rel="index">
+                    <span itemprop="name">计算机</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="零拷贝"><a href="#零拷贝" class="headerlink" title="零拷贝"></a>零拷贝</h1><p>零拷贝机制(Zero-Copy)是在操作数据时不需要将数据从一块内存区域复制到另一块内存区域的技术,这样就避免了内存的拷贝,使得可以提高CPU的。<strong>零拷贝机制是一种操作数据的优化方案,通过避免数据在内存中拷贝达到的提高CPU性能的方案</strong>。</p>
+<h2 id="操作系统的零拷贝机制"><a href="#操作系统的零拷贝机制" class="headerlink" title="操作系统的零拷贝机制"></a>操作系统的零拷贝机制</h2><p>操作系统的存储空间包含硬盘和内存,而内存又分成用户空间和内核空间。以从文件服务器下载文件为例,服务器需要将硬盘中的数据通过网络通信发送给客户端,大致流程如下:</p>
+<p>第一步:操作系统通过DMA传输将硬盘中的数据复制到内核缓冲区</p>
+<p>第二步:操作系统执行read方法将内核缓冲区的数据复制到用户空间</p>
+<p>第三步:操作系统执行write方法将用户空间的数据复制到内核socket缓冲区</p>
+<p>第四步:操作系统通过DMA传输将内核socket缓冲区数据复制给网卡发送数据</p>
+<p>流程如下图示：</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/5ddee028495124d401be8da61ccc20a9.png" alt=""></p>
+<p>整个流程中：DMA拷贝2次、CPU拷贝2次、用户空间和内核空间切换4次</p>
+<p>整个流程从内核空间和硬件之间数据拷贝是DMA复制传输,内核空间和用户空间之间数据拷贝是通过CPU复制.另外CPU除了需要参与拷贝任务,还需要多次从内核空间和用户空间之间来回切换,无疑都额外增加了很多的CPU工作负担。</p>
+<p>所以操作系统为了减少CPU拷贝数据带来的性能消耗,提供了几种解决方案来减少CPU拷贝次数：</p>
+<h3 id="使用mmap函数"><a href="#使用mmap函数" class="headerlink" title="使用mmap函数"></a>使用mmap函数</h3><p>mmap函数的作用相当于是内存共享,将内核空间的内存区域和用户空间共享,这样就避免了将内核空间的数据拷贝到用户空间的步骤,通过mmap函数发送数据时上述的步骤如下:</p>
+<p>第一步:操作系统通过DMA传输将硬盘中的数据复制到内核缓冲区,执行了mmap函数之后,拷贝到内核缓冲区的数据会和用户空间进行共享,所以不需要进行拷贝</p>
+<p>第二步:CPU将内核缓冲区的数据拷贝到内核空间socket缓冲区</p>
+<p>第三步:操作系统通过DMA传输将内核socket缓冲区数据拷贝给网卡发送数据</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/30191e66bb8ca0d5e5a0def0737248ec.png" alt=""></p>
+<h3 id="sendfile函数"><a href="#sendfile函数" class="headerlink" title="sendfile函数"></a>sendfile函数</h3><p>senfile函数的作用是将一个文件描述符的内容发送给另一个文件描述符。而用户空间是不需要关心文件描述符的,所以整个的拷贝过程只会在内核空间操作,相当于减少了内核空间和用户空间之间数据的拷贝过程,而且还避免了CPU在内核空间和用户空间之间的来回切换过程。整体流程如下：</p>
+<p>第一步：通过DMA传输将硬盘中的数据复制到内核页缓冲区</p>
+<p>第二步：通过sendfile函数将页缓冲区的数据通过CPU拷贝给socket缓冲区</p>
+<p>第三步：网卡通过DMA传输将socket缓冲区的数据拷贝走并发送数据</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/94c7cc71f09304bc9078f91e980888de.png" alt=""></p>
+<p>整个过程中：DMA拷贝2次、CPU拷贝1次、内核空间和用户空间切换0次</p>
+<p>可以看出通过sendfile函数时只会有一次CPU拷贝过程，而且全程都是在内核空间实现的，所以整个过程都不会使得CPU在内核空间和用户空间进行来回切换的操作，性能相比于mmap而言要更好</p>
+<p>另外如果硬件支持的话,sendfile函数还可以直接将文件描述符和数据长度发送给socket缓冲区,然后直接通过DMA传输将页缓冲区的数据拷贝给网卡进行发送即可,这样就避免了CPU在内核空间内的拷贝过程，流程如下：</p>
+<p>第一步：通过DMA传输将硬盘中的数据复制到内核页缓冲区</p>
+<p>第二步：通过sendfile函数将页缓冲区数据的文件描述符和数据长度发送给socket缓冲区</p>
+<p>第三步：网卡通过DMA传输根据文件描述符和文件长度直接从页缓冲区拷贝数据</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/0f45989e4104abf7de59fb3bc01f4014.png" alt=""></p>
+<p>整个过程中：DMA拷贝2次、CPU拷贝0次、内核空间和用户空间切换0次</p>
+<p>所以整个过程都是没有CPU拷贝的过程的，实现了真正的CPU零拷贝机制。</p>
+<h3 id="slice函数"><a href="#slice函数" class="headerlink" title="slice函数"></a>slice函数</h3><p>splice函数的作用是将两个文件描述符之间建立一个管道,然后将文件描述符的引用传递过去,这样在使用到数据的时候就可以直接通过引用指针访问到具体数据。过程如下:</p>
+<p>第一步:通过DMA传输将文件复制到内核页缓冲区</p>
+<p>第二步:通过splice函数在页缓冲区和socket缓冲区之间建立管道,并将文件描述符的引用指针发送给socket缓冲区</p>
+<p>第三步:网卡通过DMA传输根据文件描述符的指针直接访问数据</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/4447ff0c190802920f679644f6fa2818.png" alt=""></p>
+<p>整个过程中：DMA拷贝2次、CPU拷贝0次、内核空间和用户空间切换0次</p>
+<p>可以看出通过slice函数传输数据时同样可以实现CPU的零拷贝，且不需要CPU在内核空间和用户空间之间来回切换</p>
+<p><strong>总结</strong>:实际上操作系统的零拷贝机制只是针对于CPU的零拷贝,而内核空间和硬件之间还是会存在数据拷贝的过程,只不过通过DMA传输,而不需要CPU来参与数据的拷贝过程可以看出通过mmap函数可以减少一次CPU拷贝,但是还会有一个CPU拷贝。而使用sendfile和splice函数都已经实现了CPU零拷贝而实现了数据传输过程。</p>
+<blockquote>
+<p>DMA拷贝即直接内存存取，原理是外部设备不通过CPU而直接与系统内存交换数据</p>
+</blockquote>
+<h2 id="Java中的零拷贝机制"><a href="#Java中的零拷贝机制" class="headerlink" title="Java中的零拷贝机制"></a>Java中的零拷贝机制</h2><p>Java的应用程序经常会遇到数据传输的场景,在Java NIO包中就提供了零拷贝机制的实现,主要是通过NIO包中的FileChannel实现FileChannel提供了transferTo和transferFrom方法,都是采用了调用底层操作系统的<strong>sendfile</strong>函数来实现的CPU零拷贝机制。</p>
+<p>kafka服务器就是采用了FileChannel的transfer方法实现了高性能的IO传输操作。</p>
+<p>Netty中的零拷贝机制Netty作为NIO的高性能网络通信框架,同样也实现了零拷贝机制,不过和操作系统的零拷贝机制则不是一个概念。</p>
+<p>Netty中的零拷贝机制体现在多个场景:</p>
+<ol>
+<li><p>使用直接内存,在进行IO数据传输时避免了ByteBuf从堆外内存拷贝到堆内内存的步骤,而如果使用堆内内存分配ByteBuf的话,那么发送数据时需要将IO数据从堆内内存拷贝到堆外内存才能通过Socket发送</p>
+</li>
+<li><p>Netty的文件传输使用了FileChannel的transferTo方法,底层使用到sendfile函数来实现了CPU零拷贝</p>
+</li>
+<li><p>Netty中提供CompositeByteBuf类,用于将多个ByteBuf合并成逻辑上的ByteBuf,避免了将多个ByteBuf拷贝成一个ByteBuf的过程</p>
+</li>
+<li><p>ByteBuf支持slice方法可以将ByteBuf分解成多个共享内存区域的ByteBuf,避免了内存拷贝</p>
+</li>
+</ol>
+<blockquote>
+<p>java本身发送数据，对于堆内的数据，是需要copy到操作系统的内存，然后再发送到缓冲区进行数据发送的。</p>
+<p>而堆外内存的方式，就不需要这次copy，直接在对外进行发送就可以实现。</p>
+<p>为什么java堆内的数据不可以直接进行数据发送？因为堆内的对象会有gc的问题，导致对象地址发生变化，那样的话，会出现不可预知的问题。</p>
+<p>不过即使使用堆外内存，也会在堆内分配一个指针对象的。</p>
+</blockquote>
+<h3 id="使用直接内存的原因"><a href="#使用直接内存的原因" class="headerlink" title="使用直接内存的原因"></a>使用直接内存的原因</h3><ul>
+<li><p>对垃圾回收停顿的改善。因为full gc时，垃圾收集器会对所有分配的堆内内存进行扫描，垃圾收集对Java应用造成的影响，跟堆的大小是成正比的。过大的堆会影响Java应用的性能。如果使用堆外内存的话，堆外内存是直接受操作系统管理。这样做的结果就是能保持一个较小的JVM堆内存，以减少垃圾收集对应用的影响。（full gc时会触发堆外空闲内存的回收。）</p>
+</li>
+<li><p>减少了数据从JVM拷贝到native堆的次数，在某些场景下可以提升程序I/O的性能。</p>
+</li>
+<li><p>可以突破JVM内存限制，操作更多的物理内存。</p>
+</li>
+</ul>
+<h3 id="使用直接内存的问题"><a href="#使用直接内存的问题" class="headerlink" title="使用直接内存的问题"></a>使用直接内存的问题</h3><ul>
+<li><p>堆外内存难以控制，如果内存泄漏，那么很难排查（VisualVM可以通过安装插件来监控堆外内存）。</p>
+</li>
+<li><p>堆外内存只能通过序列化和反序列化来存储，保存对象速度比堆内存慢，不适合存储很复杂的对象。一般简单的对象或者扁平化的比较适合。</p>
+</li>
+<li><p>直接内存的访问速度（读写方面）会快于堆内存。在申请内存空间时，堆内存速度高于直接内存。</p>
+</li>
+</ul>
+<blockquote>
+<p>直接内存适合申请次数少，访问频繁的场合。如果内存空间需要频繁申请，则不适合直接内存。</p>
+</blockquote>
+<p>参考：</p>
+<p><a href="https://andyoung.blog.csdn.net/article/details/113687318?spm=1001.2101.3001.6650.1&utm_medium=distribute.pc_relevant.none-task-blog-2%7Edefault%7ECTRLIST%7ERate-1-113687318-blog-118078026.pc_relevant_antiscanv3&depth_1-utm_source=distribute.pc_relevant.none-task-blog-2%7Edefault%7ECTRLIST%7ERate-1-113687318-blog-118078026.pc_relevant_antiscanv3&utm_relevant_index=2" target="_blank" rel="noopener"># Netty零拷贝原理</a></p>
+<p><a href="https://blog.csdn.net/zhipengfang/article/details/118078026?utm_medium=distribute.pc_relevant.none-task-blog-2~default~baidujs_title~default-1-118078026-blog-100086998.pc_relevant_default&spm=1001.2101.3001.4242.2&utm_relevant_index=4" target="_blank" rel="noopener"># 必知必会之 Netty 中的零拷贝机制</a></p>
+<p><a href="https://blog.csdn.net/wodewutai17quiet/article/details/100086998" target="_blank" rel="noopener"># netty-堆外内存与零拷贝</a></p>
+<p><a href="https://blog.csdn.net/forezp/article/details/88414741" target="_blank" rel="noopener">Java NIO？看这一篇就够了！_方志朋的博客-CSDN博客</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/%E5%9F%BA%E7%A1%80/" rel="tag"># 基础</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/06/24/apache-doris%E5%8E%9F%E7%90%86/" rel="next" title="apache doris原理">
+                <i class="fa fa-chevron-left"></i> apache doris原理
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/06/28/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E4%BA%8C%E7%AF%87/" rel="prev" title="hbase原理 第二篇">
+                hbase原理 第二篇 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#零拷贝"><span class="nav-number">1.</span> <span class="nav-text">零拷贝</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#操作系统的零拷贝机制"><span class="nav-number">1.1.</span> <span class="nav-text">操作系统的零拷贝机制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#使用mmap函数"><span class="nav-number">1.1.1.</span> <span class="nav-text">使用mmap函数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#sendfile函数"><span class="nav-number">1.1.2.</span> <span class="nav-text">sendfile函数</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#slice函数"><span class="nav-number">1.1.3.</span> <span class="nav-text">slice函数</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Java中的零拷贝机制"><span class="nav-number">1.2.</span> <span class="nav-text">Java中的零拷贝机制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#使用直接内存的原因"><span class="nav-number">1.2.1.</span> <span class="nav-text">使用直接内存的原因</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#使用直接内存的问题"><span class="nav-number">1.2.2.</span> <span class="nav-text">使用直接内存的问题</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

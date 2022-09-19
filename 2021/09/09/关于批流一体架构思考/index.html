@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="流批一体," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="批流一体架构思考最近一直在重构查询引擎和批流一体的事情，对于当前百花齐放的大数据技术栈，出现了越来越清晰的场景，技术栈也就随之被明确出来，但是架构的灵活性以及一些灵巧的构思还是越来越多的展现，对于这些，自己总是比较着迷。 但是随着思考的深入，发现越来越难以消化，或者思考变得越来越被动，所以想把自己思考的这些以及一些比较经典的case进行总结，能帮助自己勾勒出日渐完善的知识图谱。 思考主要围绕批流一">
+<meta property="og:type" content="article">
+<meta property="og:title" content="关于批流一体架构思考">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/09/%E5%85%B3%E4%BA%8E%E6%89%B9%E6%B5%81%E4%B8%80%E4%BD%93%E6%9E%B6%E6%9E%84%E6%80%9D%E8%80%83/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="批流一体架构思考最近一直在重构查询引擎和批流一体的事情，对于当前百花齐放的大数据技术栈，出现了越来越清晰的场景，技术栈也就随之被明确出来，但是架构的灵活性以及一些灵巧的构思还是越来越多的展现，对于这些，自己总是比较着迷。 但是随着思考的深入，发现越来越难以消化，或者思考变得越来越被动，所以想把自己思考的这些以及一些比较经典的case进行总结，能帮助自己勾勒出日渐完善的知识图谱。 思考主要围绕批流一">
+<meta property="article:published_time" content="2021-09-09T05:25:00.000Z">
+<meta property="article:modified_time" content="2022-05-12T06:53:38.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="流批一体">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/09/关于批流一体架构思考/"/>
+
+
+
+
+
+  <title>关于批流一体架构思考 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/09/%E5%85%B3%E4%BA%8E%E6%89%B9%E6%B5%81%E4%B8%80%E4%BD%93%E6%9E%B6%E6%9E%84%E6%80%9D%E8%80%83/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">关于批流一体架构思考</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-09-09T13:25:00+08:00">
+                2021-09-09
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="批流一体架构思考"><a href="#批流一体架构思考" class="headerlink" title="批流一体架构思考"></a>批流一体架构思考</h2><p>最近一直在重构查询引擎和批流一体的事情，对于当前百花齐放的大数据技术栈，出现了越来越清晰的场景，技术栈也就随之被明确出来，但是架构的灵活性以及一些灵巧的构思还是越来越多的展现，对于这些，自己总是比较着迷。</p>
+<p>但是随着思考的深入，发现越来越难以消化，或者思考变得越来越被动，所以想把自己思考的这些以及一些比较经典的case进行总结，能帮助自己勾勒出日渐完善的知识图谱。</p>
+<p>思考主要围绕批流一体这件事儿，主要的思考点会以树的形式进行逐级展开，帮助自己进行深度拓展。</p>
+<ol>
+<li><p>计算：这个方向的主要技术栈就是spark和flink。在形式上可以分别关注实时和离线，对比的角度可以从如下几个方面来看：</p>
+<ul>
+<li>Spark 和 flink 对比学习<ul>
+<li>任务提交流程区别</li>
+<li>sql执行流程的区别</li>
+<li>离线任务shuffle策略的区别</li>
+<li>任务分发的区别</li>
+<li>计算服务上内存模型的区别</li>
+<li>实时任务生态的区别，这个点可以细化</li>
+<li>服务之间的网络交互的区别</li>
+</ul>
+</li>
+<li>离线任务 和 实时任务 的对比学习（可以先围绕flink展开）<ul>
+<li>任务提交方式区别</li>
+<li>资源分配方式的区别</li>
+<li>api是怎么兼容两者的</li>
+<li>shuffle策略的区别</li>
+<li>实时任务的反压策略的实现</li>
+<li>connector的实现原理</li>
+<li>算子之间的网络交互的原理</li>
+</ul>
+</li>
+</ul>
+<p>以上只是列出来部分，而且也不是一成不变的，主要原因是上下两部分会有交叉思考，也许会衍生出来比较具体的思考点，到时候会补充上。</p>
+</li>
+<li><p>存储：这个方向的主要技术栈就是列式存储，这里不仅仅限于hadoop上比较程度的列存方案，比如orc、parquet、carbondata这些，还会关注一些成熟的数据库服务，比如druid、clickhouse、dorisdb、kudu等，这些服务本身的存储也是基于列存，但是服务有自己的查询架构，所以完善性会更好。</p>
+<p>列式存储对于场景来说，锲合度越高，效率也就越有保障，所以现在大公司都有自己的列存系统，这套系统包括完善的查询、存储、高可用。所以一个完美地适用当前公司业务的列式存储系统是不可或缺的。</p>
+<p>我想从以下几个大的角度来思考，逐级深入，尽量有聚焦地展开核心：</p>
+<ul>
+<li><p>列存结构对比</p>
+<ul>
+<li>基础存储结构</li>
+<li>基于上边的存储结构可能带来的优化手段。这个优化角度可以从查询和写入的效率、占用的资源大小（cpu、硬盘占用大小、计算消耗）</li>
+<li>压缩</li>
+<li>结构化数据的支持</li>
+</ul>
+</li>
+<li><p>索引对比</p>
+<ul>
+<li>常见索引结构：每种索引的基本原理和使用场景、优缺点</li>
+<li>索引的成本：围绕索引占据的资源大小和更新成本来讨论</li>
+<li>索引的使用：主要是索引怎被查询使用的(除了自身查询api对于索引的使用，还有就是基于常见的查询引擎，索引的使用方式是啥)以及IndexServer的搭建</li>
+</ul>
+</li>
+<li><p>物化视图</p>
+<ul>
+<li>物化视图的种类</li>
+<li>物化视图的路由</li>
+<li>物化视图的更新</li>
+<li>物化视图的成本：主要是写入、计算</li>
+<li>延时物化</li>
+</ul>
+</li>
+<li><p>元数据</p>
+<ul>
+<li>元数据的范畴：基本元素、特征数据</li>
+<li>元数据的存储</li>
+</ul>
+</li>
+<li><p>缓存</p>
+<ul>
+<li>缓存种类：缓存服务的种类以及缓存数据的种类</li>
+<li>缓存更新策略</li>
+</ul>
+</li>
+<li><p>分区</p>
+<ul>
+<li>分区类型</li>
+<li>分区作用</li>
+</ul>
+</li>
+<li><p>数据写入冲突的解决方式</p>
+<ul>
+<li>比如实时和离线写入数据，都是同一个分区</li>
+</ul>
+</li>
+<li><p>向量化</p>
+<ul>
+<li>向量化查询的优点</li>
+<li>向量化如何实现</li>
+<li>向量化可以适用的场景</li>
+</ul>
+</li>
+<li><p>其他</p>
+<ul>
+<li>update</li>
+<li>事务</li>
+<li>实时性</li>
+<li>表组概念</li>
+<li>编码加速 </li>
+<li>如何优化点查，是否有必要支持行存</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>查询：这个方向主要技术栈就是即席查询的场景可以用到的所有查询系统，常见的比如presto、impala、Greenplum这些都是常见的基于mpp架构的查询引擎。这些引擎跟现有的一些分布式系统都可以直接进行交互，对于点查的场景，大部分都能满足要求，如果需要更好的查询效率，就要考虑更合适的存储，比如常见的搭配 impala + kudu  或者  presto + orc 的组合，这些查询引擎都会选择站队一些存储组件，这样可以优化出TP99更高的服务。</p>
+<p>然而，现在的大数据场景都是极具个性化且要求越来越高，所以基于已有服务进行二次开发，进行深度优化已经是业内比较常见的手段了。</p>
+<p>下边我们就针对常见的查询引擎来做如下的对比学习：</p>
+<ul>
+<li>查询架构对比<ul>
+<li>MPP架构</li>
+<li>扩展性实现</li>
+<li>弊端</li>
+</ul>
+</li>
+<li>查询过程对比<ul>
+<li>执行过程：网络通信、序列化</li>
+<li>数据类型的支持</li>
+<li>扩展性：组件扩展、udf扩展等</li>
+</ul>
+</li>
+<li>查询场景<ul>
+<li>join的支持程度</li>
+<li>字典的支持</li>
+<li>多值维度</li>
+<li>聚合分析</li>
+<li>点查</li>
+<li>访问方式</li>
+</ul>
+</li>
+<li>查询并发<ul>
+<li>峰值怎么处理：系统应对高并发如何自保</li>
+<li>如何提高并发粒度</li>
+</ul>
+</li>
+<li>规则优化<ul>
+<li>sql执行过程</li>
+<li>sql优化器使用</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>消息：消息引擎的技术栈主要是kafka和pulsar这两者，前者是大数据技术栈里消息引擎技术生态的王者，而后者是对前者问题的升级，青出于蓝胜于蓝，目前在逐渐追赶kafka，在维护和服务扩展性上，有比较大的优势，缺点就是生态上的完善，在一些大公司，目前pulsar已经可以占据一席之地了。</p>
+<p>以下我们针对两者进行对比性了解：</p>
+<ul>
+<li>架构<ul>
+<li>写数据流程</li>
+<li>读数据流程</li>
+</ul>
+</li>
+<li>扩展性<ul>
+<li>增加消费者</li>
+<li>分区</li>
+</ul>
+</li>
+<li>特性<ul>
+<li>零拷贝</li>
+<li>流数据上的支持</li>
+<li>sql</li>
+<li>事务</li>
+</ul>
+</li>
+<li>存储<ul>
+<li>扩展</li>
+<li>周期</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<p>以上就是针对批流一体的四个主要方向的问题总结，随着每个专题的深入，会发现更多值得深入研究的细节或者专题，到时候会有针对性补充。</p>
+<p>以上每一个专题后续都会有专门的文章来记录我的思考，到时候会补充对应的连接。希望跟更多的同学有深入性的交流。我的邮箱：<a href="mailto:lzqwdd@sina.cn">lzqwdd@sina.cn</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/%E6%B5%81%E6%89%B9%E4%B8%80%E4%BD%93/" rel="tag"># 流批一体</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2021/09/07/java-sql%E8%A7%A3%E6%9E%90%E6%A1%86%E6%9E%B6%E5%AF%B9%E6%AF%94/" rel="next" title="java sql解析框架对比">
+                <i class="fa fa-chevron-left"></i> java sql解析框架对比
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2021/09/17/spark%E7%9A%84shuffle%E7%AD%96%E7%95%A5%E5%AE%9E%E7%8E%B0/" rel="prev" title="spark的shuffle策略实现">
+                spark的shuffle策略实现 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#批流一体架构思考"><span class="nav-number">1.</span> <span class="nav-text">批流一体架构思考</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

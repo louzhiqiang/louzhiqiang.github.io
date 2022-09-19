@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="hdfs," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="hdfs的Hedged Read原理最近在读 HDFS 的源码，本文记录一下 Hedged Read 实现的源码解析，以及它存在的一些局限性。 对读慢节点问题来说，重启一个 speculative task，它依然可能读的是同一个节点，因为 namenode 很可能返回的 datanode 副本的顺序是一样的，它们并不是坏节点，而只是慢节点而已。 解决这个问题的思路也挺简单的，有两种思路：  第一">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hdfs的Hedged Read原理">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/03/hdfs%E7%9A%84Hedged-Read%E5%8E%9F%E7%90%86/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="hdfs的Hedged Read原理最近在读 HDFS 的源码，本文记录一下 Hedged Read 实现的源码解析，以及它存在的一些局限性。 对读慢节点问题来说，重启一个 speculative task，它依然可能读的是同一个节点，因为 namenode 很可能返回的 datanode 副本的顺序是一样的，它们并不是坏节点，而只是慢节点而已。 解决这个问题的思路也挺简单的，有两种思路：  第一">
+<meta property="article:published_time" content="2022-07-03T11:46:09.000Z">
+<meta property="article:modified_time" content="2022-09-04T02:46:32.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="hdfs">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/03/hdfs的Hedged-Read原理/"/>
+
+
+
+
+
+  <title>hdfs的Hedged Read原理 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/03/hdfs%E7%9A%84Hedged-Read%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">hdfs的Hedged Read原理</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-07-03T19:46:09+08:00">
+                2022-07-03
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/hadoop/" itemprop="url" rel="index">
+                    <span itemprop="name">hadoop</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="hdfs的Hedged-Read原理"><a href="#hdfs的Hedged-Read原理" class="headerlink" title="hdfs的Hedged Read原理"></a>hdfs的Hedged Read原理</h1><p>最近在读 HDFS 的源码，本文记录一下 Hedged Read 实现的源码解析，以及它存在的一些局限性。</p>
+<p>对读慢节点问题来说，重启一个 speculative task，它依然可能读的是同一个节点，因为 namenode 很可能返回的 datanode 副本的顺序是一样的，它们并不是坏节点，而只是慢节点而已。</p>
+<p>解决这个问题的思路也挺简单的，有两种思路：</p>
+<ol>
+<li>第一种思路，我们想办法让 speculative task 读一个新的副本，我们可以让它随机选择副本，而不是按顺序选择副本，这样做的同时也丧失了 namenode 给所有副本排序，选取最优副本优先读取的功能了，对于跨机房的场景来说，可能对性能会有更大的损失，会有点得不偿失。</li>
+<li>第二种思路，我们可以<strong>设置一个 timeout，读副本的时间超过这个 timeout，我们就触发读另一个副本</strong>。</li>
+</ol>
+<p>　　对于第二种思路，Hadoop 从 2.4 开始已经有了这个新特性了，也就是 DFSClient Hedged Read 的特性，如果读取一个数据块的操作比较慢，DFSClient Hedged Read 将会开启一个从另一个副本的 hedged 读操作。我们会选取首先完成的操作，并取消其它操作。这个 Hedged 读特性将有助于控制异常值，比如由于命中一个坏盘等原因而需要花费较长时间的异常阅读等，我们来分析下它的源码实现。</p>
+<h2 id="Hedged-Read-线程池初始化"><a href="#Hedged-Read-线程池初始化" class="headerlink" title="Hedged Read 线程池初始化"></a>Hedged Read 线程池初始化</h2><p>DFSClient Hedged Read特性默认是关闭的。如果要开启，则需配置如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 并发 Hedged 读的线程池大小</span></span><br><span class="line">dfs.client.hedged.read.threadpool.size</span><br><span class="line"><span class="comment">// 开启一个 Hedged 读前的等待时间（毫秒）</span></span><br><span class="line">dfs.client.hedged.read.threshold.millis</span><br></pre></td></tr></table></figure>
+
+<p>Hedged Read 的本质是开一个静态的线程池，在有需要的时候让里面的线程去读取新的副本，它的声明和初始化过程是在 DFSClient 里的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 声明，是一个ThreadPoolExecutor</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> ThreadPoolExecutor HEDGED_READ_THREAD_POOL;</span><br></pre></td></tr></table></figure>
+
+<p>触发线程池初始化的代码在 DFSClient 的构造函数里，他会根据我们有没有设置线程池的大小来决定要不要初始化线程池：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">this</span>.hedgedReadThresholdMillis = conf.getLong(</span><br><span class="line">  DFSConfigKeys.DFS_DFSCLIENT_HEDGED_READ_THRESHOLD_MILLIS,</span><br><span class="line">  DFSConfigKeys.DEFAULT_DFSCLIENT_HEDGED_READ_THRESHOLD_MILLIS);</span><br><span class="line"><span class="keyword">int</span> numThreads = conf.getInt(</span><br><span class="line">  DFSConfigKeys.DFS_DFSCLIENT_HEDGED_READ_THREADPOOL_SIZE,</span><br><span class="line">  DFSConfigKeys.DEFAULT_DFSCLIENT_HEDGED_READ_THREADPOOL_SIZE);</span><br><span class="line"><span class="keyword">if</span> (numThreads &gt; <span class="number">0</span>) &#123;</span><br><span class="line">  <span class="keyword">this</span>.initThreadsNumForHedgedReads(numThreads);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>真正初始化过程在initThreadsNumForHedgedReads中，它会根据我们设的值，初始化线程池的最大容量。　</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Create hedged reads thread pool, HEDGED_READ_THREAD_POOL, if</span></span><br><span class="line"><span class="comment"> * it does not already exist.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> num Number of threads for hedged reads thread pool.</span></span><br><span class="line"><span class="comment"> * If zero, skip hedged reads thread pool creation.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">synchronized</span> <span class="keyword">void</span> <span class="title">initThreadsNumForHedgedReads</span><span class="params">(<span class="keyword">int</span> num)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (num &lt;= <span class="number">0</span> || HEDGED_READ_THREAD_POOL != <span class="keyword">null</span>) <span class="keyword">return</span>;</span><br><span class="line">  HEDGED_READ_THREAD_POOL = <span class="keyword">new</span> ThreadPoolExecutor(<span class="number">1</span>, num, <span class="number">60</span>,</span><br><span class="line">      TimeUnit.SECONDS, <span class="keyword">new</span> SynchronousQueue&lt;Runnable&gt;(),</span><br><span class="line">      <span class="keyword">new</span> Daemon.DaemonFactory() &#123;</span><br><span class="line">        <span class="keyword">private</span> <span class="keyword">final</span> AtomicInteger threadIndex =</span><br><span class="line">          <span class="keyword">new</span> AtomicInteger(<span class="number">0</span>);</span><br><span class="line">        <span class="meta">@Override</span></span><br><span class="line">        <span class="function"><span class="keyword">public</span> Thread <span class="title">newThread</span><span class="params">(Runnable r)</span> </span>&#123;</span><br><span class="line">          Thread t = <span class="keyword">super</span>.newThread(r);</span><br><span class="line">          t.setName(<span class="string">"hedgedRead-"</span> +</span><br><span class="line">            threadIndex.getAndIncrement());</span><br><span class="line">          <span class="keyword">return</span> t;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      <span class="keyword">new</span> ThreadPoolExecutor.CallerRunsPolicy() &#123;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">rejectedExecution</span><span class="params">(Runnable runnable,</span></span></span><br><span class="line"><span class="function"><span class="params">        ThreadPoolExecutor e)</span> </span>&#123;</span><br><span class="line">      LOG.info(<span class="string">"Execution rejected, Executing in current thread"</span>);</span><br><span class="line">      HEDGED_READ_METRIC.incHedgedReadOpsInCurThread();</span><br><span class="line">      <span class="comment">// will run in the current thread</span></span><br><span class="line">      <span class="keyword">super</span>.rejectedExecution(runnable, e);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;);</span><br><span class="line">  HEDGED_READ_THREAD_POOL.allowCoreThreadTimeOut(<span class="keyword">true</span>);</span><br><span class="line">  <span class="keyword">if</span> (LOG.isDebugEnabled()) &#123;</span><br><span class="line">    LOG.debug(<span class="string">"Using hedged reads; pool threads="</span> + num);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>WorkQueue 由 SynchronousQueue 实现，是一个无缓冲的等待队列，在某次添加元素后必须等待其他线程取走后才能继续添加。ThreadFactory 是 Hadoop 自己实现的后台线程工厂，并自定义了 RejectedExecutionHandler，主要是在有异常时实现 HEDGED_READ_METRIC.incHedgedReadOpsInCurThread()，即计数器减 1。</p>
+<h2 id="DFSInputStream-read实现"><a href="#DFSInputStream-read实现" class="headerlink" title="DFSInputStream.read实现"></a>DFSInputStream.read实现</h2><p>启用 Hedged Read 具体读的代码在 DFSInputStream 里的一个 read 函数里，我们可以看出它是一个随机读的函数，它会判断 Hedged Read 是否开启了，从而使用不同的方法去具体读。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Read bytes starting from the specified position.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> position start read from this position</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> buffer read buffer</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> offset offset into buffer</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> length number of bytes to read</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@return</span> actual number of bytes read</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">read</span><span class="params">(<span class="keyword">long</span> position, <span class="keyword">byte</span>[] buffer, <span class="keyword">int</span> offset, <span class="keyword">int</span> length)</span></span></span><br><span class="line"><span class="function">  <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">  <span class="comment">// sanity checks</span></span><br><span class="line">  dfsClient.checkOpen();</span><br><span class="line">  <span class="keyword">if</span> (closed.get()) &#123;</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> IOException(<span class="string">"Stream closed"</span>);</span><br><span class="line">  &#125;</span><br><span class="line">  failures = <span class="number">0</span>;</span><br><span class="line">  <span class="keyword">long</span> filelen = getFileLength();</span><br><span class="line">  <span class="keyword">if</span> ((position &lt; <span class="number">0</span>) || (position &gt;= filelen)) &#123;</span><br><span class="line">    <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">int</span> realLen = length;</span><br><span class="line">  <span class="keyword">if</span> ((position + length) &gt; filelen) &#123;</span><br><span class="line">    realLen = (<span class="keyword">int</span>)(filelen - position);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// determine the block and byte range within the block</span></span><br><span class="line">  <span class="comment">// corresponding to position and realLen</span></span><br><span class="line">  List&lt;LocatedBlock&gt; blockRange = getBlockRange(position, realLen);</span><br><span class="line">  <span class="keyword">int</span> remaining = realLen;</span><br><span class="line">  Map&lt;ExtendedBlock,Set&lt;DatanodeInfo&gt;&gt; corruptedBlockMap</span><br><span class="line">    = <span class="keyword">new</span> HashMap&lt;ExtendedBlock, Set&lt;DatanodeInfo&gt;&gt;();</span><br><span class="line">  <span class="keyword">for</span> (LocatedBlock blk : blockRange) &#123;</span><br><span class="line">    <span class="keyword">long</span> targetStart = position - blk.getStartOffset();</span><br><span class="line">    <span class="keyword">long</span> bytesToRead = Math.min(remaining, blk.getBlockSize() - targetStart);</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      <span class="comment">// 判断 Hedged Read 是否开启了</span></span><br><span class="line">      <span class="keyword">if</span> (dfsClient.isHedgedReadsEnabled()) &#123;</span><br><span class="line">          DFSClient.LOG.debug(<span class="string">"Enter hedgedFetchBlockByteRange"</span>);</span><br><span class="line">        hedgedFetchBlockByteRange(blk, targetStart, targetStart + bytesToRead</span><br><span class="line">            - <span class="number">1</span>, buffer, offset, corruptedBlockMap);</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        fetchBlockByteRange(blk, targetStart, targetStart + bytesToRead - <span class="number">1</span>,</span><br><span class="line">            buffer, offset, corruptedBlockMap);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">      <span class="comment">// Check and report if any block replicas are corrupted</span></span><br><span class="line">      <span class="comment">// BlockMissingException may be caught if all block replicas are</span></span><br><span class="line">      <span class="comment">// corrupted.</span></span><br><span class="line">      reportCheckSumFailure(corruptedBlockMap, blk.getLocations().length);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    remaining -= bytesToRead;</span><br><span class="line">    position += bytesToRead;</span><br><span class="line">    offset += bytesToRead;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">assert</span> remaining == <span class="number">0</span> : <span class="string">"Wrong number of bytes read."</span>;</span><br><span class="line">  <span class="keyword">if</span> (dfsClient.stats != <span class="keyword">null</span>) &#123;</span><br><span class="line">    dfsClient.stats.incrementBytesRead(realLen);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> realLen;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>普通 read 是通过 DFSClient 拿到了 LocatedBlocks，而随机读的 API 是通过 getBlockRange 拿到了一些块：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Get blocks in the specified range.</span></span><br><span class="line"><span class="comment"> * Fetch them from the namenode if not cached. This function</span></span><br><span class="line"><span class="comment"> * will not get a read request beyond the EOF.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> offset starting offset in file</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> length length of data</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@return</span> consequent segment of located blocks</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@throws</span> IOException</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> List&lt;LocatedBlock&gt; <span class="title">getBlockRange</span><span class="params">(<span class="keyword">long</span> offset,</span></span></span><br><span class="line"><span class="function"><span class="params">    <span class="keyword">long</span> length)</span>  <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">  <span class="comment">// getFileLength(): returns total file length</span></span><br><span class="line">  <span class="comment">// locatedBlocks.getFileLength(): returns length of completed blocks</span></span><br><span class="line">  <span class="keyword">if</span> (offset &gt;= getFileLength()) &#123;</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> IOException(<span class="string">"Offset: "</span> + offset +</span><br><span class="line">      <span class="string">" exceeds file length: "</span> + getFileLength());</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">synchronized</span>(infoLock) &#123;</span><br><span class="line">    <span class="keyword">final</span> List&lt;LocatedBlock&gt; blocks;</span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">long</span> lengthOfCompleteBlk = locatedBlocks.getFileLength();</span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">boolean</span> readOffsetWithinCompleteBlk = offset &lt; lengthOfCompleteBlk;</span><br><span class="line">    <span class="keyword">final</span> <span class="keyword">boolean</span> readLengthPastCompleteBlk = offset + length &gt; lengthOfCompleteBlk;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (readOffsetWithinCompleteBlk) &#123;</span><br><span class="line">      <span class="comment">//get the blocks of finalized (completed) block range</span></span><br><span class="line">      blocks = getFinalizedBlockRange(offset,</span><br><span class="line">        Math.min(length, lengthOfCompleteBlk - offset));</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      blocks = <span class="keyword">new</span> ArrayList&lt;LocatedBlock&gt;(<span class="number">1</span>);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// get the blocks from incomplete block range</span></span><br><span class="line">    <span class="keyword">if</span> (readLengthPastCompleteBlk) &#123;</span><br><span class="line">       blocks.add(locatedBlocks.getLastLocatedBlock());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> blocks;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>我们还可以发现如果 Hedged Read 开启了，会采用 hedgedFetchBlockByteRange，否则使用 fetchBlockByteRange 方法，我们分别看看这两个方法。</p>
+<h2 id="fetchBlockByteRange"><a href="#fetchBlockByteRange" class="headerlink" title="fetchBlockByteRange"></a>fetchBlockByteRange</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">fetchBlockByteRange</span><span class="params">(LocatedBlock block, <span class="keyword">long</span> start, <span class="keyword">long</span> end,</span></span></span><br><span class="line"><span class="function"><span class="params">    <span class="keyword">byte</span>[] buf, <span class="keyword">int</span> offset,</span></span></span><br><span class="line"><span class="function"><span class="params">    Map&lt;ExtendedBlock, Set&lt;DatanodeInfo&gt;&gt; corruptedBlockMap)</span></span></span><br><span class="line"><span class="function">    <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">  <span class="comment">// 设为 false，不更新一些全局变量</span></span><br><span class="line">  block = getBlockAt(block.getStartOffset(), <span class="keyword">false</span>);</span><br><span class="line">  <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">    DNAddrPair addressPair = chooseDataNode(block, <span class="keyword">null</span>);</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      actualGetFromOneDataNode(addressPair, block, start, end, buf, offset,</span><br><span class="line">          corruptedBlockMap);</span><br><span class="line">      <span class="keyword">return</span>;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">      <span class="comment">// Ignore. Already processed inside the function.</span></span><br><span class="line">      <span class="comment">// Loop through to try the next node.</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>getBlockAt 和 chooseDataNode 的代码我们在<a href="http://chengfeng96.com/blog/2018/11/22/HDFS里read-operation源码解析以及读慢节点问题探究/" target="_blank" rel="noopener">HDFS里read operation源码解析以及读慢节点问题探究</a>里分析过，不同的是，这里 getBlockAt 的 updataPosition 设为了false，因为这个 read 实现的是随机读，所以就没必要更新全局变量 pos 等变量了。<br>我们来看一下 actualGetFromOneDataNode 这个函数。</p>
+<h2 id="actualGetFromOneDataNode"><a href="#actualGetFromOneDataNode" class="headerlink" title="actualGetFromOneDataNode"></a>actualGetFromOneDataNode</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">actualGetFromOneDataNode</span><span class="params">(<span class="keyword">final</span> DNAddrPair datanode,</span></span></span><br><span class="line"><span class="function"><span class="params">    LocatedBlock block, <span class="keyword">final</span> <span class="keyword">long</span> start, <span class="keyword">final</span> <span class="keyword">long</span> end, <span class="keyword">byte</span>[] buf,</span></span></span><br><span class="line"><span class="function"><span class="params">    <span class="keyword">int</span> offset, Map&lt;ExtendedBlock, Set&lt;DatanodeInfo&gt;&gt; corruptedBlockMap)</span></span></span><br><span class="line"><span class="function">    <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">  DFSClientFaultInjector.get().startFetchFromDatanode();</span><br><span class="line">  <span class="keyword">int</span> refetchToken = <span class="number">1</span>; <span class="comment">// only need to get a new access token once</span></span><br><span class="line">  <span class="keyword">int</span> refetchEncryptionKey = <span class="number">1</span>; <span class="comment">// only need to get a new encryption key once</span></span><br><span class="line"></span><br><span class="line">  <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">    <span class="comment">// cached block locations may have been updated by chooseDataNode()</span></span><br><span class="line">    <span class="comment">// or fetchBlockAt(). Always get the latest list of locations at the</span></span><br><span class="line">    <span class="comment">// start of the loop.</span></span><br><span class="line">    CachingStrategy curCachingStrategy;</span><br><span class="line">    <span class="keyword">boolean</span> allowShortCircuitLocalReads;</span><br><span class="line">    block = getBlockAt(block.getStartOffset(), <span class="keyword">false</span>);</span><br><span class="line">    <span class="keyword">synchronized</span>(infoLock) &#123;</span><br><span class="line">      curCachingStrategy = cachingStrategy;</span><br><span class="line">      allowShortCircuitLocalReads = !shortCircuitForbidden();</span><br><span class="line">    &#125;</span><br><span class="line">    DatanodeInfo chosenNode = datanode.info;</span><br><span class="line">    InetSocketAddress targetAddr = datanode.addr;</span><br><span class="line">    StorageType storageType = datanode.storageType;</span><br><span class="line">    BlockReader reader = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">    allowShortCircuitLocalReads &amp;= !datanode.replicaPipeliner;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">      DFSClientFaultInjector.get().fetchFromDatanodeException();</span><br><span class="line">      Token&lt;BlockTokenIdentifier&gt; blockToken = block.getBlockToken();</span><br><span class="line">      <span class="keyword">int</span> len = (<span class="keyword">int</span>) (end - start + <span class="number">1</span>);</span><br><span class="line">      <span class="comment">// 构造 BlockReader</span></span><br><span class="line">      BlockReaderFactory builder = <span class="keyword">new</span> BlockReaderFactory(dfsClient.getConf()).</span><br><span class="line">          setInetSocketAddress(targetAddr).</span><br><span class="line">          setRemotePeerFactory(dfsClient).</span><br><span class="line">          setDatanodeInfo(chosenNode).</span><br><span class="line">          setStorageType(storageType).</span><br><span class="line">          setFileName(src).</span><br><span class="line">          setBlock(block.getBlock()).</span><br><span class="line">          setBlockToken(blockToken).</span><br><span class="line">          setStartOffset(start).</span><br><span class="line">          setVerifyChecksum(verifyChecksum).</span><br><span class="line">          setClientName(dfsClient.clientName).</span><br><span class="line">          setLength(len).</span><br><span class="line">          setCachingStrategy(curCachingStrategy).</span><br><span class="line">          setAllowShortCircuitLocalReads(allowShortCircuitLocalReads).</span><br><span class="line">          setClientCacheContext(dfsClient.getClientContext()).</span><br><span class="line">          setUserGroupInformation(dfsClient.ugi).</span><br><span class="line">        setConfiguration(dfsClient.getConfiguration());</span><br><span class="line">      <span class="keyword">if</span> (datanode.replicaPipeliner) &#123;</span><br><span class="line">        builder.setUseUpstream(<span class="keyword">true</span>);</span><br><span class="line">        builder.setUpstreamDatanode(datanode.replicaUpstream.info);</span><br><span class="line">        builder.setUpstreamAddr(datanode.replicaUpstream.addr);</span><br><span class="line">        builder.setUpstreamStorageType(datanode.replicaUpstream.storageType);</span><br><span class="line">      &#125;</span><br><span class="line">      reader = builder.build();</span><br><span class="line">      <span class="comment">// 调用 readAll 读</span></span><br><span class="line">      <span class="keyword">int</span> nread = reader.readAll(buf, offset, len);</span><br><span class="line">      updateReadStatistics(readStatistics, nread, reader);</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (nread != len) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IOException(<span class="string">"truncated return from reader.read(): "</span> +</span><br><span class="line">                              <span class="string">"excpected "</span> + len + <span class="string">", got "</span> + nread);</span><br><span class="line">      &#125;</span><br><span class="line">      DFSClientFaultInjector.get().readFromDatanodeDelay();</span><br><span class="line">      <span class="keyword">return</span>;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (ChecksumException e) &#123;</span><br><span class="line">      String msg = <span class="string">"fetchBlockByteRange(). Got a checksum exception for "</span></span><br><span class="line">          + src + <span class="string">" at "</span> + block.getBlock() + <span class="string">":"</span> + e.getPos() + <span class="string">" from "</span></span><br><span class="line">          + chosenNode;</span><br><span class="line">      DFSClient.LOG.warn(msg);</span><br><span class="line">      <span class="comment">// we want to remember what we have tried</span></span><br><span class="line">      addIntoCorruptedBlockMap(block.getBlock(), chosenNode, corruptedBlockMap);</span><br><span class="line">      addToDeadNodes(chosenNode);</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> IOException(msg);</span><br><span class="line">    &#125; <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">      <span class="keyword">if</span> (e <span class="keyword">instanceof</span> InvalidEncryptionKeyException &amp;&amp; refetchEncryptionKey &gt; <span class="number">0</span>) &#123;</span><br><span class="line">        DFSClient.LOG.info(<span class="string">"Will fetch a new encryption key and retry, "</span></span><br><span class="line">            + <span class="string">"encryption key was invalid when connecting to "</span> + targetAddr</span><br><span class="line">            + <span class="string">" : "</span> + e);</span><br><span class="line">        <span class="comment">// The encryption key used is invalid.</span></span><br><span class="line">        refetchEncryptionKey--;</span><br><span class="line">        dfsClient.clearDataEncryptionKey();</span><br><span class="line">        <span class="keyword">continue</span>;</span><br><span class="line">      &#125; <span class="keyword">else</span> <span class="keyword">if</span> (refetchToken &gt; <span class="number">0</span> &amp;&amp; tokenRefetchNeeded(e, targetAddr)) &#123;</span><br><span class="line">        refetchToken--;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">          fetchBlockAt(block.getStartOffset());</span><br><span class="line">        &#125; <span class="keyword">catch</span> (IOException fbae) &#123;</span><br><span class="line">          <span class="comment">// ignore IOE, since we can retry it later in a loop</span></span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">continue</span>;</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        String msg = <span class="string">"Failed to connect to "</span> + targetAddr + <span class="string">" for file "</span></span><br><span class="line">            + src + <span class="string">" for block "</span> + block.getBlock() + <span class="string">":"</span> + e;</span><br><span class="line">        DFSClient.LOG.warn(<span class="string">"Connection failure: "</span> + msg, e);</span><br><span class="line">        addToDeadNodes(chosenNode);</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> IOException(msg);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125; <span class="keyword">finally</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (reader != <span class="keyword">null</span>) &#123;</span><br><span class="line">        reader.close();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>在这个方法里，构建了 blockReader，并且调用了 reader.readAll 方法去具体的读文件，我们可以看一下 BlockReader.read 和 BlockReader.readAll 的区别。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/* same interface as inputStream java.io.InputStream#read()</span></span><br><span class="line"><span class="comment"> * used by DFSInputStream#read()</span></span><br><span class="line"><span class="comment"> * This violates one rule when there is a checksum error:</span></span><br><span class="line"><span class="comment"> * "Read should not modify user buffer before successful read"</span></span><br><span class="line"><span class="comment"> * because it first reads the data to user buffer and then checks</span></span><br><span class="line"><span class="comment"> * the checksum.</span></span><br><span class="line"><span class="comment"> * Note: this must return -1 on EOF, even in the case of a 0-byte read.</span></span><br><span class="line"><span class="comment"> * See HDFS-5762 for details.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">read</span><span class="params">(<span class="keyword">byte</span>[] buf, <span class="keyword">int</span> off, <span class="keyword">int</span> len)</span> <span class="keyword">throws</span> IOException</span>;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Similar to &#123;<span class="doctag">@link</span> #readFully(byte[], int, int)&#125; except that it will</span></span><br><span class="line"><span class="comment"> * not throw an exception on EOF. However, it differs from the simple</span></span><br><span class="line"><span class="comment"> * &#123;<span class="doctag">@link</span> #read(byte[], int, int)&#125; call in that it is guaranteed to</span></span><br><span class="line"><span class="comment"> * read the data if it is available. In other words, if this call</span></span><br><span class="line"><span class="comment"> * does not throw an exception, then either the buffer has been</span></span><br><span class="line"><span class="comment"> * filled or the next call will return EOF.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">int</span> <span class="title">readAll</span><span class="params">(<span class="keyword">byte</span>[] buf, <span class="keyword">int</span> offset, <span class="keyword">int</span> len)</span> <span class="keyword">throws</span> IOException</span>;</span><br></pre></td></tr></table></figure>
+
+<h2 id="hedgedFetchBlockByteRange"><a href="#hedgedFetchBlockByteRange" class="headerlink" title="hedgedFetchBlockByteRange"></a>hedgedFetchBlockByteRange</h2><p>hedgedFetchBlockByteRange 通过 ExecutorCompletionService 和 Future List 实现了 Hedged Read 特性。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Like &#123;<span class="doctag">@link</span> #fetchBlockByteRange(LocatedBlock, long, long, byte[],</span></span><br><span class="line"><span class="comment"> * int, Map)&#125; except we start up a second, parallel, 'hedged' read</span></span><br><span class="line"><span class="comment"> * if the first read is taking longer than configured amount of</span></span><br><span class="line"><span class="comment"> * time.  We then wait on which ever read returns first.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">hedgedFetchBlockByteRange</span><span class="params">(LocatedBlock block, <span class="keyword">long</span> start,</span></span></span><br><span class="line"><span class="function"><span class="params">    <span class="keyword">long</span> end, <span class="keyword">byte</span>[] buf, <span class="keyword">int</span> offset,</span></span></span><br><span class="line"><span class="function"><span class="params">    Map&lt;ExtendedBlock, Set&lt;DatanodeInfo&gt;&gt; corruptedBlockMap)</span></span></span><br><span class="line"><span class="function">    <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">  <span class="comment">// 构造一个 futures 列表</span></span><br><span class="line">  ArrayList&lt;Future&lt;ByteBuffer&gt;&gt; futures = <span class="keyword">new</span> ArrayList&lt;Future&lt;ByteBuffer&gt;&gt;();</span><br><span class="line">  <span class="comment">// 构造一个 ExecutorCompletionService</span></span><br><span class="line">  CompletionService&lt;ByteBuffer&gt; hedgedService =</span><br><span class="line">      <span class="keyword">new</span> ExecutorCompletionService&lt;ByteBuffer&gt;(</span><br><span class="line">      dfsClient.getHedgedReadsThreadPool());</span><br><span class="line">  ArrayList&lt;DatanodeInfo&gt; ignored = <span class="keyword">new</span> ArrayList&lt;DatanodeInfo&gt;();</span><br><span class="line">  ByteBuffer bb = <span class="keyword">null</span>;</span><br><span class="line">  <span class="keyword">int</span> len = (<span class="keyword">int</span>) (end - start + <span class="number">1</span>);</span><br><span class="line">  block = getBlockAt(block.getStartOffset(), <span class="keyword">false</span>);</span><br><span class="line">  <span class="keyword">while</span> (<span class="keyword">true</span>) &#123;</span><br><span class="line">    <span class="comment">// see HDFS-6591, this metric is used to verify/catch unnecessary loops</span></span><br><span class="line">    hedgedReadOpsLoopNumForTesting++;</span><br><span class="line">    DNAddrPair chosenNode = <span class="keyword">null</span>;</span><br><span class="line">    <span class="comment">// there is no request already executing.</span></span><br><span class="line">    <span class="keyword">if</span> (futures.isEmpty()) &#123;</span><br><span class="line">      <span class="comment">// chooseDataNode is a commitment. If no node, we go to</span></span><br><span class="line">      <span class="comment">// the NN to reget block locations. Only go here on first read.</span></span><br><span class="line">      chosenNode = chooseDataNode(block, ignored);</span><br><span class="line">      bb = ByteBuffer.allocate(len);</span><br><span class="line">      Callable&lt;ByteBuffer&gt; getFromDataNodeCallable = getFromOneDataNode(</span><br><span class="line">          chosenNode, block, start, end, bb, corruptedBlockMap);</span><br><span class="line">      Future&lt;ByteBuffer&gt; firstRequest = hedgedService</span><br><span class="line">          .submit(getFromDataNodeCallable);</span><br><span class="line">      futures.add(firstRequest);</span><br><span class="line">      <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// 第一次获取，设置 timeout，非阻塞</span></span><br><span class="line">        Future&lt;ByteBuffer&gt; future = hedgedService.poll(</span><br><span class="line">            dfsClient.getHedgedReadTimeout(), TimeUnit.MILLISECONDS);</span><br><span class="line">        <span class="comment">// 超时</span></span><br><span class="line">        <span class="keyword">if</span> (future != <span class="keyword">null</span>) &#123;</span><br><span class="line">          ByteBuffer result = future.get();</span><br><span class="line">          System.arraycopy(result.array(), result.position(), buf, offset,</span><br><span class="line">              len);</span><br><span class="line">          <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (DFSClient.LOG.isDebugEnabled()) &#123;</span><br><span class="line">          DFSClient.LOG.debug(<span class="string">"Waited "</span> + dfsClient.getHedgedReadTimeout()</span><br><span class="line">              + <span class="string">"ms to read from "</span> + chosenNode.info</span><br><span class="line">              + <span class="string">"; spawning hedged read"</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">// Ignore this node on next go around.</span></span><br><span class="line">        ignored.add(chosenNode.info);</span><br><span class="line">        dfsClient.getHedgedReadMetrics().incHedgedReadOps();</span><br><span class="line">        <span class="keyword">continue</span>; <span class="comment">// no need to refresh block locations</span></span><br><span class="line">      &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">        <span class="comment">// Ignore</span></span><br><span class="line">      &#125; <span class="keyword">catch</span> (ExecutionException e) &#123;</span><br><span class="line">        <span class="comment">// Ignore already logged in the call.</span></span><br><span class="line">      &#125;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="comment">// We are starting up a 'hedged' read. We have a read already</span></span><br><span class="line">      <span class="comment">// ongoing. Call getBestNodeDNAddrPair instead of chooseDataNode.</span></span><br><span class="line">      <span class="comment">// If no nodes to do hedged reads against, pass.</span></span><br><span class="line">      <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// 拿到新的副本</span></span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">          chosenNode = getBestNodeDNAddrPair(block, ignored);</span><br><span class="line">        &#125; <span class="keyword">catch</span> (IOException ioe) &#123;</span><br><span class="line">          chosenNode = chooseDataNode(block, ignored);</span><br><span class="line">        &#125;</span><br><span class="line">        bb = ByteBuffer.allocate(len);</span><br><span class="line">        <span class="comment">// 把 actualGetFromOneDataNode 构造成 Callable</span></span><br><span class="line">        Callable&lt;ByteBuffer&gt; getFromDataNodeCallable = getFromOneDataNode(</span><br><span class="line">            chosenNode, block, start, end, bb, corruptedBlockMap);</span><br><span class="line">        <span class="comment">// 读新的副本</span></span><br><span class="line">        Future&lt;ByteBuffer&gt; oneMoreRequest = hedgedService</span><br><span class="line">            .submit(getFromDataNodeCallable);</span><br><span class="line">        futures.add(oneMoreRequest);</span><br><span class="line">      &#125; <span class="keyword">catch</span> (IOException ioe) &#123;</span><br><span class="line">        <span class="keyword">if</span> (DFSClient.LOG.isDebugEnabled()) &#123;</span><br><span class="line">          DFSClient.LOG.debug(<span class="string">"Failed getting node for hedged read: "</span></span><br><span class="line">              + ioe.getMessage());</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="comment">// if not succeeded. Submit callables for each datanode in a loop, wait</span></span><br><span class="line">      <span class="comment">// for a fixed interval and get the result from the fastest one.</span></span><br><span class="line">      <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="comment">// 获得第一个完成的结果，内部是通过阻塞式的 take 完成的</span></span><br><span class="line">        ByteBuffer result = getFirstToComplete(hedgedService, futures);</span><br><span class="line">        <span class="comment">// cancel the rest.</span></span><br><span class="line">        cancelAll(futures);</span><br><span class="line">        dfsClient.getHedgedReadMetrics().incHedgedReadWins();</span><br><span class="line">        System.arraycopy(result.array(), result.position(), buf, offset,</span><br><span class="line">            len);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">      &#125; <span class="keyword">catch</span> (InterruptedException ie) &#123;</span><br><span class="line">        <span class="comment">// Ignore and retry</span></span><br><span class="line">      &#125;</span><br><span class="line">      <span class="comment">// We got here if exception. Ignore this node on next go around IFF</span></span><br><span class="line">      <span class="comment">// we found a chosenNode to hedge read against.</span></span><br><span class="line">      <span class="keyword">if</span> (chosenNode != <span class="keyword">null</span> &amp;&amp; chosenNode.info != <span class="keyword">null</span>) &#123;</span><br><span class="line">        ignored.add(chosenNode.info);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>重点就在于 getFromOneDataNode 把 actualGetFromOneDataNode 构造成 Callable 然后 submit。<br>　　第一次读取时，用非阻塞的 poll 获取结果 future，判断 future 是否成功，成功即返回，否则在 ignored 中添加下次需要忽略的本节点。<br>　　第二次读取时，通过 getBestNodeDNAddrPair 或 chooseDataNode 选取 DataNode，构造 Callable 并提交至 hedgedService，通过 getFirstToComplete 获取第一个成功的结果后，getFirstToComplete 中，是通过阻塞式的 hedgedService.take() 来实现的。调用 cancelAll 取消其它的，并计数，否则也是计数外加忽略本次 datanode。</p>
+<h2 id="cancelAll"><a href="#cancelAll" class="headerlink" title="cancelAll"></a>cancelAll</h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">cancelAll</span><span class="params">(List&lt;Future&lt;ByteBuffer&gt;&gt; futures)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">for</span> (Future&lt;ByteBuffer&gt; future : futures) &#123;</span><br><span class="line">    <span class="comment">// Unfortunately, hdfs reads do not take kindly to interruption.</span></span><br><span class="line">    <span class="comment">// Threads return a variety of interrupted-type exceptions but</span></span><br><span class="line">    <span class="comment">// also complaints about invalid pbs -- likely because read</span></span><br><span class="line">    <span class="comment">// is interrupted before gets whole pb.  Also verbose WARN</span></span><br><span class="line">    <span class="comment">// logging.  So, for now, do not interrupt running read.</span></span><br><span class="line">    future.cancel(<span class="keyword">false</span>);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>我们看 cancelAll 函数，这里其实有个坑，我们看到 future.cancel(false) 是设置 false 的，也就是说 mayInterruptIfRunnin 是被设置为 false 的，当一个线程已经 running 的时候，它实际是不会 kill 掉这个线程的，这样带来的问题就是，如果我们读慢副本的线程已经开始读了，其他副本已经读完，这个读慢副本的线程是不会被 kill 掉的，它实际上继续占了我们线程池里的一个位子，如果这样的慢副本线程很多的话，我们的线程池会被打满，想要提交新的读取，就只能等这些慢副本读完了。<br>　　看注释的意思设置为 false 的原因是，内部 read 的代码的中断机制不够优雅，我试着把它设置为 true 后，跑了几组测试，好像也没有带来正确性上的问题，就先这么办吧。</p>
+<h2 id="局限性"><a href="#局限性" class="headerlink" title="局限性"></a>局限性</h2><p>Hedged Read 的设计是良好的，但是在实际开启参数后，发现它其实并没起作用，因为 Spark 和 Hadoop 读 HDFS 用到的一些Reader，例如 LineReader 走的 DFSInputStream 里的 read API 都是这个：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Read the entire buffer.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">synchronized</span> <span class="keyword">int</span> <span class="title">read</span><span class="params">(<span class="keyword">final</span> <span class="keyword">byte</span> buf[], <span class="keyword">int</span> off, <span class="keyword">int</span> len)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br></pre></td></tr></table></figure>
+
+<p>也就是<a href="http://chengfeng96.com/blog/2018/11/22/HDFS里read-operation源码解析以及读慢节点问题探究/" target="_blank" rel="noopener">HDFS里read operation源码解析以及读慢节点问题探究</a>里的我们介绍的那个 read，而不是 Hedged Read 走的那个 read API：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Read bytes starting from the specified position.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> position start read from this position</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> buffer read buffer</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> offset offset into buffer</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> length number of bytes to read</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@return</span> actual number of bytes read</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">read</span><span class="params">(<span class="keyword">long</span> position, <span class="keyword">byte</span>[] buffer, <span class="keyword">int</span> offset, <span class="keyword">int</span> length)</span></span></span><br></pre></td></tr></table></figure>
+
+<p>显然 Hedged Read 是被应用到随机读的 read API 里了，所以 Hedged Read 其实并没有在顺序读的场景下起作用。HBase 里的随机读场景比较多，Hedged Read 在 HBase 里使用的较多。</p>
+<h2 id="改进"><a href="#改进" class="headerlink" title="改进"></a>改进</h2><p>我们想办法将第一个 read API 的读操作应用 Hedged Read，也就是替换掉 readWithStrategy，手动的更新 POS，每次执行随机读的 read API：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">synchronized</span> <span class="keyword">int</span> <span class="title">readWithHedged</span><span class="params">(<span class="keyword">byte</span>[] buf, <span class="keyword">int</span> off, <span class="keyword">int</span> len)</span> <span class="keyword">throws</span> IOException </span>&#123;</span><br><span class="line">  dfsClient.checkOpen();</span><br><span class="line">  <span class="keyword">if</span> (closed.get()) &#123;</span><br><span class="line">    <span class="keyword">throw</span> <span class="keyword">new</span> IOException(<span class="string">"Stream closed"</span>);</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">if</span> (pos &lt; getFileLength()) &#123;</span><br><span class="line">    <span class="keyword">int</span> retries = <span class="number">2</span>;</span><br><span class="line">    <span class="keyword">while</span> (retries &gt; <span class="number">0</span>) &#123;</span><br><span class="line">      <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">int</span> result = read(pos, buf, off, len);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (result &gt;= <span class="number">0</span>) &#123;</span><br><span class="line">          pos += result;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">          <span class="comment">// got a EOS from reader though we expect more data on it.</span></span><br><span class="line">          <span class="keyword">throw</span> <span class="keyword">new</span> IOException(<span class="string">"Unexpected EOS from the reader"</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> result;</span><br><span class="line">      &#125; <span class="keyword">catch</span> (IOException e) &#123;</span><br><span class="line">        <span class="keyword">if</span> (retries == <span class="number">1</span>) &#123;</span><br><span class="line">          DFSClient.LOG.warn(<span class="string">"DFS Read"</span>, e);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">if</span> (--retries == <span class="number">0</span>) &#123;</span><br><span class="line">          <span class="keyword">throw</span> e;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> -<span class="number">1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>然而这样修改要慎重，因为开销变大了，原来顺序读是维护一个 BlockReader，读完了或者出问题再换一个新的 BlockReader，而 hedged read 是针对每一一次随机读都新建立一个 BlockReader 的连接，开销还是比较大的。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>我们分析了 Hedged Read 的实现，它主要通过一个静态线程池来完成读多副本的功能，我们也发现了它的局限性，就是它运用的 read API 在顺序读中并没有被使用，而是主要应用于随机读的场景，MR 和 Spark 的任务开了几乎没有用，它主要真的还是 HBase 下的一些随机读场景。我们也提出了优化的方向，将 Hedged Read 应用于顺序读，但是这样做开销比较大。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/hdfs/" rel="tag"># hdfs</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/07/03/hdfs%E7%9A%84Short-Circuit-Local-Read%E5%8E%9F%E7%90%86/" rel="next" title="hdfs的Short Circuit Local Read原理">
+                <i class="fa fa-chevron-left"></i> hdfs的Short Circuit Local Read原理
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/07/04/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E5%9B%9B%E7%AF%87/" rel="prev" title="hbase原理 第四篇">
+                hbase原理 第四篇 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#hdfs的Hedged-Read原理"><span class="nav-number">1.</span> <span class="nav-text">hdfs的Hedged Read原理</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Hedged-Read-线程池初始化"><span class="nav-number">1.1.</span> <span class="nav-text">Hedged Read 线程池初始化</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#DFSInputStream-read实现"><span class="nav-number">1.2.</span> <span class="nav-text">DFSInputStream.read实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#fetchBlockByteRange"><span class="nav-number">1.3.</span> <span class="nav-text">fetchBlockByteRange</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#actualGetFromOneDataNode"><span class="nav-number">1.4.</span> <span class="nav-text">actualGetFromOneDataNode</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#hedgedFetchBlockByteRange"><span class="nav-number">1.5.</span> <span class="nav-text">hedgedFetchBlockByteRange</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#cancelAll"><span class="nav-number">1.6.</span> <span class="nav-text">cancelAll</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#局限性"><span class="nav-number">1.7.</span> <span class="nav-text">局限性</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#改进"><span class="nav-number">1.8.</span> <span class="nav-text">改进</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">1.9.</span> <span class="nav-text">总结</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

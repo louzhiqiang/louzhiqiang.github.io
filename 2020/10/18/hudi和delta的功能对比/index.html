@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="写在开头：列存、事务、高并发，你会发现我们对大数据的要求越来越在线化。思想都是借鉴来的，打破界限。 背景现在很多公司内部数据架构中都存在数据湖，数据湖是一种大型数据存储库和处理引擎。它能够存储大量各种类型的数据，拥有强大的信息处理能力和处理几乎无限的并发任务或工作的能力，最早由 Pentaho 首席技术官詹姆斯迪克森在2011年的时候提出。虽然数据湖在数据范围方面迈出了一大步，但是也面临了很多问题">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hudi和delta的功能对比">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2020/10/18/hudi%E5%92%8Cdelta%E7%9A%84%E5%8A%9F%E8%83%BD%E5%AF%B9%E6%AF%94/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="写在开头：列存、事务、高并发，你会发现我们对大数据的要求越来越在线化。思想都是借鉴来的，打破界限。 背景现在很多公司内部数据架构中都存在数据湖，数据湖是一种大型数据存储库和处理引擎。它能够存储大量各种类型的数据，拥有强大的信息处理能力和处理几乎无限的并发任务或工作的能力，最早由 Pentaho 首席技术官詹姆斯迪克森在2011年的时候提出。虽然数据湖在数据范围方面迈出了一大步，但是也面临了很多问题">
+<meta property="article:published_time" content="2020-10-18T15:11:08.000Z">
+<meta property="article:modified_time" content="2022-07-26T23:56:54.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2020/10/18/hudi和delta的功能对比/"/>
+
+
+
+
+
+  <title>hudi和delta的功能对比 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2020/10/18/hudi%E5%92%8Cdelta%E7%9A%84%E5%8A%9F%E8%83%BD%E5%AF%B9%E6%AF%94/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">hudi和delta的功能对比</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2020-10-18T23:11:08+08:00">
+                2020-10-18
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p><strong>写在开头：列存、事务、高并发，你会发现我们对大数据的要求越来越在线化。思想都是借鉴来的，打破界限。</strong></p>
+<h1 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h1><p>现在很多公司内部数据架构中都存在数据湖，数据湖是一种大型数据存储库和处理引擎。它能够存储大量各种类型的数据，拥有强大的信息处理能力和处理几乎无限的并发任务或工作的能力，最早由 Pentaho 首席技术官詹姆斯迪克森在2011年的时候提出。虽然数据湖在数据范围方面迈出了一大步，但是也面临了很多问题，主要概括如下：</p>
+<ul>
+<li>数据湖的读写是不可靠的。数据工程师经常遇到不安全写入数据湖的问题，导致读者在写入期间看到垃圾数据。他们必须构建方法以确保读者在写入期间始终看到一致的数据。</li>
+<li>数据湖中的数据质量很低。将非结构化数据转储到数据湖中是非常容易的。但这是以数据质量为代价的。没有任何验证模式和数据的机制，导致数据湖的数据质量很差。因此，努力挖掘这些数据的分析项目也会失败。</li>
+<li>随着数据的增加，处理性能很差。随着数据湖中存储的数据量增加，文件和目录的数量也会增加。处理数据的作业和查询引擎在处理元数据操作上花费大量时间。在有流作业的情况下，这个问题更加明显。</li>
+<li>数据湖中数据的更新非常困难。工程师需要构建复杂的管道来读取整个分区或表，修改数据并将其写回。这种模式效率低，并且难以维护。</li>
+</ul>
+<p>由于存在这些挑战，许多大数据项目无法实现其愿景，有时甚至完全失败。我们需要一种解决方案，使数据从业者能够利用他们现有的数据湖，同时确保数据质量。这就是 Delta Lake 产生的背景。</p>
+<p>基于以上的问题，delta诞生了，主要的功能点如下：</p>
+<ol>
+<li><strong>支持 ACID 事务。</strong> 这个就是典型的结合了OLTP的思想来做大数据的事情。Delta Lake 在多并发写入之间提供 ACID 事务保证。每次写入都是一个事务，并且在事务日志中记录了写入的序列顺序。事务日志跟踪文件级别的写入并使用乐观并发控制，这非常适合数据湖，因为多次写入/修改相同的文件很少发生。在存在冲突的情况下，Delta Lake 会抛出并发修改异常以便用户能够处理它们并重试其作业。Delta Lake 还提供强大的可序列化隔离级别，允许工程师持续写入目录或表，并允许消费者继续从同一目录或表中读取。读者将看到阅读开始时存在的最新快照。这个快照概念跟mysql的innodb的快照是有一个意思。MVVC概念。</li>
+<li><strong>模式管理（Schema management）。</strong> Delta Lake 自动验证正在被写的 DataFrame 模式是否与表的模式兼容。表中存在但不在 DataFrame 中的列设置为 null。如果 DataFrame 有表中不存在的列，则此操作会引发异常。Delta Lake 具有显式添加新列的 DDL 以及自动更新模式的能力。</li>
+<li><strong>可扩展元数据处理</strong>。Delta Lake 将表或目录的元数据信息存储在事务日志中，而不是 Metastore 中。这允许 Delta Lake 在恒定时间内列出大型目录中的文件，同时在读取数据时非常高效。这个特性扩展了底层存储数据定义的灵活度。</li>
+<li><strong>数据版本</strong>。Delta Lake 允许用户读取表或目录之前的快照。当文件被修改文件时，Delta Lake 会创建较新版本的文件并保留旧版本的文件。当用户想要读取旧版本的表或目录时，他们可以在 Apache Spark 的读取 API 中提供时间戳或版本号，Delta Lake 根据事务日志中的信息构建该时间戳或版本的完整快照。这允许用户重现之前的数据，并在需要时将表还原为旧版本的数据。这个就是典型的利用快照恢复数据的方式。</li>
+<li><strong>统一流和批处理 Sink</strong>。除批量写入外，Delta Lake 还可用作 Apache Spark structured streaming 的高效流式 sink。结合 ACID 事务和可扩展的元数据处理，高效的流式 sink 现在可以实现大量近实时分析用例，而无需同时维护复杂的流式传输和批处理管道。</li>
+<li><strong>数据存储格式采用开源的</strong>。Delta Lake 中的所有数据都是使用 Apache Parquet 格式存储，使 Delta Lake 能够利用 Parquet 原生的高效压缩和编码方案。这点跟hudi有比较多的区别，导致很多特性都会不一样，而且支持的级别也是有区别的。</li>
+<li><strong>记录更新和删除</strong>。这个功能马上可以使用。Delta Lake 将支持 merge, update 和 delete 等 DML 命令。这使得数据工程师可以轻松地在数据湖中插入/更新和删除记录。 由于 Delta Lake 以文件级粒度跟踪和修改数据，因此它比读取和覆盖整个分区或表更有效。 基于hudi数据存储的方式不一样，导致这些上层支持的定义语言也有了很多差别。</li>
+<li><strong>数据异常处理</strong>。Delta Lake 还将支持新的 API 来设置表或目录的数据异常。工程师能够设置一个布尔条件并调整报警阈值以处理数据异常。当 Apache Spark 作业写入表或目录时，Delta Lake 将自动验证记录，当数据存在异常时，它将根据提供的设置来处理记录。这一点可以认为这是delta的扩展性的考量。因为本身异常值的处理就是一个个性化问题。</li>
+</ol>
+<blockquote>
+<p>关于事务日志的处理，可以看<a href="https://www.iteblog.com/archives/2584.html" target="_blank" rel="noopener">这个</a></p>
+</blockquote>
+<p>为 Apache Spark 和大数据 workloads 提供 ACID 事务能力，其通过写和快照隔离之间的乐观并发控制（optimistic concurrency control），在写入数据期间提供一致性的读取，从而为构建在 HDFS 和云存储上的数据湖（data lakes）带来可靠性。</p>
+<p>Delta Lake 还提供内置数据版本控制，以便轻松回滚。</p>
+<h2 id="Hudi"><a href="#Hudi" class="headerlink" title="Hudi"></a>Hudi</h2><p>Hudi（Hoodie） 是 Uber 为了解决大数据生态系统中需要插入更新及增量消费原语的摄取管道和 ETL 管道的低效问题，该项目在2016年开始开发，并于2017年开源，2019年1月进入 Apache 孵化器。</p>
+<p>看这俩连接：<a href="https://www.iteblog.com/archives/9660.html" target="_blank" rel="noopener"> 《Apache Hudi: Uber 开源的大数据增量处理框架》</a> 和 <a href="https://www.iteblog.com/archives/2557.html" target="_blank" rel="noopener">《Uber 大数据平台的演进（2014~2019）》</a></p>
+<h1 id="对比"><a href="#对比" class="headerlink" title="对比"></a>对比</h1><h4 id="添加、更新的语义两者都是正常支持的，只是方式会略微有些区别，但是效果是一样的。"><a href="#添加、更新的语义两者都是正常支持的，只是方式会略微有些区别，但是效果是一样的。" class="headerlink" title="添加、更新的语义两者都是正常支持的，只是方式会略微有些区别，但是效果是一样的。"></a>添加、更新的语义两者都是正常支持的，只是方式会略微有些区别，但是效果是一样的。</h4><h4 id="删除语义，hudi的语义会更加丰富，提供了软删除和硬删除。"><a href="#删除语义，hudi的语义会更加丰富，提供了软删除和硬删除。" class="headerlink" title="删除语义，hudi的语义会更加丰富，提供了软删除和硬删除。"></a>删除语义，hudi的语义会更加丰富，提供了软删除和硬删除。</h4><h4 id="查询的语义，都差不多，只是where条件里sql语法的支持，基本上就跟spark-sql的方式差不多。"><a href="#查询的语义，都差不多，只是where条件里sql语法的支持，基本上就跟spark-sql的方式差不多。" class="headerlink" title="查询的语义，都差不多，只是where条件里sql语法的支持，基本上就跟spark-sql的方式差不多。"></a>查询的语义，都差不多，只是where条件里sql语法的支持，基本上就跟spark-sql的方式差不多。</h4><h4 id="数据merge策略"><a href="#数据merge策略" class="headerlink" title="数据merge策略"></a>数据merge策略</h4><p>Delta Lake 支持对存储的数据进行更新，并且仅支持写入的时候进行数据合并（Write On Merge），它会获取需要更新的数据对应的文件，然后直接读取这些文件并使用 Spark 的 Join 进行计算产生新的文件。</p>
+<p>同理，Hudi 也是支持写入数据的时候进行合并，但是相比 Delta Lake，Hudi 还支持 Merge On Read 模式，也就是将增量数据写入到一个 delta 文件，然后默认情况下在更新完数据后会启动一个作业进行 compaction 操作。当然，这个也是可以关闭的，也就是更新的时候值负责数据的写入，合并操作可以单独用一个作业来跑。</p>
+<p>这个影响其实是比较多的，看业务场景是在读多还是写多呢？这两种场景导致使用方式会有比较大的差别，因为最复杂的那部分操作的时间点不一样。</p>
+<p>在少写多读的情况下，Copy On Write 模式很不错；而在多写少读的情况下，Merge On Read  模式很不错，而 Delta Lake 目前还不支持 Merge On Read  模式。</p>
+<p>Hudi 提供了<strong>索引机制</strong>，在数据合并的时候，可以使用索引的信息快速定位到某行数据所在的文件，从而加快数据更新的速度。这个就是数据更新的时候，其实还是希望需要更新的数据能够在原来数据所在的数据块上的，这样merge操作上能够更有效率，在分布式的计算上也能够有更好的计算优化。</p>
+<h4 id="和其他系统兼容性"><a href="#和其他系统兼容性" class="headerlink" title="和其他系统兼容性"></a>和其他系统兼容性</h4><p>Delta Lake 天然支持spark，因为都是一伙人开发的。但是hudi也是支持spark的，但是其读写底层文件时，并不依赖spark去实现，而是实现了自己独有的 InputFormat，比如 HoodieParquetInputFormat、HoodieParquetRealtimeInputFormat 等。所以从这个角度上看，Hudi 和其他系统去做兼容比 Delta Lake 要容易。</p>
+<p>目前 Hudi 原生支持 Spark、Presto、MapReduce 以及 Hive 等大数据生态系统，Flink 的支持正在开发中，参见 HUDI-184。Delta Lake 作为一个数据湖的存储层，其实不应该和 Spark 进行深入的绑定，数砖肯定意识到这个问题，所以数砖的大佬们弄了一个新的项目，用于和其他大数据生态系统进行整合，参见 <a href="https://github.com/delta-io/connectors，相关的">https://github.com/delta-io/connectors，相关的</a> ISSUE 参见 <a href="https://github.com/delta-io/delta/issues/245。在前几天发布的">https://github.com/delta-io/delta/issues/245。在前几天发布的</a> Delta Lake 0.5.0 也支持 Hive、Presto 等常见的大数据查询引擎。</p>
+<p>数据生态，还是要拥抱一下，否则场景就会比较受限，这是硬件。</p>
+<h4 id="sql支持"><a href="#sql支持" class="headerlink" title="sql支持"></a>sql支持</h4><p>目前两者都是在sql语义的主键完善过程中。一般在DML的操作和DDL的操作都是欠缺的，随着版本在逐渐补充的。</p>
+<h4 id="并发控制"><a href="#并发控制" class="headerlink" title="并发控制"></a>并发控制</h4><p>Delta Lake 原生提供了 ACID 事务的支持，每次写入都是一个事务，并且在事务日志中记录了写入的序列顺序。事务日志跟踪文件级别的写入并使用乐观并发控制。在存在冲突的情况下，Delta Lake 会抛出并发修改异常以便用户能够处理它们并重试其作业。Delta Lake 还提供强大的可序列化隔离级别，允许工程师持续写入目录或表，并允许消费者继续从同一目录或表中读取，读者将看到阅读开始时存在的最新快照。因为 ACID 的支持，Delta Lake 允许同一时刻多个用户同时写一张表。</p>
+<p>Apache Hudi 每次修改也会生成一个事务提交，但是其不支持同一时刻多个用户同时写一张表，因为如果是这种情况最后的数据是不对的。</p>
+<p>从这个点来看，前者支持的并发会更有扩展。</p>
+<h4 id="版本回退"><a href="#版本回退" class="headerlink" title="版本回退"></a>版本回退</h4><p>Delta Lake 原生提供了一个叫做时间旅行（Time Travel）的功能，通过这个功能我们可以回退到任意版本的数据，具体如下：</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">val</span> df = spark.read.format(<span class="string">"delta"</span>).option(<span class="string">"versionAsOf"</span>, <span class="number">0</span>).load(<span class="string">"/tmp/delta-table"</span>)</span><br><span class="line">df.show()</span><br></pre></td></tr></table></figure>
+
+<p>这个功能非常有用，比如我们发布新的系统时，然后发现了一个 Bug，这时候我们可以使用这个功能将数据回退到正确的状态。</p>
+<blockquote>
+<p>如果这个版本可以直接管理的话，就可以直接在线一键恢复数据。跟git的那个概念很像。</p>
+</blockquote>
+<p>hudi的回退会麻烦一些，但是他稍微麻烦一些，这个取决于<strong>机制中，拿什么来定义这个快照的主键</strong>。hudi就是对应的时间范围 + commit时间戳 的方式。</p>
+<h4 id="小文件问题"><a href="#小文件问题" class="headerlink" title="小文件问题"></a>小文件问题</h4><p>Delta Lake 需要我们自己处理小文件问题。Databricks Runtime 本身有这个的解决方式，但是逻辑被特定了，所以没被Databricks开源出来。</p>
+<p>而 Hudi 可以通过将对该分区中的插入作为对现有小文件的更新来解决小文件的问题，可以通过 hoodie.parquet.small.file.limit 参数实现。</p>
+<p>这个还需要细看，有诸多不明确的点。</p>
+<h4 id="底层文件系统格式"><a href="#底层文件系统格式" class="headerlink" title="底层文件系统格式"></a>底层文件系统格式</h4><p>Delta Lake 中的所有数据都是使用 Apache Parquet 格式存储，使 Delta Lake 能够利用 Parquet 原生的高效压缩和编码方案。</p>
+<p>在 Hudi 中，如果我们使用 Write On Merge 存储类型（默认），那么底层也是使用 Apache Parquet 格式存储数据；而如果使用了 Read On Merge 存储类型，则同时使用 Avro 和 Parquet 来存储数据。其中 Avro 格式以行的形式存储增量的数据，而 Parquet 以列的形式存储已经 Merge 好的数据。</p>
+<p>hudi的这个方式影响了他在sql语义层的支持是不一样的。看下边的表模式管理。</p>
+<h4 id="表模式管理"><a href="#表模式管理" class="headerlink" title="表模式管理"></a>表模式管理</h4><p>在 Delta Lake 中，默认情况下，如果插入的数据包含 Delta Lake 表中没有的列，会报错。如果在写入数据的时候加上 .option(“mergeSchema”, “true”) 参数，就可以实现追加了。</p>
+<p>在 Apache Hudi 中，新增加的列可以直接添加到已有的表中。</p>
+<p>在 Delta Lake 中，如果我们插入的数据不包含对应表的全部字段，是可以插入进去的，并且缺少的列对应的数据为 null。但是在 Hudi 中，插入数据必须指定表的全部字段，否则会报错。</p>
+<p><strong>目前 Delta Lake 和 Hudi 都不支持修改表中已有字段的类型。</strong></p>
+<h4 id="表数据类型"><a href="#表数据类型" class="headerlink" title="表数据类型"></a>表数据类型</h4><p>在 Delta Lake 中，数据存储到 Delta Lake 和读出来的类型是一致的。也就是写进去的是什么数据类型，读出来的就是什么数据类型。</p>
+<p>这是因为 Delta Lake 在每次 commit 的文件里面存储了 DataFrame 的 StructType。</p>
+<p>而hudi就不是这样了，底层使用的存储结构会影响你能主持的数据结构。比如你定义数据结构的时候，定义了一个timestamp的时候，但是查询出来的就不是tempstamp类型。而是long类型。因为avro就不支持timestamp类型。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2020/10/17/spark%E7%9A%84executor%E6%95%B0%E9%87%8F%E5%92%8Ccore%E7%9A%84%E6%95%B0%E9%87%8F%E8%AE%BE%E7%BD%AE/" rel="next" title="spark的executor数量和core的数量设置">
+                <i class="fa fa-chevron-left"></i> spark的executor数量和core的数量设置
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2020/10/21/%E4%B8%80%E4%B8%AApresto%E6%9F%A5%E8%AF%A2%E8%AE%A1%E5%88%92%E7%9A%84%E5%88%86%E6%9E%90/" rel="prev" title="一个presto查询计划的分析">
+                一个presto查询计划的分析 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#背景"><span class="nav-number">1.</span> <span class="nav-text">背景</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#Hudi"><span class="nav-number">1.1.</span> <span class="nav-text">Hudi</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#对比"><span class="nav-number">2.</span> <span class="nav-text">对比</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#添加、更新的语义两者都是正常支持的，只是方式会略微有些区别，但是效果是一样的。"><span class="nav-number">2.0.0.1.</span> <span class="nav-text">添加、更新的语义两者都是正常支持的，只是方式会略微有些区别，但是效果是一样的。</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#删除语义，hudi的语义会更加丰富，提供了软删除和硬删除。"><span class="nav-number">2.0.0.2.</span> <span class="nav-text">删除语义，hudi的语义会更加丰富，提供了软删除和硬删除。</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#查询的语义，都差不多，只是where条件里sql语法的支持，基本上就跟spark-sql的方式差不多。"><span class="nav-number">2.0.0.3.</span> <span class="nav-text">查询的语义，都差不多，只是where条件里sql语法的支持，基本上就跟spark-sql的方式差不多。</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#数据merge策略"><span class="nav-number">2.0.0.4.</span> <span class="nav-text">数据merge策略</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#和其他系统兼容性"><span class="nav-number">2.0.0.5.</span> <span class="nav-text">和其他系统兼容性</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#sql支持"><span class="nav-number">2.0.0.6.</span> <span class="nav-text">sql支持</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#并发控制"><span class="nav-number">2.0.0.7.</span> <span class="nav-text">并发控制</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#版本回退"><span class="nav-number">2.0.0.8.</span> <span class="nav-text">版本回退</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#小文件问题"><span class="nav-number">2.0.0.9.</span> <span class="nav-text">小文件问题</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#底层文件系统格式"><span class="nav-number">2.0.0.10.</span> <span class="nav-text">底层文件系统格式</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#表模式管理"><span class="nav-number">2.0.0.11.</span> <span class="nav-text">表模式管理</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#表数据类型"><span class="nav-number">2.0.0.12.</span> <span class="nav-text">表数据类型</span></a></li></ol></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="parquet," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="parquet文件的读取过程最近在修改hudi读取复杂数据的bug，然后钻研了一下parquet文件的读取，这里记录一下。 hudi本身实现的是向量化读取，而parquet-tool实现的是基础算法。这里先研究一下这个基础算法，最后再来看怎么修改那个向量化读取的算法。 关于parquet的基础概念，之前有记录过，可以翻看一下历史记录。 ParquetReader的创建创建过程会有一些初始化，这里是">
+<meta property="og:type" content="article">
+<meta property="og:title" content="parquet文件的读取过程">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/03/30/parquet%E6%96%87%E4%BB%B6%E7%9A%84%E8%AF%BB%E5%8F%96%E8%BF%87%E7%A8%8B/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="parquet文件的读取过程最近在修改hudi读取复杂数据的bug，然后钻研了一下parquet文件的读取，这里记录一下。 hudi本身实现的是向量化读取，而parquet-tool实现的是基础算法。这里先研究一下这个基础算法，最后再来看怎么修改那个向量化读取的算法。 关于parquet的基础概念，之前有记录过，可以翻看一下历史记录。 ParquetReader的创建创建过程会有一些初始化，这里是">
+<meta property="article:published_time" content="2022-03-29T23:46:36.000Z">
+<meta property="article:modified_time" content="2022-05-13T03:50:38.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="parquet">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/03/30/parquet文件的读取过程/"/>
+
+
+
+
+
+  <title>parquet文件的读取过程 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/03/30/parquet%E6%96%87%E4%BB%B6%E7%9A%84%E8%AF%BB%E5%8F%96%E8%BF%87%E7%A8%8B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">parquet文件的读取过程</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-03-30T07:46:36+08:00">
+                2022-03-30
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="parquet文件的读取过程"><a href="#parquet文件的读取过程" class="headerlink" title="parquet文件的读取过程"></a>parquet文件的读取过程</h2><p>最近在修改hudi读取复杂数据的bug，然后钻研了一下parquet文件的读取，这里记录一下。</p>
+<p>hudi本身实现的是向量化读取，而parquet-tool实现的是基础算法。这里先研究一下这个基础算法，最后再来看怎么修改那个向量化读取的算法。</p>
+<p>关于parquet的基础概念，之前有记录过，可以翻看一下历史记录。</p>
+<h3 id="ParquetReader的创建"><a href="#ParquetReader的创建" class="headerlink" title="ParquetReader的创建"></a>ParquetReader的创建</h3><p>创建过程会有一些初始化，这里是parquet文件的入口，也是算法入口，可以知道整个过程用到了哪些关键元素。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">this</span>.readSupport = readSupport;</span><br><span class="line">    <span class="keyword">this</span>.filter = filter;</span><br><span class="line">    <span class="keyword">this</span>.conf = conf;</span><br><span class="line"></span><br><span class="line">    FileSystem fs = FileSystem.get(conf);</span><br><span class="line">    <span class="comment">// 记录了文件本身的属性，主要是在hdfs上的属性，大小、路径、访问权限、修改时间等等</span></span><br><span class="line">    <span class="comment">// DeprecatedRawLocalFileStatus&#123;path=file:/Users/louzhiqiang/eb9cef28-68bd-4959-a336-7c6ab285c2a3-0_0-26-2004_20220329181301996.parquet; </span></span><br><span class="line">    <span class="comment">// isDirectory=false; length=435307; replication=1; blocksize=33554432; modification_time=1648548853803; access_time=1648549061941; owner=; group=; permission=rw-rw-rw-; isSymlink=false&#125;</span></span><br><span class="line">    List&lt;FileStatus&gt; statuses = Arrays.asList(fs.listStatus(file));</span><br><span class="line">    <span class="comment">// footers信息是这个parquet文件的footer信息，里边存储了元数据、在hudi中会记录bloom索引信息、recordKey、avro格式的schema、hudi的recordKEY的最大值和最小值等。</span></span><br><span class="line">    List&lt;Footer&gt; footers = ParquetFileReader.readAllFootersInParallelUsingSummaryFiles(conf, statuses);</span><br><span class="line">    <span class="keyword">this</span>.footersIterator = footers.iterator();</span><br><span class="line">    <span class="comment">// 把上边的footer进行格式化，形成对象globalMetaData的属性，主要是schema、其他形成一个map格式。最后还有一个版本，parquet文件被创建的版本。</span></span><br><span class="line">    globalMetaData = ParquetFileWriter.getGlobalMetaData(footers);</span><br><span class="line">    <span class="comment">// BlockMetaData是指当前这个parquet文件中一个block块的包含的元数据以及相关统计信息。</span></span><br><span class="line">    <span class="comment">// BlockMetaData&#123;3, 1299 [ColumnMetaData&#123;GZIP [_hoodie_commit_time] BINARY  [BIT_PACKED, PLAIN, RLE], 4&#125;, ColumnMetaData&#123;GZIP [_hoodie_commit_seqno] BINARY  [BIT_PACKED, PLAIN, RLE], 131&#125;, ColumnMetaData&#123;GZIP [_hoodie_record_key] BINARY  [BIT_PACKED, PLAIN, RLE], 275&#125;, ColumnMetaData&#123;GZIP [_hoodie_partition_path] BINARY  [BIT_PACKED, PLAIN_DICTIONARY, RLE], 346&#125;, ColumnMetaData&#123;GZIP [_hoodie_file_name] BINARY  [BIT_PACKED, PLAIN, RLE], 440&#125;, ColumnMetaData&#123;GZIP [id] INT64  [BIT_PACKED, PLAIN, RLE], 737&#125;, ColumnMetaData&#123;GZIP [name] BINARY  [BIT_PACKED, PLAIN, RLE], 832&#125;, ColumnMetaData&#123;GZIP [price] DOUBLE  [BIT_PACKED, PLAIN, RLE], 906&#125;, ColumnMetaData&#123;GZIP [a_r, array, in_1] BINARY  [PLAIN, RLE], 1005&#125;, ColumnMetaData&#123;GZIP [a_r, array, in_2] INT32  [PLAIN, RLE], 1089&#125;, ColumnMetaData&#123;GZIP [a_r, array, in_3] BINARY  [PLAIN, RLE], 1175&#125;]&#125;</span></span><br><span class="line">    <span class="comment">// 3 是条数  1299是字节数</span></span><br><span class="line">    List&lt;BlockMetaData&gt; blocks = <span class="keyword">new</span> ArrayList&lt;BlockMetaData&gt;();</span><br><span class="line">    <span class="keyword">for</span> (Footer footer : footers) &#123;</span><br><span class="line">      blocks.addAll(footer.getParquetMetadata().getBlocks());</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    MessageType schema = globalMetaData.getSchema();</span><br><span class="line">    Map&lt;String, Set&lt;String&gt;&gt; extraMetadata = globalMetaData.getKeyValueMetaData();</span><br><span class="line">    <span class="comment">// 这行代码会初始化数据读取之后如何进行物化，也就是如何放到我们自己的数据格式</span></span><br><span class="line">    readContext = readSupport.init(<span class="keyword">new</span> InitContext(conf, extraMetadata, schema));</span><br><span class="line">    <span class="comment">// 这个context会用到consumer模式，里边的调用需要跟一下，这样能够解开如何进行物化这件事。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="reader读取"><a href="#reader读取" class="headerlink" title="reader读取"></a>reader读取</h3><p>reader初始化完了，现在看看如何进行数据的读取。</p>
+<p>读取主要调用的是read()方法</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> (reader != <span class="keyword">null</span> &amp;&amp; reader.nextKeyValue()) &#123;</span><br><span class="line">        <span class="keyword">return</span> reader.getCurrentValue();</span><br><span class="line">      &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">        initReader();</span><br><span class="line">        <span class="keyword">return</span> reader == <span class="keyword">null</span> ? <span class="keyword">null</span> : read();</span><br><span class="line">      &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (InterruptedException e) &#123;</span><br><span class="line">      <span class="keyword">throw</span> <span class="keyword">new</span> IOException(e);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>初始调用的时候，会去初始化reader。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">if</span> (footersIterator.hasNext()) &#123;</span><br><span class="line">      Footer footer = footersIterator.next();</span><br><span class="line">      reader = <span class="keyword">new</span> InternalParquetRecordReader&lt;T&gt;(readSupport, filter);</span><br><span class="line">      reader.initialize(</span><br><span class="line">          readContext.getRequestedSchema(), globalMetaData.getSchema(), footer.getParquetMetadata().getFileMetaData().getKeyValueMetaData(),</span><br><span class="line">          readContext.getReadSupportMetadata(), footer.getFile(), footer.getParquetMetadata().getBlocks(), conf);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>InternalParquetRecordReader 是很关键的类，内部会初始化 ColumnIOFactory 。ColumnIOFactory 这个类稍后会着重再介绍一遍。</p>
+<p>initialize 方法比较重要，如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">this</span>.requestedSchema = requestedSchema;</span><br><span class="line">    <span class="keyword">this</span>.fileSchema = fileSchema;</span><br><span class="line">    <span class="keyword">this</span>.file = file;</span><br><span class="line">    <span class="keyword">this</span>.columnCount = <span class="keyword">this</span>.requestedSchema.getPaths().size();</span><br><span class="line">    <span class="keyword">this</span>.recordConverter = readSupport.prepareForRead(</span><br><span class="line">        configuration, extraMetadata, fileSchema,</span><br><span class="line">        <span class="keyword">new</span> ReadSupport.ReadContext(requestedSchema, readSupportMetadata));</span><br><span class="line"></span><br><span class="line">    List&lt;ColumnDescriptor&gt; columns = requestedSchema.getColumns();</span><br><span class="line">    reader = <span class="keyword">new</span> ParquetFileReader(configuration, file, blocks, columns);</span><br><span class="line">    <span class="keyword">for</span> (BlockMetaData block : blocks) &#123;</span><br><span class="line">      total += block.getRowCount();</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p> fileSchema 和 requestedSchema 几乎一样的属性信息，都是 MessageType ，columnCount 是指实际包含的列数，也就是整个 元数据打平之后的信息，因为实际上Path就是每一个路径，代表的是根节点到叶子节点的所有路径数量，也就代表了有多少列。</p>
+<p>在这里调用了 prepareForRead 这个方法，这里会初始化 RecordMaterializer ，这个是物化的关进类。要关注一下他在哪里被调用这件事。</p>
+<p>SimpleRecordMaterializer对象生成的时候，生成了 SimpleRecordConverter ，这个就是按照类型转化数据的对象。</p>
+<p>Top-level class which should be implemented in order to <strong>materialize objects from a stream of Parquet data</strong>. Each record will be wrapped by <mark>GroupConverter.start() </mark>and <mark>GroupConverter.end()</mark>, between which the appropriate fields will be materialized.</p>
+<p>这是RecordMaterializer 这个对象的注释。</p>
+<p>converter在创建的时候会有如下的初始化：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">this</span>.converters = <span class="keyword">new</span> Converter[schema.getFieldCount()];</span><br><span class="line">    <span class="keyword">this</span>.parent = parent;</span><br><span class="line">    <span class="keyword">this</span>.name = name;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">int</span> i = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">for</span> (Type field: schema.getFields()) &#123;</span><br><span class="line">      converters[i++] = createConverter(field);</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>根据数量和字段类型创建 converters。这个时候创建的 converter的数量是一级字段的数量。也就是未展开之前的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">private</span> Converter <span class="title">createConverter</span><span class="params">(Type field)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (field.isPrimitive()) &#123;</span><br><span class="line">      OriginalType otype = field.getOriginalType();</span><br><span class="line">      <span class="keyword">if</span> (otype != <span class="keyword">null</span>) &#123;</span><br><span class="line">        <span class="keyword">switch</span> (otype) &#123;</span><br><span class="line">          <span class="keyword">case</span> MAP: <span class="keyword">break</span>;</span><br><span class="line">          <span class="keyword">case</span> LIST: <span class="keyword">break</span>;</span><br><span class="line">          <span class="keyword">case</span> UTF8: <span class="keyword">return</span> <span class="keyword">new</span> StringConverter(field.getName());</span><br><span class="line">          <span class="keyword">case</span> MAP_KEY_VALUE: <span class="keyword">break</span>;</span><br><span class="line">          <span class="keyword">case</span> ENUM: <span class="keyword">break</span>;</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">new</span> SimplePrimitiveConverter(field.getName());</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">new</span> SimpleRecordConverter(field.asGroupType(), field.getName(), <span class="keyword">this</span>);</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>在这里如果是原生数据类型就直接创建一个SimplePrimitiveConverter，反之就创建一个SimpleRecordConverter，也就是记录级别的。</p>
+<p>非原生类型的都会走 SimpleRecordConverter ，生成一个完整对象的converter。直到遇到所有的数据类型都是原生数据类型。</p>
+<p>这里稍微捋一下 这个converter的生成最终形成的结构就是 整个schema树形结构的一个映射，然后每个叶子节点就是最终的coverter的对象。</p>
+<p>在上边 initialize 中，recordConverter 生成之后就是 生成了对象ParquetFileReader，我们看一下这个对象初始化的时候主要是做了啥。</p>
+<p>ParquetFileReader的初始化中会打开对应的文件。主要就是做了这个。</p>
+<blockquote>
+<p>这里反复提到path，其实就是如何找到当前这个叶子节点的浏览路径。可见他的主要围绕点就是schema的信息。这里要反复去理解。</p>
+</blockquote>
+<p>到这里 initReader 的逻辑就完事儿了。主要业务逻辑就是生成一个 InternalParquetRecordReader 对象。</p>
+<p>下边就开始读取数据记录了。</p>
+<h3 id="record记录数据"><a href="#record记录数据" class="headerlink" title="record记录数据"></a>record记录数据</h3><p>读取数据记录主要是方法 nextKeyValue。在对象 InternalParquetRecordReader 中。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">boolean</span> <span class="title">nextKeyValue</span><span class="params">()</span> <span class="keyword">throws</span> IOException, InterruptedException </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (current &lt; total) &#123;</span><br><span class="line">      <span class="keyword">try</span> &#123;</span><br><span class="line">        checkRead();</span><br><span class="line">        currentValue = recordReader.read();</span><br><span class="line">        <span class="keyword">if</span> (DEBUG) LOG.debug(<span class="string">"read value: "</span> + currentValue);</span><br><span class="line">        current ++;</span><br><span class="line">      &#125; <span class="keyword">catch</span> (RuntimeException e) &#123;</span><br><span class="line">        <span class="keyword">throw</span> <span class="keyword">new</span> ParquetDecodingException(format(<span class="string">"Can not read value at %d in block %d in file %s"</span>, current, currentBlock, file), e);</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">return</span> <span class="keyword">true</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">false</span>;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>checkRead的主要逻辑如下：</p>
+<p>1、PageReadStore pages = reader.readNextRowGroup(); 获取rowGroup</p>
+<p>2、MessageColumnIO 创建。主要就是创建每个叶子节点的 PrimitiveColumnIO 。</p>
+<p>3、创建recordReader。逻辑比较复杂。这个方法里的应该也是这个算法的核心。这块稍后来剖析，看代码细节实在是不敢恭维。</p>
+<p>下边看一下read()方法的实现：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> T <span class="title">read</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">int</span> currentLevel = <span class="number">0</span>;</span><br><span class="line">    recordRootConverter.start();</span><br><span class="line">    State currentState = states[<span class="number">0</span>];</span><br><span class="line">    <span class="keyword">do</span> &#123;</span><br><span class="line">      ColumnReader columnReader = currentState.column;</span><br><span class="line">      <span class="keyword">int</span> d = columnReader.getCurrentDefinitionLevel();</span><br><span class="line">      <span class="comment">// creating needed nested groups until the current field (opening tags)</span></span><br><span class="line">      <span class="keyword">int</span> depth = currentState.definitionLevelToDepth[d];</span><br><span class="line">      <span class="keyword">for</span> (; currentLevel &lt;= depth; ++currentLevel) &#123;</span><br><span class="line">        currentState.groupConverterPath[currentLevel].start();</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="comment">// currentLevel = depth + 1 at this point</span></span><br><span class="line">      <span class="comment">// set the current value</span></span><br><span class="line">      <span class="keyword">if</span> (d &gt;= currentState.maxDefinitionLevel) &#123;</span><br><span class="line">        <span class="comment">// not null</span></span><br><span class="line">        columnReader.writeCurrentValueToConverter();</span><br><span class="line">      &#125;</span><br><span class="line">      columnReader.consume();</span><br><span class="line"></span><br><span class="line">      <span class="keyword">int</span> nextR = currentState.maxRepetitionLevel == <span class="number">0</span> ? <span class="number">0</span> : columnReader.getCurrentRepetitionLevel();</span><br><span class="line">      <span class="comment">// level to go to close current groups</span></span><br><span class="line">      <span class="keyword">int</span> next = currentState.nextLevel[nextR];</span><br><span class="line">      <span class="keyword">for</span> (; currentLevel &gt; next; currentLevel--) &#123;</span><br><span class="line">        currentState.groupConverterPath[currentLevel - <span class="number">1</span>].end();</span><br><span class="line">      &#125;</span><br><span class="line"></span><br><span class="line">      currentState = currentState.nextState[nextR];</span><br><span class="line">    &#125; <span class="keyword">while</span> (currentState != <span class="keyword">null</span>);</span><br><span class="line">    recordRootConverter.end();</span><br><span class="line">    <span class="keyword">return</span> recordMaterializer.getCurrentRecord();</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>1、recordRootConverter的start() 和 end()代表一条记录的开始和结束。在start里会创建一个 SimpleRecord 的对象。</p>
+<p>2、逐个字段去取值。</p>
+<p>3、这里state是一个状态机，依赖state来进行column的跳转。state是每一个叶子节点算 一个state。</p>
+<p>4、recordMaterializer进行一行数据的物化。</p>
+<p>这里一个IO代表对于一列数据的一个page的数据读取。</p>
+<blockquote>
+<p> 整个这个算法实际上是 parquet的结构的一个完全的 映射式读取。如果要弄明白parquet这个文件的设计，实际上这个工具是一个很好的入口。</p>
+</blockquote>
+<p>recordMaterializer 实际上就是 SimpleRecordMaterializer ，</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> SimpleRecord <span class="title">getCurrentRecord</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> root.getCurrentRecord();</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>而这个root是 SimpleRecordConverter，他是逐层构建的converter。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function">SimpleRecord <span class="title">getCurrentRecord</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">return</span> record;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>而这个record就是之前start的时候构建的那个SimpleRecord。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">start</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    record = <span class="keyword">new</span> SimpleRecord();</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>而end方法如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">end</span><span class="params">()</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (parent != <span class="keyword">null</span>) &#123;</span><br><span class="line">      parent.getCurrentRecord().add(name, record);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+
+<p>如果是有父节点的，要组织一下上下级，这样数据就逐层还原了。converter的整体构建就是按照schema的树状进行构建的。</p>
+<p>关于逐层数据读取的过程，实际上是依赖于 RecordReaderImplementation 这个类的初始化以及read()方法。这俩是最核心的点。</p>
+<p>初始化主要就是初始化那个状态机。而read() 主要就是按照状态机进行运行。</p>
+<blockquote>
+<p>当前的读取方式并非是向量化的方式，但是主体流程是值得参考的，后边针对spark如何向量化读取parquet的需要重新看一遍流程，可以对比学习。</p>
+</blockquote>
+<p>参考：</p>
+<p><a href="https://helloyoubeautifulthing.net/blog/2021/01/03/parquet-format/" target="_blank" rel="noopener">https://helloyoubeautifulthing.net/blog/2021/01/03/parquet-format/</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/parquet/" rel="tag"># parquet</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/03/05/hudi%E6%8E%A2%E7%B4%A2-%E5%9F%BA%E4%BA%8Eflink%E7%9A%84%E6%B5%81%E5%BC%8F%E5%A4%84%E7%90%86%E7%9A%84%E5%86%99%E6%95%B0%E6%8D%AE%E8%BF%87%E7%A8%8B/" rel="next" title="hudi探索--基于flink的流式处理的写数据过程">
+                <i class="fa fa-chevron-left"></i> hudi探索--基于flink的流式处理的写数据过程
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/03/31/flink%E5%8E%9F%E7%90%86-state%E7%9A%84%E4%BD%BF%E7%94%A8%E3%80%81%E5%8E%9F%E7%90%86%E3%80%81rescale%E7%9A%84%E6%93%8D%E4%BD%9C/" rel="prev" title="flink原理--state的使用、原理、rescale的操作">
+                flink原理--state的使用、原理、rescale的操作 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#parquet文件的读取过程"><span class="nav-number">1.</span> <span class="nav-text">parquet文件的读取过程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#ParquetReader的创建"><span class="nav-number">1.1.</span> <span class="nav-text">ParquetReader的创建</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#reader读取"><span class="nav-number">1.2.</span> <span class="nav-text">reader读取</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#record记录数据"><span class="nav-number">1.3.</span> <span class="nav-text">record记录数据</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="starRocks VS Doris VS Tidb VS ClickHouse最近在调研MPP架构的数据库在支持HTAP架构上的覆盖面，目前目标就以这几个数据库作为对比。    特性 starRocks Doris Tidb ClickHouse    开发语言 JAVA、C++ JAVA、C++ GO、RUST C++   开始时间 2021.12 2017年 2015年 2016 年   是">
+<meta property="og:type" content="article">
+<meta property="og:title" content="starRocks VS Doris VS Tidb VS ClickHouse">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/08/23/starRocks-VS-Doris-VS-Tidb-VS-ClickHouse/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="starRocks VS Doris VS Tidb VS ClickHouse最近在调研MPP架构的数据库在支持HTAP架构上的覆盖面，目前目标就以这几个数据库作为对比。    特性 starRocks Doris Tidb ClickHouse    开发语言 JAVA、C++ JAVA、C++ GO、RUST C++   开始时间 2021.12 2017年 2015年 2016 年   是">
+<meta property="article:published_time" content="2022-08-23T09:01:35.000Z">
+<meta property="article:modified_time" content="2022-09-01T11:15:50.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/08/23/starRocks-VS-Doris-VS-Tidb-VS-ClickHouse/"/>
+
+
+
+
+
+  <title>starRocks VS Doris VS Tidb VS ClickHouse | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/08/23/starRocks-VS-Doris-VS-Tidb-VS-ClickHouse/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">starRocks VS Doris VS Tidb VS ClickHouse</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-08-23T17:01:35+08:00">
+                2022-08-23
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/olap/" itemprop="url" rel="index">
+                    <span itemprop="name">olap</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="starRocks-VS-Doris-VS-Tidb-VS-ClickHouse"><a href="#starRocks-VS-Doris-VS-Tidb-VS-ClickHouse" class="headerlink" title="starRocks VS Doris VS Tidb VS ClickHouse"></a>starRocks VS Doris VS Tidb VS ClickHouse</h1><p>最近在调研MPP架构的数据库在支持HTAP架构上的覆盖面，目前目标就以这几个数据库作为对比。</p>
+<table>
+<thead>
+<tr>
+<th align="left">特性</th>
+<th align="left">starRocks</th>
+<th>Doris</th>
+<th>Tidb</th>
+<th>ClickHouse</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">开发语言</td>
+<td align="left">JAVA、C++</td>
+<td>JAVA、C++</td>
+<td>GO、RUST</td>
+<td>C++</td>
+</tr>
+<tr>
+<td align="left">开始时间</td>
+<td align="left">2021.12</td>
+<td>2017年</td>
+<td>2015年</td>
+<td>2016 年</td>
+</tr>
+<tr>
+<td align="left">是否顶级</td>
+<td align="left">否</td>
+<td>是</td>
+<td>否</td>
+<td>是</td>
+</tr>
+<tr>
+<td align="left"><strong>star</strong></td>
+<td align="left">3.2K</td>
+<td>5.6K</td>
+<td>32.2K</td>
+<td>25.2K</td>
+</tr>
+<tr>
+<td align="left">社区活跃度</td>
+<td align="left">半个月发一个release<br />157位贡献者</td>
+<td>发布版本不稳定，依赖百度。374位贡献者</td>
+<td>半个月发一个release<br />776位贡献者</td>
+<td>7天左右一个release<br />1084位贡献者</td>
+</tr>
+<tr>
+<td align="left">节点类型</td>
+<td align="left">FE（JAVA） +  BE（C++）+ Broker（java）</td>
+<td>同前者</td>
+<td>TIDB-SERVER(GO)、TIKV(RUST)、PD、TIFLASH</td>
+<td></td>
+</tr>
+<tr>
+<td align="left"><strong>数据摄入</strong></td>
+<td align="left">Broker Load<br />Stream Load<br />Routine Load<br />Spark Load<br />INSERT INTO SELECT<br />INSERT INTO VALUES</td>
+<td>同前</td>
+<td>Lightning<br />Data migration<br />Dumpling<br />TICDC<br />BR<br />TISpark</td>
+<td></td>
+</tr>
+<tr>
+<td align="left">集群扩展性</td>
+<td align="left">FE节点基于bdbje协议选主，支持HA。节点扩展通过sql语句完成，比较方便。</td>
+<td>同前</td>
+<td>TIUP来扩缩容，数据会自动均衡。TIUP主要是通过命令行的方式进行扩缩容，会有web界面查看集群状态等。</td>
+<td></td>
+</tr>
+<tr>
+<td align="left">向量化支持</td>
+<td align="left">全向量化支持</td>
+<td>同前（没有starRocks覆盖的全面）</td>
+<td>全向量化支持（算子向量化）</td>
+<td></td>
+</tr>
+<tr>
+<td align="left">SQL支持</td>
+<td align="left">兼容 MySQL 协议，基于CBO和RBO的planner优化</td>
+<td>同前</td>
+<td>兼容 MySQL 协议</td>
+<td></td>
+</tr>
+<tr>
+<td align="left"><strong>索引</strong></td>
+<td align="left">排序键、前缀索引、列级别索引（Bitmap、BloomFilter）、主键索引、ZoneMap索引</td>
+<td>前缀索引、列级别索引（Bitmap、BloomFilter）、ZoneMap索引</td>
+<td>聚簇索引、唯一索引、二级索引、表达式索引</td>
+<td></td>
+</tr>
+<tr>
+<td align="left">join策略</td>
+<td align="left">broadcast join、shuffle join、colocation group、hashjoin</td>
+<td>Bucket Shuffle Join、Colocation Join、Runtime Filter（minmax、bloom、in）、hashjoin、broadcast join</td>
+<td>Hash Join，Sort Merge Join 和 Index Look up Join(首先读取左表的所有行，然后根据右边的索引，左表中的数据去与右表的数据逐行匹配)</td>
+<td>broadcast join</td>
+</tr>
+<tr>
+<td align="left"><strong>外表支持</strong></td>
+<td align="left">hive、hudi、iceberg、mysql、Elasticsearch、基于jdbc访问的数据库</td>
+<td>同前</td>
+<td>不支持</td>
+<td></td>
+</tr>
+<tr>
+<td align="left">事务</td>
+<td align="left">纯写事务（LWW）</td>
+<td></td>
+<td>Read Committed（MVCC）</td>
+<td></td>
+</tr>
+<tr>
+<td align="left"><strong>联邦查询</strong></td>
+<td align="left">支持</td>
+<td>同前</td>
+<td>不支持</td>
+<td></td>
+</tr>
+<tr>
+<td align="left"><strong>物化视图</strong></td>
+<td align="left">支持，可以实时更新</td>
+<td>同前</td>
+<td>非原生（通过TICDC和flink-cdc实现物化视图）</td>
+<td></td>
+</tr>
+<tr>
+<td align="left">是否依赖hadoop</td>
+<td align="left">不依赖</td>
+<td>同前</td>
+<td>不依赖</td>
+<td></td>
+</tr>
+<tr>
+<td align="left">数据类型支持</td>
+<td align="left">支持json和array。json的查询会受限制，操作有限，而且json下推的语法比较特殊，属于自己开发的。</td>
+<td>不支持json、不支持array、不支持map。有hll、bitmap以及大整数等单字段形式。</td>
+<td>支持json，不支持其他复杂类型了。json的操作比较丰富。</td>
+<td></td>
+</tr>
+<tr>
+<td align="left">是否支持udf</td>
+<td align="left">不支持</td>
+<td>支持 udf 和 udaf</td>
+<td>不支持</td>
+<td></td>
+</tr>
+<tr>
+<td align="left">部署要求</td>
+<td align="left">最少3个FE、最少三个BE、分钟级扩展</td>
+<td>同前</td>
+<td>亚分钟级扩展</td>
+<td></td>
+</tr>
+<tr>
+<td align="left">小文件问题</td>
+<td align="left">compact（会更新索引）</td>
+<td>同前</td>
+<td>compact</td>
+<td></td>
+</tr>
+<tr>
+<td align="left">查询效率</td>
+<td align="left">索引+下推+向量化</td>
+<td>同前</td>
+<td>索引、向量化</td>
+<td></td>
+</tr>
+<tr>
+<td align="left">精确去重</td>
+<td align="left">支持</td>
+<td>支持</td>
+<td>支持</td>
+<td></td>
+</tr>
+</tbody></table>
+<p>关键点总结：</p>
+<ul>
+<li><p>clickhouse在join上策略单一，针对大表join性能堪忧，所以使用clickhouse一般都会基于宽表分析。这样基于大宽表的一些优缺点都被突显和暴漏。</p>
+<blockquote>
+<p>宽表优点：</p>
+<p>1、在 ETL 的过程中处理好宽表的字段，分析师无需关心底层的逻辑就可以实现数据的分析。</p>
+<p>2、宽表能够包含更多的业务数据，看起来更直观一些。</p>
+<p>3、宽表相当于单表查询，避免了多表之间的数据关联，性能更好。</p>
+<p>缺点：</p>
+<p>1、宽表中的数据可能会因为 join 的过程中存在一对多的情况造成错误数据冗余。</p>
+<p>2、宽表的结构维护麻烦，遇到维度数据变更的情况需要重跑宽表。</p>
+<p>3、宽表需要根据业务预先定义，宽表可能无法满足临时新增的查询业务。</p>
+</blockquote>
+</li>
+<li><p>doris的join比较丰富，相对于starRocks多了一个RuntimeFilter join。TIDB相对于前两者有一个 Index Look up Join，对于join带有索引的表且join key可以命中索引的情况下，效果会好很多，不过官方给出来的建议还是不能基于大表join大表。</p>
+</li>
+<li><p>对于向量化支持上，四个引擎都有支持，但是starRocks和CK支持的向量化是比较全面的，ck应该是最全面的。doris的向量化成熟的比较晚，比starRocks支持的少一些。tidb的向量化是方法上优化，不是指令级别的优化。</p>
+</li>
+<li><p>starRocks和TIDB可以支持json用来覆盖复杂数据类型，而且可以针对复杂数据类型建立二级索引，辅助查询。doris不支持复杂数据类型。</p>
+</li>
+<li><p>starRocks支持外表，doris支持外表。</p>
+</li>
+<li><p>starRocks和doris支持更丰富的数据接入、TIDB支持mysql生态的数据接入以及TISPARK导入集群数据。</p>
+</li>
+</ul>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/08/22/kylin-%E7%B2%BE%E7%A1%AE%E5%8E%BB%E9%87%8D%E5%8E%9F%E7%90%86/" rel="next" title="kylin--精确去重原理">
+                <i class="fa fa-chevron-left"></i> kylin--精确去重原理
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/08/30/hdfs%E7%9A%84%E8%AF%BB%E5%86%99%E6%B5%81%E7%A8%8B/" rel="prev" title="hdfs的读写流程">
+                hdfs的读写流程 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#starRocks-VS-Doris-VS-Tidb-VS-ClickHouse"><span class="nav-number">1.</span> <span class="nav-text">starRocks VS Doris VS Tidb VS ClickHouse</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="flink," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="flink原理–线程模型 StreamTask 中基于 MailBox 实现的线程模型，这个模型从 1.9 开始实现，1.10发布。 动机在之前 Flink 的线程模型中，会有多个潜在的线程去并发访问其内部的状态，比如 event-processing 和 checkpoint triggering，它们都是通过一个全局锁（checkpoint lock）来保证线程安全，这种实现方案带来的问题是：">
+<meta property="og:type" content="article">
+<meta property="og:title" content="flink原理--线程模型">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/31/flink%E5%8E%9F%E7%90%86-%E7%BA%BF%E7%A8%8B%E6%A8%A1%E5%9E%8B/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="flink原理–线程模型 StreamTask 中基于 MailBox 实现的线程模型，这个模型从 1.9 开始实现，1.10发布。 动机在之前 Flink 的线程模型中，会有多个潜在的线程去并发访问其内部的状态，比如 event-processing 和 checkpoint triggering，它们都是通过一个全局锁（checkpoint lock）来保证线程安全，这种实现方案带来的问题是：">
+<meta property="og:image" content="https://matt33.com/images/flink/source-stream-task-mailbox.png">
+<meta property="og:image" content="https://matt33.com/images/flink/mailbox-method.png">
+<meta property="og:image" content="https://matt33.com/images/flink/mail-box-core.png">
+<meta property="article:published_time" content="2022-05-31T02:26:47.000Z">
+<meta property="article:modified_time" content="2022-06-08T08:26:00.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="flink">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://matt33.com/images/flink/source-stream-task-mailbox.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/31/flink原理-线程模型/"/>
+
+
+
+
+
+  <title>flink原理--线程模型 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/31/flink%E5%8E%9F%E7%90%86-%E7%BA%BF%E7%A8%8B%E6%A8%A1%E5%9E%8B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">flink原理--线程模型</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-31T10:26:47+08:00">
+                2022-05-31
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="flink原理–线程模型"><a href="#flink原理–线程模型" class="headerlink" title="flink原理–线程模型"></a>flink原理–线程模型</h2><p> StreamTask 中基于 MailBox 实现的线程模型，这个模型从 1.9 开始实现，1.10发布。</p>
+<h3 id="动机"><a href="#动机" class="headerlink" title="动机"></a>动机</h3><p>在之前 Flink 的线程模型中，会有多个潜在的线程去并发访问其内部的状态，比如 event-processing 和 checkpoint triggering，它们都是通过一个全局锁（checkpoint lock）来保证线程安全，这种实现方案带来的问题是：</p>
+<ol>
+<li>锁对象会在多个类中传递，代码的可读性比较差；</li>
+<li>而且锁对象还暴露给了面向用户的 API（见 <code>SourceFunction#getCheckpointLock()</code>）；</li>
+<li>在使用时，如果没有获取锁，可能会造成很多问题，使得问题难以定位；</li>
+</ol>
+<p>基于上面的这些问题，关于线程模型，提出了一个全新的解决方案 —— <strong>MailBox 模型</strong>，它可以让 StreamTask 中所有状态的改变都会像在单线程中实现得一样简单。方案借鉴了 Actor 模型的 MailbBox 设计理念，它会让这些 action 操作（需要获取 checkpoint lock 的操作）先加入到一个 <strong>阻塞队列</strong>，然后主线程再从队列取相应的 <strong>mail task</strong> 去执行。这种去共享的方式简化了整体的模型，很多并发问题也被规避了。</p>
+<blockquote>
+<p>actor模型是异步非阻塞的，这种异步非阻塞的设计对于队列和响应处理的要求比较高，可以重点关注。</p>
+</blockquote>
+<h3 id="方案"><a href="#方案" class="headerlink" title="方案"></a>方案</h3><p>之前的实现方案中，StreamTask 中 checkpoint lock 都主要用在什么地方：</p>
+<ol>
+<li><code>Event-processing</code>: events、watermarks、barriers、latency markers 等的发送和处理；</li>
+<li><code>Checkpoints</code>: 通过 RPC 向 TaskExecutor 发送 Checkpoint trigger 和 completeness 的通知，以及 Checkpoint 的 trigger 和 cancel 在 event 处理期间也可以通过 barrier 接收到；</li>
+<li><code>Processing Time Timers</code>: 目前 <code>SystemProcessingTimeService</code> 是使用 <code>ScheduledExecutor</code> 异步地处理 processing time timer（而 event time timer 依赖于 Watermark 的处理，并且它同步触发的）。</li>
+</ol>
+<p>设计方案不但要能达到排它锁的效果，还要对一些核心环节（比如：event processing）能够做到原子性处理。也就是处理实际数据的时候，不能割断处理过程，导致数据处理出现异常。</p>
+<h3 id="StreamTask-中要做的改变"><a href="#StreamTask-中要做的改变" class="headerlink" title="StreamTask 中要做的改变"></a>StreamTask 中要做的改变</h3><p>这里会在 StreamTask 中引入一个 <strong>MailBox</strong> 变量，最初的一个想法是将 <strong>MailBox</strong> 设计为一个 <code>ArrayBlockingQueue</code>（实际上在 1.9 的实现中，使用的是一个 <code>ring buffer</code>，1.10 对这部分又做了重构，后面会介绍）。<strong>MailBox</strong> 将会取代 <code>StreamTask#run()</code> 方法的角色，而且它还可以处理 Checkpoint event 和 processing timer event，这些 event 都会被封装为一个 task 添加到 MailBox 的队列中，而 MailBox 的主线程（单线程）将会消费这个队列中的 task 进行顺序处理。StreamTask 实现的伪代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">BlockingQueue&lt;Runnable&gt; mailbox = ...</span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">runMailboxProcessing</span><span class="params">()</span> </span>&#123;</span><br><span class="line"><span class="comment">//<span class="doctag">TODO:</span> can become a cancel-event through mailbox eventually</span></span><br><span class="line">    Runnable letter;</span><br><span class="line">    <span class="keyword">while</span> (isRunning()) &#123;</span><br><span class="line">        <span class="keyword">while</span> ((letter = mailbox.poll()) != <span class="keyword">null</span>) &#123; </span><br><span class="line">            letter.run();</span><br><span class="line">        &#125;</span><br><span class="line">        defaultAction();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">defaultAction</span><span class="params">()</span> </span>&#123;</span><br><span class="line"><span class="comment">// e.g. event-processing from an input</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>队列的公平性在这里都会实现。因为异步性，中间去调整策略的空间就比较大了。</p>
+<h3 id="event-的产生与处理"><a href="#event-的产生与处理" class="headerlink" title="event 的产生与处理"></a>event 的产生与处理</h3><p><strong>MailBox</strong> 的实现将会极大简化代码的实现，<strong>MailBox</strong> 模型可以确保这些改变都是由单线程来操作，之前很多需要加锁的代码在新的实现中可以被移除。而为了实现<strong>MailBox</strong> 模型，需要将之前 <code>run()</code> 方法中 event processing 循环调用处理改为一个 event 有界流处理，原先处理元素的逻辑是：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">while</span> (running &amp;&amp; inputProcessor.processInput())</span><br></pre></td></tr></table></figure>
+
+<p>而修改之后的逻辑：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">inputProcessor.processInput() <span class="comment">// 每次触发，都相当于处理一个有限流</span></span><br></pre></td></tr></table></figure>
+
+<p>在实现中，会先检查 MailBox 有没有 <code>mail</code>（即加入到队列里的 task 任务）需要处理，有的话，就进行处理，如果没有的话，就执行上面的操作，进行 event processing。</p>
+<blockquote>
+<p>Checkpoint 和 Timer 的触发事件都会以一个 <code>Runnable</code> 的形式添加到 MailBox 的队列中，等待 MailBox 主线程去处理。</p>
+</blockquote>
+<p>在FLIP-27实现之前，针对sourceFunction在这个设计中还是有一些兼容性问题，因为在流的 source 端，它的 <code>event prcessing</code> 是来专门产生一个无限流数据，在这个处理中，并不能穿插 MailBox 中的 <code>mail</code> 检测，也就是说，如果只有一个 MailBox 线程处理的话，当这个线程去产生数据的话，它一直运行下去，就无法再去检测 MailBox 中是否有新的 mail 到来。</p>
+<p>为了兼容 Source 端，目前的解决方案是：两个线程操作，一个专门用产生无限流，另一个是 MailBox 线程（处理 Checkpoint、timer 等），这两个线程为了保证线程安全，还是使用 Checkpoint Lock 做排它锁，如下图所示（图片来自设计文档）：</p>
+<p><img src="https://matt33.com/images/flink/source-stream-task-mailbox.png" alt="Source StreamTask Mailbox 实现"></p>
+<h3 id="实现"><a href="#实现" class="headerlink" title="实现"></a>实现</h3><h4 id="StreamTask-处理流程"><a href="#StreamTask-处理流程" class="headerlink" title="StreamTask 处理流程"></a>StreamTask 处理流程</h4><p>在 Flink 中，当一个作业被调度起来后，对于流计算来说，作业中的 Task 最终会以 StreamTask 的形式去执行，在 1.10 的实现中，一个 StreamTask 的核心处理流程如下：</p>
+<p><img src="https://matt33.com/images/flink/mailbox-method.png" alt="StreamTask MailBox 模型下核心处理流程"></p>
+<p>StreamTask 中 <code>invoke()</code> 和 <code>runMailboxLoop()</code> 方法的实现如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// org.apache.flink.streaming.runtime.tasks.StreamTask</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">final</span> <span class="keyword">void</span> <span class="title">invoke</span><span class="params">()</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        beforeInvoke();</span><br><span class="line"></span><br><span class="line">        <span class="comment">// final check to exit early before starting to run</span></span><br><span class="line">        <span class="keyword">if</span> (canceled) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> CancelTaskException();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// let the task do its work</span></span><br><span class="line">        isRunning = <span class="keyword">true</span>;</span><br><span class="line">        runMailboxLoop();</span><br><span class="line"></span><br><span class="line">        <span class="comment">// if this left the run() method cleanly despite the fact that this was canceled,</span></span><br><span class="line">        <span class="comment">// make sure the "clean shutdown" is not attempted</span></span><br><span class="line">        <span class="keyword">if</span> (canceled) &#123;</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> CancelTaskException();</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        afterInvoke();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">finally</span> &#123;</span><br><span class="line">        cleanUpInvoke();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">runMailboxLoop</span><span class="params">()</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    <span class="comment">//note: mailbox 处理</span></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        mailboxProcessor.runMailboxLoop();</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        Optional&lt;InterruptedException&gt; interruption = ExceptionUtils.findThrowable(e, InterruptedException<span class="class">.<span class="keyword">class</span>)</span>;</span><br><span class="line">        <span class="keyword">if</span> (interruption.isPresent()) &#123;</span><br><span class="line">            <span class="keyword">if</span> (!canceled) &#123;</span><br><span class="line">                Thread.currentThread().interrupt();</span><br><span class="line">                <span class="keyword">throw</span> interruption.get();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (canceled) &#123;</span><br><span class="line">            LOG.warn(<span class="string">"Error while canceling task."</span>, e);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">throw</span> e;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>最后真正执行的是 MailboxProcessor 中的 <code>runMailboxLoop()</code> 方法，也就是上面说的 MailBox 主线程，StreamTask 运行的核心流程也是在这个方法中，其实现如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor</span></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Runs the mailbox processing loop. This is where the main work is done.</span></span><br><span class="line"><span class="comment"> * note: mailbox 处理核心流程</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">runMailboxLoop</span><span class="params">()</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> TaskMailbox localMailbox = mailbox;</span><br><span class="line"></span><br><span class="line">    Preconditions.checkState(</span><br><span class="line">        localMailbox.isMailboxThread(),</span><br><span class="line">        <span class="string">"Method must be executed by declared mailbox thread!"</span>);</span><br><span class="line"></span><br><span class="line">    <span class="comment">//note: MailBox 的状态必须是 OPEN，才能继续循环</span></span><br><span class="line">    <span class="keyword">assert</span> localMailbox.getState() == TaskMailbox.State.OPEN : <span class="string">"Mailbox must be opened!"</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">final</span> MailboxController defaultActionContext = <span class="keyword">new</span> MailboxController(<span class="keyword">this</span>);</span><br><span class="line"></span><br><span class="line">    <span class="keyword">while</span> (processMail(localMailbox)) &#123; <span class="comment">//note: 如果有 mail 需要处理，这里会进行相应的处理，处理完才会进行下面的 event processing</span></span><br><span class="line">        <span class="comment">//note: 进行 task 的 default action，也就是调用 processInput()</span></span><br><span class="line">        mailboxDefaultAction.runDefaultAction(defaultActionContext); <span class="comment">// lock is acquired inside default action as needed</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li><code>processMail()</code>: 它会检测 MailBox 中是否有 <code>mail</code> 需要处理，如果有的话，就做相应的处理，一直将全部的 mail 处理完才会返回，只要 loop 还在进行，这里就会返回 true，否则会返回 false；</li>
+<li><code>runDefaultAction()</code>: 这个最终调用的 StreamTask 的 <code>processInput()</code> 方法，event-processing 的处理就是在这个方法中进行的。</li>
+</ol>
+<h4 id="event-processing-处理"><a href="#event-processing-处理" class="headerlink" title="event-processing 处理"></a>event-processing 处理</h4><p>对于 StreamTask 来说，event-processing 现在是在 <code>processInput()</code> 方法中实现的：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//org.apache.flink.streaming.runtime.tasks.StreamTask</span></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * This method implements the default action of the task (e.g. processing one event from the input). Implementations</span></span><br><span class="line"><span class="comment"> * should (in general) be non-blocking.</span></span><br><span class="line"><span class="comment"> * note: 这个方法执行这个 task 默认的 action</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> controller controller object for collaborative interaction between the action and the stream task.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@throws</span> Exception on any problems in the action.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">processInput</span><span class="params">(MailboxDefaultAction.Controller controller)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">    InputStatus status = inputProcessor.processInput(); <span class="comment">//note: event 处理</span></span><br><span class="line">    <span class="keyword">if</span> (status == InputStatus.MORE_AVAILABLE &amp;&amp; recordWriter.isAvailable()) &#123;</span><br><span class="line">        <span class="comment">//note: 如果输入还有数据，并且 writer 是可用的，这里就直接返回了</span></span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (status == InputStatus.END_OF_INPUT) &#123;</span><br><span class="line">        <span class="comment">//note: 输入已经处理完了，会调用这个方法</span></span><br><span class="line">        controller.allActionsCompleted();</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    CompletableFuture&lt;?&gt; jointFuture = getInputOutputJointFuture(status);</span><br><span class="line">    <span class="comment">//note: 告诉 MailBox 先暂停 loop</span></span><br><span class="line">    MailboxDefaultAction.Suspension suspendedDefaultAction = controller.suspendDefaultAction();</span><br><span class="line">    <span class="comment">//note: 等待 future 完成后，继续 mailbox loop（等待 input 和 output 可用后，才会继续）</span></span><br><span class="line">    jointFuture.thenRun(suspendedDefaultAction::resume);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>再结合 MailboxProcessor 中的 <code>runMailboxLoop()</code> 实现一起看，其操作的流程是：</p>
+<ol>
+<li>首先通过 <code>processMail()</code> 方法处理 MailBox 中的 <code>mail</code>：<ul>
+<li>如果没有 <code>mail</code> 要处理，这里直接返回；</li>
+<li>先将 MailBox 中当前现存的 <code>mail</code> 全部处理完；</li>
+<li>通过 <code>isDefaultActionUnavailable()</code> 做一个状态检查（目的是提供一个接口方便上层控制调用，这里把这个看作一个状态检查方便讲述），如果是 true 的话，会在这里一直处理 mail 事件，不会返回，除非状态改变；</li>
+</ul>
+</li>
+<li>然后再调用 StreamTask 的 <code>processInput()</code> 方法来处理 event:<ul>
+<li>先调用 InputProcessor 的 <code>processInput()</code> 方法来处理 event；</li>
+<li>如果上面处理结果返回的状态是 <code>MORE_AVAILABLE</code>（表示还有可用的数据等待处理）并且 <code>recordWriter</code> 可用（之前的异步操作已经处理完成），就会立马返回；</li>
+<li>如果上面处理结果返回的状态是 <code>END_OF_INPUT</code>，它表示数据处理完成，这里就会告诉 MailBox 数据已经处理完成了；</li>
+<li>否则的话，这里会等待，直到有可用的数据到来及 <code>recordWriter</code> 可用。</li>
+</ul>
+</li>
+</ol>
+<h4 id="checkpoint-trigger-处理"><a href="#checkpoint-trigger-处理" class="headerlink" title="checkpoint trigger 处理"></a>checkpoint trigger 处理</h4><p>先看下 Streamtask 的 <code>triggerCheckpointAsync()</code> 实现：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> Future&lt;Boolean&gt; <span class="title">triggerCheckpointAsync</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">        CheckpointMetaData checkpointMetaData,</span></span></span><br><span class="line"><span class="function"><span class="params">        CheckpointOptions checkpointOptions,</span></span></span><br><span class="line"><span class="function"><span class="params">        <span class="keyword">boolean</span> advanceToEndOfEventTime)</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//note: checkpoint 触发时，提交相应的 task</span></span><br><span class="line">    <span class="keyword">return</span> mailboxProcessor.getMainMailboxExecutor().submit(</span><br><span class="line">            () -&gt; triggerCheckpoint(checkpointMetaData, checkpointOptions, advanceToEndOfEventTime),</span><br><span class="line">            <span class="string">"checkpoint %s with %s"</span>,</span><br><span class="line">        checkpointMetaData,</span><br><span class="line">        checkpointOptions);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Checkpoint trigger 这里的操作就是向 MailBox 提交一个 Task，等待 MailBox 去处理。</p>
+<h3 id="SourceStreamTask-如何兼容"><a href="#SourceStreamTask-如何兼容" class="headerlink" title="SourceStreamTask 如何兼容"></a>SourceStreamTask 如何兼容</h3><p>SourceStreamTask 中专门启动两个线程来保持兼容性问题，而且虽然使用了 MailBox 模型，但还是会继续使用 checkpoint lock 来保证线程安全，这里看下其是如何实现的。</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">//org.apache.flink.streaming.runtime.tasks.SourceStreamTask</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">protected</span> <span class="keyword">void</span> <span class="title">processInput</span><span class="params">(MailboxDefaultAction.Controller controller)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="comment">//note: 告诉 MailBox 先暂停 loop</span></span><br><span class="line">    controller.suspendDefaultAction();</span><br><span class="line"></span><br><span class="line">    <span class="comment">// Against the usual contract of this method, this implementation is not step-wise but blocking instead for</span></span><br><span class="line">    <span class="comment">// compatibility reasons with the current source interface (source functions run as a loop, not in steps).</span></span><br><span class="line">    sourceThread.setTaskDescription(getName());</span><br><span class="line">    sourceThread.start();</span><br><span class="line">    sourceThread.getCompletionFuture().whenComplete((Void ignore, Throwable sourceThreadThrowable) -&gt; &#123;</span><br><span class="line">        <span class="keyword">if</span> (sourceThreadThrowable == <span class="keyword">null</span> || isFinished) &#123;</span><br><span class="line">            <span class="comment">//note: sourceThread 完成后，没有抛出异常或 task 完成的情况下</span></span><br><span class="line">            mailboxProcessor.allActionsCompleted();</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="comment">//note: 没有完成但结束了或者抛出异常的情况下</span></span><br><span class="line">            mailboxProcessor.reportThrowable(sourceThreadThrowable);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Runnable that executes the the source function in the head operator.</span></span><br><span class="line"><span class="comment"> * note: source 产生 data 的一个线程</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="keyword">private</span> <span class="class"><span class="keyword">class</span> <span class="title">LegacySourceFunctionThread</span> <span class="keyword">extends</span> <span class="title">Thread</span> </span>&#123;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">final</span> CompletableFuture&lt;Void&gt; completionFuture;</span><br><span class="line"></span><br><span class="line">    LegacySourceFunctionThread() &#123;</span><br><span class="line">        <span class="keyword">this</span>.completionFuture = <span class="keyword">new</span> CompletableFuture&lt;&gt;();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">run</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">try</span> &#123;</span><br><span class="line">            <span class="comment">//note: 调用 source Operator 的 run</span></span><br><span class="line">            headOperator.run(getCheckpointLock(), getStreamStatusMaintainer(), operatorChain);</span><br><span class="line">            completionFuture.complete(<span class="keyword">null</span>);</span><br><span class="line">        &#125; <span class="keyword">catch</span> (Throwable t) &#123;</span><br><span class="line">            <span class="comment">// Note, t can be also an InterruptedException</span></span><br><span class="line">            completionFuture.completeExceptionally(t);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">setTaskDescription</span><span class="params">(<span class="keyword">final</span> String taskDescription)</span> </span>&#123;</span><br><span class="line">        setName(<span class="string">"Legacy Source Thread - "</span> + taskDescription);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function">CompletableFuture&lt;Void&gt; <span class="title">getCompletionFuture</span><span class="params">()</span> </span>&#123;</span><br><span class="line">        <span class="keyword">return</span> completionFuture;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>LegacySourceFunctionThread 线程在启动时，会先通知一下 MailBox，这个就是上面说的那个状态检查，收到这个信号之后，MailBox 就会在 <code>processMail()</code> 中一直等待并且处理 <code>mail</code>，不会返回（也就是 MailBox 主线程一直在处理 <code>mail</code> 事件）；</li>
+<li>LegacySourceFunctionThread 线程就是专门生产数据的，跟 MailBox 这两个线程都在运行。</li>
+</ol>
+<p>那么两个线程如何保证线程安全呢？如果仔细看上面的代码就会发现，在 SourceStreamTask 中还继续使用了 <code>getCheckpointLock()</code>，虽然这个方法现在已经被标注了将要被废弃，但 Source 没有改造完成之前，Source 的实现还是会继续依赖 checkpoint lock。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p><img src="https://matt33.com/images/flink/mail-box-core.png" alt="MailBox 模型核心设计"></p>
+<ol>
+<li><code>MailboxExecutor</code>: 它负责向 MailBox 提交 task 任务；</li>
+<li><code>TaskMailbox</code>: 负责存储相应 task 任务（也就是 <code>mail</code>），它支持多写单读，单线程读取并处理；</li>
+<li><code>MailboxProcessor</code>: MailBox 的核心处理线程，<code>MailboxDefaultAction</code> 是其默认的 action 实现，可以理解为 StreamTask 的 event 处理逻辑就是基于 <code>MailboxDefaultAction</code> 接口实现的。</li>
+</ol>
+<p>这里会稍后跟踪一下flip-27的译文，重新设计了source部分，涉及flink-cdc的改进。</p>
+<p>参考：</p>
+<p><a href="https://matt33.com/2020/03/20/flink-task-mailbox/" target="_blank" rel="noopener">Flink 基于 MailBox 实现的 StreamTask 线程模型 | Matt’s Blog</a></p>
+<p><a href="https://mp.weixin.qq.com/s/MrQZS7-dEuNr442lzw3xYg" target="_blank" rel="noopener">https://mp.weixin.qq.com/s/MrQZS7-dEuNr442lzw3xYg</a></p>
+<p><a href="https://docs.google.com/document/d/1eDpsUKv2FqwZiS1Pm6gYO5eFHScBHfULKmH1-ZEWB4g/edit#heading=h.me9nb71lvmah" target="_blank" rel="noopener">https://docs.google.com/document/d/1eDpsUKv2FqwZiS1Pm6gYO5eFHScBHfULKmH1-ZEWB4g/edit#heading=h.me9nb71lvmah</a></p>
+<p><a href="https://blog.jrwang.me/2020/2020-12-20-flink-sourcecode-mailbox-threading-model/" target="_blank" rel="noopener">https://blog.jrwang.me/2020/2020-12-20-flink-sourcecode-mailbox-threading-model/</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/flink/" rel="tag"># flink</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/05/27/hudi%E6%8E%A2%E7%B4%A2-%E5%A4%A7%E5%85%AC%E5%8F%B8%E6%A1%88%E4%BE%8B%E7%9A%84%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91%E6%B1%87%E6%80%BB/" rel="next" title="hudi探索--大公司案例的优化方向汇总">
+                <i class="fa fa-chevron-left"></i> hudi探索--大公司案例的优化方向汇总
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/05/31/flink%E5%8E%9F%E7%90%86-flip-27%E5%85%B3%E4%BA%8Esource%E6%8E%A5%E5%8F%A3%E6%94%B9%E8%BF%9B/" rel="prev" title="flink原理--flip-27关于source接口改进">
+                flink原理--flip-27关于source接口改进 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#flink原理–线程模型"><span class="nav-number">1.</span> <span class="nav-text">flink原理–线程模型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#动机"><span class="nav-number">1.1.</span> <span class="nav-text">动机</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#方案"><span class="nav-number">1.2.</span> <span class="nav-text">方案</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#StreamTask-中要做的改变"><span class="nav-number">1.3.</span> <span class="nav-text">StreamTask 中要做的改变</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#event-的产生与处理"><span class="nav-number">1.4.</span> <span class="nav-text">event 的产生与处理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#实现"><span class="nav-number">1.5.</span> <span class="nav-text">实现</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#StreamTask-处理流程"><span class="nav-number">1.5.1.</span> <span class="nav-text">StreamTask 处理流程</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#event-processing-处理"><span class="nav-number">1.5.2.</span> <span class="nav-text">event-processing 处理</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#checkpoint-trigger-处理"><span class="nav-number">1.5.3.</span> <span class="nav-text">checkpoint trigger 处理</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#SourceStreamTask-如何兼容"><span class="nav-number">1.6.</span> <span class="nav-text">SourceStreamTask 如何兼容</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#总结"><span class="nav-number">1.7.</span> <span class="nav-text">总结</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="spark 3.3新特性Apache Spark 3.3.0 从2021年07月03日正式开发，历时近一年，终于在2022年06月16日正式发布，在 Databricks Runtime 11.0 也同步发布。 通过 Bloom filters 提升 Join 查询性能，最高可提高10倍的速度。这个功能属于join的runtime filter。 Spark 可以根据需要在查询计划中注入和下推 B">
+<meta property="og:type" content="article">
+<meta property="og:title" content="spark-3.3新特性">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/03/spark-3-3%E6%96%B0%E7%89%B9%E6%80%A7/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="spark 3.3新特性Apache Spark 3.3.0 从2021年07月03日正式开发，历时近一年，终于在2022年06月16日正式发布，在 Databricks Runtime 11.0 也同步发布。 通过 Bloom filters 提升 Join 查询性能，最高可提高10倍的速度。这个功能属于join的runtime filter。 Spark 可以根据需要在查询计划中注入和下推 B">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8c80bd12-f1c5-11ec-9f2c-38f9d3cd240d.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8c8fca64-f1c5-11ec-9f2c-38f9d3cd240d.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8c9b825a-f1c5-11ec-9f2c-38f9d3cd240d.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8ca83a0e-f1c5-11ec-9f2c-38f9d3cd240d.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8cb8c5cc-f1c5-11ec-9f2c-38f9d3cd240d.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8cc82eb8-f1c5-11ec-9f2c-38f9d3cd240d.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8cd6d3fa-f1c5-11ec-9f2c-38f9d3cd240d.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8ce57a18-f1c5-11ec-9f2c-38f9d3cd240d.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8d0648a6-f1c5-11ec-9f2c-38f9d3cd240d.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8d14edde-f1c5-11ec-9f2c-38f9d3cd240d.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8d246cfa-f1c5-11ec-9f2c-38f9d3cd240d.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8d354336-f1c5-11ec-9f2c-38f9d3cd240d.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8d46f48c-f1c5-11ec-9f2c-38f9d3cd240d.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8d53027c-f1c5-11ec-9f2c-38f9d3cd240d.png">
+<meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8d6f64ee-f1c5-11ec-9f2c-38f9d3cd240d.png">
+<meta property="article:published_time" content="2022-09-03T13:03:43.000Z">
+<meta property="article:modified_time" content="2022-09-03T14:54:48.000Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8c80bd12-f1c5-11ec-9f2c-38f9d3cd240d.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/03/spark-3-3新特性/"/>
+
+
+
+
+
+  <title>spark-3.3新特性 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/03/spark-3-3%E6%96%B0%E7%89%B9%E6%80%A7/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">spark-3.3新特性</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-09-03T21:03:43+08:00">
+                2022-09-03
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="spark-3-3新特性"><a href="#spark-3-3新特性" class="headerlink" title="spark 3.3新特性"></a>spark 3.3新特性</h1><p>Apache Spark 3.3.0 从2021年07月03日正式开发，历时近一年，终于在2022年06月16日正式发布，在 Databricks Runtime 11.0 也同步发布。</p>
+<h2 id="通过-Bloom-filters-提升-Join-查询性能，最高可提高10倍的速度。"><a href="#通过-Bloom-filters-提升-Join-查询性能，最高可提高10倍的速度。" class="headerlink" title="通过 Bloom filters 提升 Join 查询性能，最高可提高10倍的速度。"></a>通过 Bloom filters 提升 Join 查询性能，最高可提高10倍的速度。</h2><p>这个功能属于join的runtime filter。</p>
+<p>Spark 可以根据需要在查询计划中注入和下推 Bloom Filter，以便在早期过滤数据，减少 shuffle 和后期计算的中间数据大小。Bloom 过滤器是行级运行时过滤器（row-level runtime filters），用于补充动态分区修剪（dynamic partition pruning，DPP）和动态文件修剪（dynamic file pruning，DFP），以适应动态文件跳过（dynamic file skipping）不够适用或不够彻底的情况。</p>
+<h2 id="Pandas-API-的覆盖率更加全面，比如这个版本新增了-datetime-timedelta-和-merge-asof。"><a href="#Pandas-API-的覆盖率更加全面，比如这个版本新增了-datetime-timedelta-和-merge-asof。" class="headerlink" title="Pandas API 的覆盖率更加全面，比如这个版本新增了 datetime.timedelta 和 merge_asof。"></a>Pandas API 的覆盖率更加全面，比如这个版本新增了 datetime.timedelta 和 merge_asof。</h2><p>一般来说，针对python的一些改进，主要是在pyspark里针对panda和numpy的扩展，主要也是发挥两个扩展数据计算的优势。</p>
+<h2 id="通过改进-ANSI-兼容性和新增几十个新的内置函数来简化从传统数据仓库的迁移。"><a href="#通过改进-ANSI-兼容性和新增几十个新的内置函数来简化从传统数据仓库的迁移。" class="headerlink" title="通过改进 ANSI 兼容性和新增几十个新的内置函数来简化从传统数据仓库的迁移。"></a>通过改进 ANSI 兼容性和新增几十个新的内置函数来简化从传统数据仓库的迁移。</h2><h2 id="通过更好的错误处理、自动完成（autocompletion）、性能提升和-profiling-来提高开发效率。"><a href="#通过更好的错误处理、自动完成（autocompletion）、性能提升和-profiling-来提高开发效率。" class="headerlink" title="通过更好的错误处理、自动完成（autocompletion）、性能提升和 profiling 来提高开发效率。"></a>通过更好的错误处理、自动完成（autocompletion）、性能提升和 profiling 来提高开发效率。</h2><p>这个主要是针对pyspark里的应用，有更完善的profiling信息。</p>
+<h2 id="更多的Whole-stage-codegen"><a href="#更多的Whole-stage-codegen" class="headerlink" title="更多的Whole-stage codegen"></a>更多的Whole-stage codegen</h2><p>Whole-stage codegen目前依然不是全阶段的，因为Whole-stage codegen是针对一个一个算子来生成的，而且不同的操作也会有不同的方式，生成的方式也是需要一个操作一个操作来覆盖的。</p>
+<p>这个版本了补全了：</p>
+<ul>
+<li>Full outer sort merge join</li>
+<li>Full outer shuffled hash join</li>
+<li>Existence sort merge join</li>
+<li>Sort aggregate without grouping keys</li>
+</ul>
+<h2 id="复杂下推的实现"><a href="#复杂下推的实现" class="headerlink" title="复杂下推的实现"></a>复杂下推的实现</h2><p>原本spark为了兼容多数据源的查询，对于每一个数据源的兼容，使用的是基于connector的方式，这样的方式就是打开了扩展。然后这里的细节是，如果数据有下推，针对这些数据源应该可以传递下去，这样整体的计算才会是最优的，然而在soark之前的版本中，这一点没有实现，只是最基本的谓词可以进行下推，设计函数极端或者其他等方式，就不能很好的下推了，这里的原因是spark的sql体系跟对应的系统不是一致的，这也就导致spark的下推如果直接拿过去对子数据源进行下推，很大可能访问就是非法的。所以spark基于他以前的connector的架构，针对这样复杂的下推执行，就给出了基于数据库connector的方式，这样复杂表达式的转换，只要覆盖的足够全量，那么就可以翻译出来对应的查询语句。</p>
+<p>只有谓词下推覆盖的更全量，对应这个思想发挥的价值就越大，因为他可以对更多的查询场景可以节省更多的资源。</p>
+<p><strong>DS V2 Push-down</strong></p>
+<ol>
+<li>强大的 Catalyst 表达式 Translate 能力</li>
+<li>通用的 DS V2 表达式标准</li>
+<li>自由的 DS V2 表达式 Compile 能力</li>
+</ol>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8c80bd12-f1c5-11ec-9f2c-38f9d3cd240d.png" alt="img"></p>
+<p>上图是 Spark3.3 DS V2 Push-down 框架的示意图。前两点与 Catalyst 表达式的 translate 的标准化相关，第三点则与 DS V2 表达式的 compile 的差异化相关。</p>
+<p>如果上图中的数据源为 JDBC，那么我们可以用下图来表示 Spark3.3 DS V2 Push-down 框架。</p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8c8fca64-f1c5-11ec-9f2c-38f9d3cd240d.png" alt="img"></p>
+<p>为了达成上边的效果，需要的主要功能模块如下：</p>
+<p><strong>1. Catalyst Expression translate Framework</strong></p>
+<p><strong>Catalyst 表达式翻译框架（Catalyst Expression translate Framework）提供了强大的 Catalyst 表达式 Translate 能力。</strong>Catalyst 表达式翻译框架提供了将各种 Catalyst 表达式翻译为 DS V2 表达式的切入点，无论是计算表达式，布尔表达式等基础表达式，还是 Filter 表达式，Aggregate 表达式，这些 Catalyst 表达式都可以被翻译为 DS V2 表达式。下图展示了 Catalyst 表达式翻译框架的流程图。</p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8c9b825a-f1c5-11ec-9f2c-38f9d3cd240d.png" alt="img"></p>
+<p><strong>2. General DS V2 Expression Standard</strong></p>
+<p>DS V2 表达式是一种通用的表达式形式，作为标准。Filter，Aggregate 等算子都可以复用它们。</p>
+<p>这里对主要的 DS V2 表达式进行介绍：</p>
+<ul>
+<li><strong>AggregateFunc</strong>：DS V2 聚合函数的统一接口，具体的实现有 Min，Max，Sum，Count，CountStar 和 Avg。这是最常用的聚合函数，DS V2 为它们提供了度身定制的表达式。</li>
+<li><strong>GeneralAggregateFunc</strong>：AggregateFunc 的通用实现，用来表示一些符合 ANSI SQL 标准，但是使用频率不那么高的聚合函数（例如：VAR_POP和VAR_SAMP）。</li>
+<li><strong>LiteralValue</strong>：DS V2 的字面量表达式，对应 Catalyst 的 Literal。</li>
+<li><strong>NamedReference</strong>：代表字段或者列的 DS V2 表达式接口，目前只有 FieldReference 一个实现。</li>
+<li><strong>FieldReference</strong>：DS V2 的字段表达式。</li>
+<li><strong>GeneralScalarExpression</strong>：DS V2 表达式的通用实现，用于表示最广泛的表达式。</li>
+<li><strong>Predicate</strong>：GeneralScalarExpression 的特殊实现，用于代表 Filter 表达式。Spark 社区将逐步统一DS V1 与 V2 的 Filter 表达式 。</li>
+<li><strong>AlwaysTrue 和 AlwaysFalse</strong>：特殊的 Predicate，用于代表恒等于 true 或 false 的 Filter 表达式。</li>
+</ul>
+<p>有了 DS V2 表达式的丰富表达能力，我们将 DS V2 Push-down 框架在 Spark 3.2 和 Spark 3.3 版本所支持的表达式或函数做个对比。</p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8ca83a0e-f1c5-11ec-9f2c-38f9d3cd240d.png" alt="img"></p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8cb8c5cc-f1c5-11ec-9f2c-38f9d3cd240d.png" alt="img"></p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8cc82eb8-f1c5-11ec-9f2c-38f9d3cd240d.png" alt="img"></p>
+<ol start="3">
+<li><strong>DS V2 Expression compile Framework</strong></li>
+</ol>
+<p><strong>DS V2 表达式编译框架（DS V2 Expression compile Framework）提供了将 DS V2 表达式自由灵活的编译为 ANSI SQL 或 SQL 方言的能力。</strong>下图展示了 DS V2 表达式编译框架的流程图。</p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8cd6d3fa-f1c5-11ec-9f2c-38f9d3cd240d.png" alt="img"></p>
+<p>从上图可以看到——编译 DS V2 表达式依赖于 JDBC 方言（JDBC Dialect），默认的 JDBC 方言将 DS V2 表达式编译为 ANSI SQL。Spark 内置了很多 JDBC 方言，例如：H2Dialect，MySQLDialect。而 JDBC 方言对 DS V2 表达式的编译实际又依赖于 <strong>V2ExpressionSQLBuilder</strong>，V2ExpressionSQLBuilder 内部通过访问者模式提供了对各类表达式的 compile 接口。因此，<strong>每个 JDBC 方言都可以灵活定制自己的 V2ExpressionSQLBuilder 行为，符合数据库本身的语法特点。</strong></p>
+<p><strong>4. Spark 3.3 DS V2 Filter Push-down</strong></p>
+<p>由于 Spark 3.3 DS V2 Push-down 框架有更加通用、丰富和灵活的 DS V2 表达式，因此 Spark3.3 DS V2 Filter Push-down 将可以下推更加丰富的 Filter 表达式。</p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8ce57a18-f1c5-11ec-9f2c-38f9d3cd240d.png" alt="img"></p>
+<p>因而，以前无法下推的 Filter 表达式也可以下推到数据源，就再也不用 Spark 做二次过滤了。</p>
+<p><strong>5. Spark 3.3 DS V2 Aggregate Push-down</strong></p>
+<p>同样由于 Spark 3.3 DS V2 Push-down 框架有更加通用、丰富和灵活的 DS V2 表达式，因此 Spark 3.3 DS V2 Aggregate Push-down 将可以下推更加丰富的Aggregate表达式。</p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8d0648a6-f1c5-11ec-9f2c-38f9d3cd240d.png" alt="img"></p>
+<p>因而，以前无法下推的 Aggregate 表达式也可以下推到数据源。但是 Spark 3.2 DS V2 Aggregate Push-down 之前一直保留着 Aggregate 算子，所以这个算子的额外计算就显得很不必要了。于是，Spark 3.3 DS V2 Aggregate Push-down 引入了<strong>聚合全下推（Aggregate Complete Push-down）</strong>和<strong>聚合部分下推（Aggregate Partial Push-down）</strong>。</p>
+<p>即便所有的 Aggregate 表达式可以下推到数据源，那么 Aggregate 算子是否就真的不需要了？了解过 Hive 或者 Orc 的读者应当知道——很多文件存储本身是有 Partition 的概念。如果数据源有多个 Partition，并且<code>SUM(SALARY)</code><br>可以下推，那么 Spark 从多个分区 Task 拿到多份结果后该如何处理？是不是还应该求一次和？答案是肯定的。</p>
+<p>既然 Aggregate 下推本身可以缩减 I/O，改进性能，那么还是需要下推的，所以这种<strong>下推后还需要由 Spark 进行 Aggregate 计算的 Aggregate 下推称为聚合部分下推（Aggregate Partial Push-down）</strong>。</p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8d14edde-f1c5-11ec-9f2c-38f9d3cd240d.png" alt="img"></p>
+<p>与聚合部分下推相对应，当 Aggregate 可以下推到数据源并且存储本身只有一个 Partition 时，也不需要 Spark 再进行额外的 Aggregate 计算了。此时，可以消除 Spark 进行 Aggregate 计算的开销。<strong>这种下推后不再需要 Spark 进行 Aggregate 计算的 Aggregate 下推称为聚合全下推（Aggregate Complete Push-down）</strong>。</p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8d246cfa-f1c5-11ec-9f2c-38f9d3cd240d.png" alt="img"></p>
+<p>不过，在数据源拥有多 Partition 时，也未必不能够聚合全下推。以SELECT SUM(SALARY) FROM h2.test.employee GROUP BY DEPT这条 SQL 为例，当 Partition 字段为DEPT的时候，各个分区 Task 计算 Aggregate 得到的数据就是最终结果了。也就是说，当分区字段与GROUP BY的 key 相同时，也是可以聚合全下推的。</p>
+<p><strong>6. Spark 3.3 DS V2 Limit Push-down</strong></p>
+<p>Limit 是最常用的语法之一，如果能将其下推到数据源，其数据量的缩减显而易见，对于 I/O 和性能都有极大的优化空间。Spark 3.3 支持了 Limit 的下推。不过其实现类似于 Spark 3.2 DS V2 Aggregate Push-down，保留了 Limit 算子。</p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8d354336-f1c5-11ec-9f2c-38f9d3cd240d.png" alt="img"></p>
+<p>其实，在数据源单 Partition 的情况下，Limit 算子依然可以被优化掉。由于 Spark 社区版本发布的关系，这部分功能应该将在 Spark 3.4 版本中发布。</p>
+<p><strong>7. Spark 3.3 DS V2 Top N Push-down</strong></p>
+<p>Top N 查询在业务场景中非常常见，但是 Spark 对于 Top N 查询需要进行全局排序，当数据量很大时，性能表现不佳！如果能对这里进行性能改进，那么将取得极佳的效果。Top N 查询的处理根据 Partition 的数量分为 Top N 部分下推（Top N Partial Push-down）和 Top N 全下推（Top N Complete Push-down），与 Spark 3.3 DS V2 Aggregate Push-down 非常相似。</p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8d46f48c-f1c5-11ec-9f2c-38f9d3cd240d.png" alt="img"></p>
+<p><strong>8. Differences between Spark 3.2 and Spark 3.3</strong></p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8d53027c-f1c5-11ec-9f2c-38f9d3cd240d.png" alt="img"></p>
+<h2 id="Plan-of-Spark-3-4-DS-V2-Push-down"><a href="#Plan-of-Spark-3-4-DS-V2-Push-down" class="headerlink" title="Plan of Spark 3.4 DS V2 Push-down"></a><strong>Plan of Spark 3.4 DS V2 Push-down</strong></h2><p><strong>1. Spark 3.4 DS V2 Limit Push-down</strong></p>
+<p>尽管，Spark 3.3 提供了 Limit 的下推，但是保留着 Limit 算子，始终是一笔开销。在 Spark 3.4 版本中将发布 Limit 部分下推（Limit Partial Push-down）和 Limit 全下推（Limit Complete Push-down）。</p>
+<p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220622_8d6f64ee-f1c5-11ec-9f2c-38f9d3cd240d.png" alt="img"></p>
+<p><strong>2. Spark 3.4 DS V2 Offset Push-down</strong></p>
+<p>由于 Spark 3.4 已经完成了对 Offset 算子的支持，因此可以将 Offset 下推到数据源。其下推原理类似于 Limit。</p>
+<p><strong>3. Spark 3.4 DS V2 Paging Push-down</strong></p>
+<p>由于 Spark 3.4 已经完成了对 Offset 算子的支持，业务场景已经可以使用 Spark 完成分页查询了。如果将分页查询下推到数据源，必然有很大的收益。其下推原理类似于 Top N。</p>
+<p><strong>4. Spark 3.4 DS V2 Aggregate Push-down supports push down group by expressions without aggregate function.</strong></p>
+<p>select key from tab group by key 可以支持下推。</p>
+<p><strong>5. Spark 3.4 DS V2 Top N Push-down supports order by expressions</strong></p>
+<p>目前，Spark 3.3 DS V2 Top N Push-down 只支持 order by 字段。由于 Spark 版本发布的原因，这个功能将在 Spark 3.4 发布。</p>
+<p><strong>6. Spark 3.4 DS V2 supports more expression</strong></p>
+<p>在 Spark 3.4 版本中继续扩充对表达式的支持，例如：字符串表达式和日期表达式等。</p>
+<p><strong>7. Spark 3.4 DS V2 supports UDF and UDAF</strong></p>
+<p>在 Spark 3.4 版本中增加对 UDF 的支持。此功能将继续释放外部开发者的自由度。</p>
+<p><strong>8. Spark 3.4 DS V2 supports more flexiable</strong></p>
+<p>在 Spark 3.4 版本中增加数据库方言的更多灵活性，例如：决定哪些函数可以下推，注册可以下推的 UDF 和 UDAF 等。</p>
+<p><strong>9. Orc/Parquet follows more features of  DS V2 Push-down</strong></p>
+<p>目前，Orc，Parquet 等的下推，依然采用了早期的下推方案，可以将它们慢慢适配、迁移到新的下推框架中。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/08/31/%E9%9D%A2%E8%AF%95%E7%82%B9%E5%87%86%E5%A4%87/" rel="next" title="面试点准备">
+                <i class="fa fa-chevron-left"></i> 面试点准备
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/09/03/hdfs-read-operation%E4%BB%A5%E5%8F%8A%E6%85%A2%E8%8A%82%E7%82%B9%E9%97%AE%E9%A2%98/" rel="prev" title="hdfs-read operation以及慢节点问题">
+                hdfs-read operation以及慢节点问题 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#spark-3-3新特性"><span class="nav-number">1.</span> <span class="nav-text">spark 3.3新特性</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#通过-Bloom-filters-提升-Join-查询性能，最高可提高10倍的速度。"><span class="nav-number">1.1.</span> <span class="nav-text">通过 Bloom filters 提升 Join 查询性能，最高可提高10倍的速度。</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Pandas-API-的覆盖率更加全面，比如这个版本新增了-datetime-timedelta-和-merge-asof。"><span class="nav-number">1.2.</span> <span class="nav-text">Pandas API 的覆盖率更加全面，比如这个版本新增了 datetime.timedelta 和 merge_asof。</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#通过改进-ANSI-兼容性和新增几十个新的内置函数来简化从传统数据仓库的迁移。"><span class="nav-number">1.3.</span> <span class="nav-text">通过改进 ANSI 兼容性和新增几十个新的内置函数来简化从传统数据仓库的迁移。</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#通过更好的错误处理、自动完成（autocompletion）、性能提升和-profiling-来提高开发效率。"><span class="nav-number">1.4.</span> <span class="nav-text">通过更好的错误处理、自动完成（autocompletion）、性能提升和 profiling 来提高开发效率。</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#更多的Whole-stage-codegen"><span class="nav-number">1.5.</span> <span class="nav-text">更多的Whole-stage codegen</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#复杂下推的实现"><span class="nav-number">1.6.</span> <span class="nav-text">复杂下推的实现</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Plan-of-Spark-3-4-DS-V2-Push-down"><span class="nav-number">1.7.</span> <span class="nav-text">Plan of Spark 3.4 DS V2 Push-down</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
