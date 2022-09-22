@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="hudi," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="hudi目前存在的问题最近在深入测试hudi，目前测试的版本是0.10.0这里是一个长期跟进的帖子，自己会不断补充进来一些信息：当前时间：2022-09-21 hudi不支持多层次嵌套这个问题是大部分引擎都不支持的，因为多层次嵌套引起来的问题会比较多，不管是写入还是读取，对于元数据以及相关操作的挑战都会更上一个台阶。当前hudi是对于基础数据类型的支持是足够全面的，复杂数据类型，已经支持了map、">
+<meta property="og:type" content="article">
+<meta property="og:title" content="hudi目前存在的一些问题记录">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/21/hudi%E7%9B%AE%E5%89%8D%E5%AD%98%E5%9C%A8%E7%9A%84%E4%B8%80%E4%BA%9B%E9%97%AE%E9%A2%98%E8%AE%B0%E5%BD%95/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="hudi目前存在的问题最近在深入测试hudi，目前测试的版本是0.10.0这里是一个长期跟进的帖子，自己会不断补充进来一些信息：当前时间：2022-09-21 hudi不支持多层次嵌套这个问题是大部分引擎都不支持的，因为多层次嵌套引起来的问题会比较多，不管是写入还是读取，对于元数据以及相关操作的挑战都会更上一个台阶。当前hudi是对于基础数据类型的支持是足够全面的，复杂数据类型，已经支持了map、">
+<meta property="article:published_time" content="2022-09-21T07:41:39.000Z">
+<meta property="article:modified_time" content="2022-09-21T11:09:28.681Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="hudi">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/21/hudi目前存在的一些问题记录/"/>
+
+
+
+
+
+  <title>hudi目前存在的一些问题记录 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/21/hudi%E7%9B%AE%E5%89%8D%E5%AD%98%E5%9C%A8%E7%9A%84%E4%B8%80%E4%BA%9B%E9%97%AE%E9%A2%98%E8%AE%B0%E5%BD%95/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">hudi目前存在的一些问题记录</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-09-21T15:41:39+08:00">
+                2022-09-21
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="hudi目前存在的问题"><a href="#hudi目前存在的问题" class="headerlink" title="hudi目前存在的问题"></a>hudi目前存在的问题</h1><p>最近在深入测试hudi，目前测试的版本是0.10.0<br>这里是一个长期跟进的帖子，自己会不断补充进来一些信息：当前时间：<strong>2022-09-21</strong></p>
+<h2 id="hudi不支持多层次嵌套"><a href="#hudi不支持多层次嵌套" class="headerlink" title="hudi不支持多层次嵌套"></a>hudi不支持多层次嵌套</h2><p>这个问题是大部分引擎都不支持的，因为多层次嵌套引起来的问题会比较多，不管是写入还是读取，对于元数据以及相关操作的挑战都会更上一个台阶。<br>当前hudi是对于基础数据类型的支持是足够全面的，复杂数据类型，已经支持了map、array，但是也只是支持嵌套单层次，也就是里边的元素是基础数据类型，不能array里包含的是map，map再去包含map这种数据类型，就会被无法解析。<br>对于map和array的支持也是在0.11.0的版本开始支持的，读取流程跟spark读取parquet的代码逻辑很像。<br>但是spark对于读取parquet实际是完全支持的，也就是多层次嵌套结构spark是可以直接支持的，目前在hudi这一块还需要进行同等类型的改进。parquet和avro对于这种类型的元数据的扩展都是足够丰富的。这块的代码其实可以参照spark读取parquet的实现进行改进的。</p>
+<blockquote>
+<p>改进方式：参考spark读取parquet的代码实现。avro都是自带元数据的，这部分直接用avro的实现就可以了。</p>
+</blockquote>
+<h2 id="hudi的ddl"><a href="#hudi的ddl" class="headerlink" title="hudi的ddl"></a>hudi的ddl</h2><p>在0.11.0版本，hudi支持了schema evolution，也就是常见的alter语句的支持。<br>对比一下ddl语句在mysql里的实现，也是一个很耗时的操作，主要的实现方式也是通过异步创建全量+增量同步的方式来避免停表，减小影响。但是在有一些场景，ddl还是要务必停表的，因为会造成无法修补的脏数据或者造成很难解决的数据异常。<br>在oltp的ddl基本都是覆盖的很全的，即使执行成本很高，也都是可以执行的。但是在hudi这里，目前的ddl是支持部分的。<br>目前主要包括：</p>
+<ul>
+<li>增加列</li>
+<li>修改列的位置</li>
+<li>修改列的comment</li>
+<li>修改列的数据类型：支持数据变宽，不支持反向。</li>
+<li>修改列名</li>
+<li>删除列</li>
+<li>修改表属性</li>
+<li>修改表名称<br>这里还涉及一些ddl，如truncate、复杂数据类型的列字段修改、还有就会针对历史数据的改动、针对不同引擎的兼容。<br>上边四点是目前hudi在这个方向上使用的主要问题。比如历史数据没有覆盖，那么读取的时候就会报错。再比如，针对flink和spark，对于ddl的支持的实现是不一样的。<blockquote>
+<p>我认为解决方案就是hudi metastore的使用，在每次加载的时候，都要去加载这个，但是线上的ddl语句要直接被应用到hudi自己的metastore。在查询的时候，可以直接根据这个做转化，这里涉及在后续写入以及历史数据的读取的覆盖。</p>
+</blockquote>
+</li>
+</ul>
+<h2 id="下推"><a href="#下推" class="headerlink" title="下推"></a>下推</h2><p>针对cow表，可以实现很好的下推，因为都是基于parquet存储的，但是对于mor表，就暴露出一个问题了，他需要先进行数据的merge，才能算是可用的数据，才能去被过滤，否则直接拿base文件的话，会存在数据不准确的问题。<br>针对mor表不能下推的情况，会造成查询效率低下。而我认为终极一点的解决方案就是靠索引。</p>
+<blockquote>
+<p>针对0.11版本推出来的可扩展索引其实是个很好的解决方式，不过在考虑用什么索引以及如何维护这个索引，当数据量比较大的时候，是否会存在更新的延迟问题。</p>
+</blockquote>
+<h2 id="flink写入hudi存在小文件问题"><a href="#flink写入hudi存在小文件问题" class="headerlink" title="flink写入hudi存在小文件问题"></a>flink写入hudi存在小文件问题</h2><p>当hudi表什么都没有的时候，直接用flink对mor类型的hudi表进行写入，flink只会写入log文件，但是log文件不进行压缩，hudi在fileId的形成的时候，也就是多少数据使用一个fileId这件事儿，就会存在偏差。当进行compact的时候，会发现base文件只有20多M，这回形成大量的小文件。</p>
+<blockquote>
+<p>形成fileId的预估算法是需要改进的。需要按照base文件来预估。base文件通常是可以压缩的。</p>
+</blockquote>
+<h2 id="presto无法查询mor表的问题"><a href="#presto无法查询mor表的问题" class="headerlink" title="presto无法查询mor表的问题"></a>presto无法查询mor表的问题</h2><p>查询mor表，需要用base数据和log数据做合并，这部分运行会对资源消耗比较大，因为无法下推的原因，里边包含的很多merge其实在最终也是无效的。</p>
+<blockquote>
+<p>索引会是比较考虑的解决方案，毕竟presto的资源是在线固定的。第二种方案就会用读优化的模式，但是数据的实时性会有影响，依赖于compact的粒度。</p>
+</blockquote>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/hudi/" rel="tag"># hudi</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/09/21/%E7%AE%A1%E7%90%86%E8%80%85%E4%B8%80%E5%AE%9A%E4%BC%9A%E7%A2%B0%E5%88%B0%E7%9A%84%E9%82%A3%E4%BA%9B%E4%BA%8B%E5%84%BF/" rel="next" title="管理者一定会碰到的那些事儿">
+                <i class="fa fa-chevron-left"></i> 管理者一定会碰到的那些事儿
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/09/22/k8s%E6%9E%B6%E6%9E%84%E5%88%9D%E8%AF%86/" rel="prev" title="k8s架构初识">
+                k8s架构初识 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">142</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">21</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">51</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#hudi目前存在的问题"><span class="nav-number">1.</span> <span class="nav-text">hudi目前存在的问题</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#hudi不支持多层次嵌套"><span class="nav-number">1.1.</span> <span class="nav-text">hudi不支持多层次嵌套</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#hudi的ddl"><span class="nav-number">1.2.</span> <span class="nav-text">hudi的ddl</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#下推"><span class="nav-number">1.3.</span> <span class="nav-text">下推</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#flink写入hudi存在小文件问题"><span class="nav-number">1.4.</span> <span class="nav-text">flink写入hudi存在小文件问题</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#presto无法查询mor表的问题"><span class="nav-number">1.5.</span> <span class="nav-text">presto无法查询mor表的问题</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="Hexo, NexT" />
+  <meta name="keywords" content="并发," />
 
 
 
@@ -79,16 +79,33 @@
 
 
 
-<meta name="description" content="从自律开始">
+<meta name="description" content="completableFuture的原理背景completableFuture在最近看hudi以及flink源码的时候，发现碰到的比较多，所以这里记录以下他的原理，让自己碰到对应的代码实现的时候可以更好的理解。在IO密集型业务应用中，如果当前需要的数据总集是来自于多个业务领域，那么在获取数据的时候，就可以并行调用等多个数据源的获取，希望通过更多的并行运行来减少获取时间。一般这个时候你可以选择使用线">
 <meta property="og:type" content="article">
 <meta property="og:title" content="completableFuture的原理">
 <meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/04/completableFuture%E7%9A%84%E5%8E%9F%E7%90%86/index.html">
 <meta property="og:site_name" content="痒痒 团团 和 咘咘">
-<meta property="og:description" content="从自律开始">
+<meta property="og:description" content="completableFuture的原理背景completableFuture在最近看hudi以及flink源码的时候，发现碰到的比较多，所以这里记录以下他的原理，让自己碰到对应的代码实现的时候可以更好的理解。在IO密集型业务应用中，如果当前需要的数据总集是来自于多个业务领域，那么在获取数据的时候，就可以并行调用等多个数据源的获取，希望通过更多的并行运行来减少获取时间。一般这个时候你可以选择使用线">
+<meta property="og:image" content="https://github.com/images/cf_1.png">
+<meta property="og:image" content="https://p0.meituan.net/travelcube/75a9710d2053b2fa0654c67cd7f35a0c18774.png">
+<meta property="og:image" content="https://p0.meituan.net/travelcube/b14b861db9411b2373b80100fee0b92f15076.png">
+<meta property="og:image" content="https://p1.meituan.net/travelcube/ff663f95c86e22928c0bb94fc6bd8b8715722.png">
+<meta property="og:image" content="https://p0.meituan.net/travelcube/373a334e7e7e7d359e8f042c7c9075e215479.png">
+<meta property="og:image" content="https://p1.meituan.net/travelcube/fa4c8669b4cf63b7a89cfab0bcb693b216006.png">
+<meta property="og:image" content="https://p0.meituan.net/travelcube/92248abd0a5b11dd36f9ccb1f1233d4e16045.png">
+<meta property="og:image" content="https://p0.meituan.net/travelcube/82aa288ea62d74c03afcd2308d302b6910425.png">
+<meta property="og:image" content="https://p0.meituan.net/travelcube/5a889b90d0f2c2a0f6a4f294b9094194112106.png">
+<meta property="og:image" content="https://p0.meituan.net/travelcube/f45b271b656f3ae243875fcb2af36a1141224.png">
+<meta property="og:image" content="https://p0.meituan.net/travelcube/f449bbc62d4a1f8e9e4998929196513d165269.gif">
+<meta property="og:image" content="https://p0.meituan.net/travelcube/316ff338f8dab2826a5d32dfb75ffede4158.png">
+<meta property="og:image" content="https://p1.meituan.net/travelcube/606323a07fb7e31cb91f46c879d99b8d735272.gif">
+<meta property="og:image" content="https://p0.meituan.net/travelcube/b969e49a7eedbd52b014f86e86dcd3fc49634.png">
+<meta property="og:image" content="https://p0.meituan.net/travelcube/cef5469b5ec2e67ecca1b99a07260e4e22003.png">
 <meta property="article:published_time" content="2022-04-04T01:02:19.000Z">
-<meta property="article:modified_time" content="2022-04-04T01:02:18.000Z">
+<meta property="article:modified_time" content="2022-09-22T12:34:07.279Z">
 <meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="并发">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/cf_1.png">
 
 
 
@@ -291,6 +308,28 @@
           </span>
 
           
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/java/" itemprop="url" rel="index">
+                    <span itemprop="name">java</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
 
           
             
@@ -318,7 +357,103 @@
       
 
       
-        
+        <h1 id="completableFuture的原理"><a href="#completableFuture的原理" class="headerlink" title="completableFuture的原理"></a>completableFuture的原理</h1><h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>completableFuture在最近看hudi以及flink源码的时候，发现碰到的比较多，所以这里记录以下他的原理，让自己碰到对应的代码实现的时候可以更好的理解。<br>在IO密集型业务应用中，如果当前需要的数据总集是来自于多个业务领域，那么在获取数据的时候，就可以并行调用等多个数据源的获取，希望通过更多的并行运行来减少获取时间。<br>一般这个时候你可以选择使用线程池的方式来进行代码运行，但是一般使用这种方式需要对于资源的使用要尽量精确，否则，会出现资源浪费的情况，比如线程数过多，会造成上下文切换消耗的资源比较多，线程数太少，会出现任务等待的现象。<br>目前针对这种场景，主要是使用基于NIO的异步模型，比如：</p>
+<ul>
+<li>通过RPC NIO异步调用，常见的方案就是Dubbo</li>
+<li>通过使用CompletableFuture对业务进行编排，降低依赖之间的阻塞。</li>
+</ul>
+<h2 id="同种类型方案对比"><a href="#同种类型方案对比" class="headerlink" title="同种类型方案对比"></a>同种类型方案对比</h2><p>业界内同样支持并发异步执行的模型有多种，主要包括Future、CompletableFuture注2、RxJava、Reactor。</p>
+<p><img src="/images/cf_1.png" alt=""></p>
+<ul>
+<li>可组合：可以将多个依赖操作通过不同的方式进行编排，例如CompletableFuture提供thenCompose、thenCombine等各种then开头的方法，这些方法就是对“可组合”特性的支持。</li>
+<li>操作融合：将数据流中使用的多个操作符以某种方式结合起来，进而降低开销（时间、内存）。</li>
+<li>延迟执行：操作不会立即执行，当收到明确指示时操作才会触发。例如Reactor只有当有订阅者订阅时，才会触发操作。</li>
+<li>回压：某些异步阶段的处理速度跟不上，直接失败会导致大量数据的丢失，对业务来说是不能接受的，这时需要反馈上游生产者降低调用量。<br>RxJava与Reactor显然更加强大，它们提供了更多的函数调用方式，支持更多特性，但同时也带来了更大的学习成本。而如果最需要的特性就是“异步”、“可组合”，那就可以选择学习成本相对较低的CompletableFuture。</li>
+</ul>
+<h2 id="CompletableFuture解决的问题"><a href="#CompletableFuture解决的问题" class="headerlink" title="CompletableFuture解决的问题"></a>CompletableFuture解决的问题</h2><p>CompletableFuture是由Java 8引入的，在Java8之前我们一般通过Future实现异步。</p>
+<ul>
+<li>Future用于表示异步计算的结果，只能通过<strong>阻塞或者轮询</strong>的方式获取结果，而且不支持设置回调方法，Java 8之前若要设置回调一般会使用guava的ListenableFuture，回调的引入又会导致臭名昭著的回调地狱（下面的例子会通过ListenableFuture的使用来具体进行展示）。</li>
+<li>CompletableFuture对Future进行了扩展，可以通过设置回调的方式处理计算结果，同时也支持组合操作，支持进一步的编排，同时一定程度解决了回调地狱的问题。<blockquote>
+<p>回调地狱:回调函数里面嵌套回调函数。<br>回调地狱是为了让我们代码执行顺序的一种操作（解决异步），但是它会使我们的可读性非常差。</p>
+</blockquote>
+</li>
+</ul>
+<p>下面将举例来说明，我们通过ListenableFuture、CompletableFuture来实现异步的差异。假设有三个操作step1、step2、step3存在依赖关系，其中step3的执行依赖step1和step2的结果。<br>Future(ListenableFuture)的实现（回调地狱）如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">ExecutorService executor = Executors.newFixedThreadPool(<span class="number">5</span>);</span><br><span class="line">ListeningExecutorService guavaExecutor = MoreExecutors.listeningDecorator(executor);</span><br><span class="line">ListenableFuture&lt;String&gt; future1 = guavaExecutor.submit(() -&gt; &#123;</span><br><span class="line">    <span class="comment">//step 1</span></span><br><span class="line">    System.out.println(<span class="string">"执行step 1"</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="string">"step1 result"</span>;</span><br><span class="line">&#125;);</span><br><span class="line">ListenableFuture&lt;String&gt; future2 = guavaExecutor.submit(() -&gt; &#123;</span><br><span class="line">    <span class="comment">//step 2</span></span><br><span class="line">    System.out.println(<span class="string">"执行step 2"</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="string">"step2 result"</span>;</span><br><span class="line">&#125;);</span><br><span class="line">ListenableFuture&lt;List&lt;String&gt;&gt; future1And2 = Futures.allAsList(future1, future2);</span><br><span class="line">Futures.addCallback(future1And2, <span class="keyword">new</span> FutureCallback&lt;List&lt;String&gt;&gt;() &#123;</span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onSuccess</span><span class="params">(List&lt;String&gt; result)</span> </span>&#123;</span><br><span class="line">        System.out.println(result);</span><br><span class="line">        ListenableFuture&lt;String&gt; future3 = guavaExecutor.submit(() -&gt; &#123;</span><br><span class="line">            System.out.println(<span class="string">"执行step 3"</span>);</span><br><span class="line">            <span class="keyword">return</span> <span class="string">"step3 result"</span>;</span><br><span class="line">        &#125;);</span><br><span class="line">        Futures.addCallback(future3, <span class="keyword">new</span> FutureCallback&lt;String&gt;() &#123;</span><br><span class="line">            <span class="meta">@Override</span></span><br><span class="line">            <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onSuccess</span><span class="params">(String result)</span> </span>&#123;</span><br><span class="line">                System.out.println(result);</span><br><span class="line">            &#125;        </span><br><span class="line">            <span class="meta">@Override</span></span><br><span class="line">            <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onFailure</span><span class="params">(Throwable t)</span> </span>&#123;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;, guavaExecutor);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="meta">@Override</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onFailure</span><span class="params">(Throwable t)</span> </span>&#123;</span><br><span class="line">    &#125;&#125;, guavaExecutor);</span><br></pre></td></tr></table></figure>
+<p>CompletableFuture的实现如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">ExecutorService executor = Executors.newFixedThreadPool(<span class="number">5</span>);</span><br><span class="line">CompletableFuture&lt;String&gt; cf1 = CompletableFuture.supplyAsync(() -&gt; &#123;</span><br><span class="line">    System.out.println(<span class="string">"执行step 1"</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="string">"step1 result"</span>;</span><br><span class="line">&#125;, executor);</span><br><span class="line">CompletableFuture&lt;String&gt; cf2 = CompletableFuture.supplyAsync(() -&gt; &#123;</span><br><span class="line">    System.out.println(<span class="string">"执行step 2"</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="string">"step2 result"</span>;</span><br><span class="line">&#125;);</span><br><span class="line">cf1.thenCombine(cf2, (result1, result2) -&gt; &#123;</span><br><span class="line">    System.out.println(result1 + <span class="string">" , "</span> + result2);</span><br><span class="line">    System.out.println(<span class="string">"执行step 3"</span>);</span><br><span class="line">    <span class="keyword">return</span> <span class="string">"step3 result"</span>;</span><br><span class="line">&#125;).thenAccept(result3 -&gt; System.out.println(result3));</span><br></pre></td></tr></table></figure>
+<p>显然，CompletableFuture的实现更为简洁，可读性更好。</p>
+<h2 id="CompletableFuture的定义"><a href="#CompletableFuture的定义" class="headerlink" title="CompletableFuture的定义"></a>CompletableFuture的定义</h2><p><img src="https://p0.meituan.net/travelcube/75a9710d2053b2fa0654c67cd7f35a0c18774.png" alt=""><br>CompletableFuture实现了两个接口（如上图所示）：Future、CompletionStage。Future表示异步计算的结果，<strong>CompletionStage用于表示异步执行过程中的一个步骤（Stage）</strong>，这个步骤可能是由另外一个CompletionStage触发的，随着当前步骤的完成，也可能会触发其他一系列CompletionStage的执行。从而我们可以根据实际业务对这些步骤进行多样化的编排组合，CompletionStage接口正是定义了这样的能力，我们可以通过其提供的thenAppy、thenCompose等函数式编程方法来组合编排这些步骤。</p>
+<h2 id="CompletableFuture的使用"><a href="#CompletableFuture的使用" class="headerlink" title="CompletableFuture的使用"></a>CompletableFuture的使用</h2><p>使用CompletableFuture也是构建依赖树的过程。一个CompletableFuture的完成会触发另外一系列依赖它的CompletableFuture的执行：<br><img src="https://p0.meituan.net/travelcube/b14b861db9411b2373b80100fee0b92f15076.png" alt=""></p>
+<p>如上图所示，这里描绘的是一个业务接口的流程，其中包括CF1\CF2\CF3\CF4\CF5共5个步骤，并描绘了这些步骤之间的依赖关系，每个步骤可以是一次RPC调用、一次数据库操作或者是一次本地方法调用等，在使用CompletableFuture进行异步化编程时，图中的每个步骤都会产生一个CompletableFuture对象，最终结果也会用一个CompletableFuture来进行表示。</p>
+<p>根据CompletableFuture依赖数量，可以分为以下几类：零依赖、一元依赖、二元依赖和多元依赖。</p>
+<h3 id="零依赖：CompletableFuture的创建"><a href="#零依赖：CompletableFuture的创建" class="headerlink" title="零依赖：CompletableFuture的创建"></a>零依赖：CompletableFuture的创建</h3><p><img src="https://p1.meituan.net/travelcube/ff663f95c86e22928c0bb94fc6bd8b8715722.png" alt=""></p>
+<p>如上图红色链路所示，接口接收到请求后，首先发起两个异步调用CF1、CF2，主要有三种方式：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">ExecutorService executor = Executors.newFixedThreadPool(<span class="number">5</span>);</span><br><span class="line"><span class="comment">//1、使用runAsync或supplyAsync发起异步调用</span></span><br><span class="line">CompletableFuture&lt;String&gt; cf1 = CompletableFuture.supplyAsync(() -&gt; &#123;</span><br><span class="line">  <span class="keyword">return</span> <span class="string">"result1"</span>;</span><br><span class="line">&#125;, executor);</span><br><span class="line"><span class="comment">//2、CompletableFuture.completedFuture()直接创建一个已完成状态的CompletableFuture</span></span><br><span class="line">CompletableFuture&lt;String&gt; cf2 = CompletableFuture.completedFuture(<span class="string">"result2"</span>);</span><br><span class="line"><span class="comment">//3、先初始化一个未完成的CompletableFuture，然后通过complete()、completeExceptionally()，完成该CompletableFuture</span></span><br><span class="line">CompletableFuture&lt;String&gt; cf = <span class="keyword">new</span> CompletableFuture&lt;&gt;();</span><br><span class="line">cf.complete(<span class="string">"success"</span>);</span><br></pre></td></tr></table></figure>
+<p>第三种方式的一个典型使用场景，就是将回调方法转为CompletableFuture，然后再依赖CompletableFure的能力进行调用编排，示例如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@FunctionalInterface</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">interface</span> <span class="title">ThriftAsyncCall</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">void</span> <span class="title">invoke</span><span class="params">()</span> <span class="keyword">throws</span> TException</span>;</span><br><span class="line">&#125;</span><br><span class="line"> <span class="comment">/**</span></span><br><span class="line"><span class="comment">  * 该方法为美团内部rpc注册监听的封装，可以作为其他实现的参照</span></span><br><span class="line"><span class="comment">  * OctoThriftCallback 为thrift回调方法</span></span><br><span class="line"><span class="comment">  * ThriftAsyncCall 为自定义函数，用来表示一次thrift调用（定义如上）</span></span><br><span class="line"><span class="comment">  */</span></span><br><span class="line">  <span class="keyword">public</span> <span class="keyword">static</span> &lt;T&gt; <span class="function">CompletableFuture&lt;T&gt; <span class="title">toCompletableFuture</span><span class="params">(<span class="keyword">final</span> OctoThriftCallback&lt;?,T&gt; callback , ThriftAsyncCall thriftCall)</span> </span>&#123;</span><br><span class="line">   <span class="comment">//新建一个未完成的CompletableFuture</span></span><br><span class="line">   CompletableFuture&lt;T&gt; resultFuture = <span class="keyword">new</span> CompletableFuture&lt;&gt;();</span><br><span class="line">   <span class="comment">//监听回调的完成，并且与CompletableFuture同步状态</span></span><br><span class="line">   callback.addObserver(<span class="keyword">new</span> OctoObserver&lt;T&gt;() &#123;</span><br><span class="line">       <span class="meta">@Override</span></span><br><span class="line">       <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onSuccess</span><span class="params">(T t)</span> </span>&#123;</span><br><span class="line">           resultFuture.complete(t);</span><br><span class="line">       &#125;</span><br><span class="line">       <span class="meta">@Override</span></span><br><span class="line">       <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">onFailure</span><span class="params">(Throwable throwable)</span> </span>&#123;</span><br><span class="line">           resultFuture.completeExceptionally(throwable);</span><br><span class="line">       &#125;</span><br><span class="line">   &#125;);</span><br><span class="line">   <span class="keyword">if</span> (thriftCall != <span class="keyword">null</span>) &#123;</span><br><span class="line">       <span class="keyword">try</span> &#123;</span><br><span class="line">           thriftCall.invoke();</span><br><span class="line">       &#125; <span class="keyword">catch</span> (TException e) &#123;</span><br><span class="line">           resultFuture.completeExceptionally(e);</span><br><span class="line">       &#125;</span><br><span class="line">   &#125;</span><br><span class="line">   <span class="keyword">return</span> resultFuture;</span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
+<h3 id="一元依赖：依赖一个CF"><a href="#一元依赖：依赖一个CF" class="headerlink" title="一元依赖：依赖一个CF"></a>一元依赖：依赖一个CF</h3><p><img src="https://p0.meituan.net/travelcube/373a334e7e7e7d359e8f042c7c9075e215479.png" alt=""><br>如上图红色链路所示，CF3，CF5分别依赖于CF1和CF2，这种对于单个CompletableFuture的依赖可以通过thenApply、thenAccept、thenCompose等方法来实现，代码如下所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">CompletableFuture&lt;String&gt; cf3 = cf1.thenApply(result1 -&gt; &#123;</span><br><span class="line">  <span class="comment">//result1为CF1的结果</span></span><br><span class="line">  <span class="comment">//......</span></span><br><span class="line">  <span class="keyword">return</span> <span class="string">"result3"</span>;</span><br><span class="line">&#125;);</span><br><span class="line">CompletableFuture&lt;String&gt; cf5 = cf2.thenApply(result2 -&gt; &#123;</span><br><span class="line">  <span class="comment">//result2为CF2的结果</span></span><br><span class="line">  <span class="comment">//......</span></span><br><span class="line">  <span class="keyword">return</span> <span class="string">"result5"</span>;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<p>这种方式简单直接一些，就是直接依赖于某个cf直接通过thenApply的语义就可以了。</p>
+<h2 id="二元依赖：依赖两个CF"><a href="#二元依赖：依赖两个CF" class="headerlink" title="二元依赖：依赖两个CF"></a>二元依赖：依赖两个CF</h2><p><img src="https://p1.meituan.net/travelcube/fa4c8669b4cf63b7a89cfab0bcb693b216006.png" alt=""><br>如上图红色链路所示，CF4同时依赖于两个CF1和CF2，这种二元依赖可以通过thenCombine等回调来实现，如下代码所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">CompletableFuture&lt;String&gt; cf4 = cf1.thenCombine(cf2, (result1, result2) -&gt; &#123;</span><br><span class="line">  <span class="comment">//result1和result2分别为cf1和cf2的结果</span></span><br><span class="line">  <span class="keyword">return</span> <span class="string">"result4"</span>;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<h3 id="多元依赖：依赖多个CF"><a href="#多元依赖：依赖多个CF" class="headerlink" title="多元依赖：依赖多个CF"></a>多元依赖：依赖多个CF</h3><p><img src="https://p0.meituan.net/travelcube/92248abd0a5b11dd36f9ccb1f1233d4e16045.png" alt=""><br>如上图红色链路所示，整个流程的结束依赖于三个步骤CF3、CF4、CF5，这种多元依赖可以通过<strong>allOf或anyOf</strong>方法来实现，区别是当需要多个依赖全部完成时使用allOf，当多个依赖中的任意一个完成即可时使用anyOf，如下代码所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">CompletableFuture&lt;Void&gt; cf6 = CompletableFuture.allOf(cf3, cf4, cf5);</span><br><span class="line">CompletableFuture&lt;String&gt; result = cf6.thenApply(v -&gt; &#123;</span><br><span class="line">  <span class="comment">//这里的join并不会阻塞，因为传给thenApply的函数是在CF3、CF4、CF5全部完成时，才会执行 。</span></span><br><span class="line">  result3 = cf3.join();</span><br><span class="line">  result4 = cf4.join();</span><br><span class="line">  result5 = cf5.join();</span><br><span class="line">  <span class="comment">//根据result3、result4、result5组装最终result;</span></span><br><span class="line">  <span class="keyword">return</span> <span class="string">"result"</span>;</span><br><span class="line">&#125;);</span><br></pre></td></tr></table></figure>
+<h2 id="CompletableFuture原理"><a href="#CompletableFuture原理" class="headerlink" title="CompletableFuture原理"></a>CompletableFuture原理</h2><p>CompletableFuture中包含两个字段：<strong>result和stack</strong>。result用于存储当前CF的结果，stack（Completion）表示当前CF完成后需要触发的依赖动作（Dependency Actions），去触发依赖它的CF的计算，依赖动作可以有多个（表示有多个依赖它的CF），以<strong>栈（Treiber stack）</strong>的形式存储，stack表示栈顶元素。<br><img src="https://p0.meituan.net/travelcube/82aa288ea62d74c03afcd2308d302b6910425.png" alt=""><br>这种方式类似“观察者模式”，依赖动作（Dependency Action）都封装在一个单独Completion子类中。下面是Completion类关系结构图。CompletableFuture中的每个方法都对应了图中的一个Completion的子类，Completion本身是<strong>观察者</strong>的基类。</p>
+<p><img src="https://p0.meituan.net/travelcube/5a889b90d0f2c2a0f6a4f294b9094194112106.png" alt=""></p>
+<ul>
+<li>UniCompletion继承了Completion，是一元依赖的基类，例如thenApply的实现类UniApply就继承自UniCompletion。</li>
+<li>BiCompletion继承了UniCompletion，是二元依赖的基类，同时也是多元依赖的基类。例如thenCombine的实现类BiRelay就继承自BiCompletion。</li>
+</ul>
+<p>Completion是可以实现整个CF任务流拼接的关键。</p>
+<h2 id="CompletableFuture的设计思想"><a href="#CompletableFuture的设计思想" class="headerlink" title="CompletableFuture的设计思想"></a>CompletableFuture的设计思想</h2><p>按照类似“观察者模式”的设计思想，原理分析可以从 <strong>“观察者”和“被观察者”</strong> 两个方面着手。由于回调种类多，但结构差异不大，所以这里单以一元依赖中的thenApply为例，不再枚举全部回调类型。如下图所示：</p>
+<p><img src="https://p0.meituan.net/travelcube/f45b271b656f3ae243875fcb2af36a1141224.png" alt=""></p>
+<h3 id="被观察者"><a href="#被观察者" class="headerlink" title="被观察者"></a>被观察者</h3><ul>
+<li>每个CompletableFuture都可以被看作一个被观察者，其内部有一个Completion类型的链表成员变量stack，用来存储注册到其中的所有观察者。<strong>当被观察者执行完成后会弹栈stack属性，依次通知注册到其中的观察者</strong>。上面例子中步骤fn2就是作为观察者被封装在UniApply中。</li>
+<li>被观察者CF中的result属性，用来存储返回结果数据。这里可能是一次RPC调用的返回值，也可能是任意对象，在上面的例子中对应步骤fn1的执行结果。</li>
+</ul>
+<h3 id="观察者"><a href="#观察者" class="headerlink" title="观察者"></a>观察者</h3><p>CompletableFuture支持很多回调方法，例如thenAccept、thenApply、exceptionally等，这些方法<strong>接收一个函数类型的参数f，生成一个Completion类型的对象（即观察者），并将入参函数f赋值给Completion的成员变量fn</strong>，然后检查当前CF是否已处于完成状态（即result != null），如果已完成直接触发fn，否则将观察者Completion加入到CF的观察者链stack中，再次尝试触发，如果被观察者未执行完则其执行完毕之后通知触发。</p>
+<ul>
+<li>观察者中的dep属性：指向其对应的CompletableFuture，在上面的例子中dep指向CF2。</li>
+<li>观察者中的src属性：指向其依赖的CompletableFuture，在上面的例子中src指向CF1。</li>
+<li>观察者Completion中的fn属性：用来存储具体的等待被回调的函数。这里需要注意的是不同的回调方法（thenAccept、thenApply、exceptionally等）接收的函数类型也不同，即fn的类型有很多种，在上面的例子中fn指向fn2。</li>
+</ul>
+<h2 id="整体流程"><a href="#整体流程" class="headerlink" title="整体流程"></a>整体流程</h2><h3 id="一元依赖"><a href="#一元依赖" class="headerlink" title="一元依赖"></a>一元依赖</h3><p>这里仍然以thenApply为例来说明一元依赖的流程：</p>
+<ul>
+<li>将观察者Completion注册到CF1，此时CF1将Completion压栈。</li>
+<li>当CF1的操作运行完成时，会将结果赋值给CF1中的result属性。</li>
+<li>依次弹栈，通知观察者尝试运行。<br><img src="https://p0.meituan.net/travelcube/f449bbc62d4a1f8e9e4998929196513d165269.gif" alt=""></li>
+</ul>
+<p>这里有几个关于注册与通知的并发问题:<br>在观察者注册之前，如果CF已经执行完成，并且已经发出通知，那么这时观察者由于错过了通知是不是将永远不会被触发呢 ？ A1：不会。在注册时检查依赖的CF是否已经完成。如果未完成（即result == null）则将观察者入栈，如果已完成（result != null）则直接触发观察者操作。<br>在”入栈“前会有”result == null“的判断，这两个操作为非原子操作，CompletableFufure的实现也没有对两个操作进行加锁，完成时间在这两个操作之间，观察者仍然得不到通知，是不是仍然无法触发？A2：不会。入栈之后再次检查CF是否完成，如果完成则触发。<br>当依赖多个CF时，观察者会被压入所有依赖的CF的栈中，每个CF完成的时候都会进行，那么会不会导致一个操作被多次执行呢 ？如下图所示，即当CF1、CF2同时完成时，如何避免CF3被多次触发。<br><img src="https://p0.meituan.net/travelcube/316ff338f8dab2826a5d32dfb75ffede4158.png" alt=""><br>A3：CompletableFuture的实现是这样解决该问题的：观察者在执行之前会先通过CAS操作设置一个状态位，将status由0改为1。如果观察者已经执行过了，那么CAS操作将会失败，取消执行。</p>
+<p>通过对以上3个问题的分析可以看出，CompletableFuture在处理并行问题时，<strong>全程无加锁操作</strong>，极大地提高了程序的执行效率。我们将并行问题考虑纳入之后，可以得到完善的整体流程图如下所示：<br><img src="https://p1.meituan.net/travelcube/606323a07fb7e31cb91f46c879d99b8d735272.gif" alt=""></p>
+<p>CompletableFuture支持的回调方法十分丰富，但是正如上一章节的整体流程图所述，他们的整体流程是一致的。所有回调复用同一套流程架构，不同的回调监听通过<strong>策略模式</strong>实现差异化。</p>
+<h3 id="二元依赖"><a href="#二元依赖" class="headerlink" title="二元依赖"></a>二元依赖</h3><p>以thenCombine为例来说明二元依赖：<br><img src="https://p0.meituan.net/travelcube/b969e49a7eedbd52b014f86e86dcd3fc49634.png" alt=""><br>thenCombine操作表示依赖两个CompletableFuture。其观察者实现类为<strong>BiApply</strong>，如上图所示，BiApply通过src和snd两个属性关联被依赖的两个CF，fn属性的类型为BiFunction。与单个依赖不同的是，在依赖的CF未完成的情况下，thenCombine会尝试将BiApply压入这两个被依赖的CF的栈中，每个被依赖的CF完成时都会尝试触发观察者BiApply，BiApply会检查两个依赖是否都完成，如果完成则开始执行。这里为了解决重复触发的问题，同样用的是上一章节提到的CAS操作，执行时会先通过CAS设置状态位，避免重复触发。</p>
+<h3 id="多元依赖"><a href="#多元依赖" class="headerlink" title="多元依赖"></a>多元依赖</h3><p>依赖多个CompletableFuture的回调方法包括allOf、anyOf，区别在于allOf观察者实现类为BiRelay，需要所有被依赖的CF完成后才会执行回调；而anyOf观察者实现类为OrRelay，任意一个被依赖的CF完成后就会触发。二者的实现方式都是将多个被依赖的CF构建成一棵平衡二叉树，执行结果层层通知，直到根节点，触发回调监听。<br><img src="https://p0.meituan.net/travelcube/cef5469b5ec2e67ecca1b99a07260e4e22003.png" alt=""></p>
+<blockquote>
+<p>这种二叉树的方式会把问题简单化。</p>
+</blockquote>
+<h2 id="实践总结"><a href="#实践总结" class="headerlink" title="实践总结"></a>实践总结</h2><h3 id="线程阻塞问题"><a href="#线程阻塞问题" class="headerlink" title="线程阻塞问题"></a>线程阻塞问题</h3><h4 id="代码执行在哪个线程上？"><a href="#代码执行在哪个线程上？" class="headerlink" title="代码执行在哪个线程上？"></a>代码执行在哪个线程上？</h4><p>CompletableFuture实现了CompletionStage接口，通过丰富的回调方法，支持各种组合操作，每种组合场景都有同步和异步两种方法。<br>同步方法（即不带Async后缀的方法）有两种情况。</p>
+<ul>
+<li>如果注册时被依赖的操作已经执行完成，则直接由当前线程执行。</li>
+<li>如果注册时被依赖的操作还未执行完，则由回调线程执行。<br>异步方法（即带Async后缀的方法）：<strong>可以选择是否传递线程池参数Executor运行在指定线程池中；当不传递Executor时，会使用ForkJoinPool中的共用线程池CommonPool（CommonPool的大小是CPU核数-1，如果是IO密集的应用，线程数可能成为瓶颈）</strong>。<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">ExecutorService threadPool1 = <span class="keyword">new</span> ThreadPoolExecutor(<span class="number">10</span>, <span class="number">10</span>, <span class="number">0L</span>, TimeUnit.MILLISECONDS, <span class="keyword">new</span> ArrayBlockingQueue&lt;&gt;(<span class="number">100</span>));</span><br><span class="line">CompletableFuture&lt;String&gt; future1 = CompletableFuture.supplyAsync(() -&gt; &#123;</span><br><span class="line">    System.out.println(<span class="string">"supplyAsync 执行线程："</span> + Thread.currentThread().getName());</span><br><span class="line">    <span class="comment">//业务操作</span></span><br><span class="line">    <span class="keyword">return</span> <span class="string">""</span>;</span><br><span class="line">&#125;, threadPool1);</span><br><span class="line"><span class="comment">//此时，如果future1中的业务操作已经执行完毕并返回，则该thenApply直接由当前main线程执行；否则，将会由执行以上业务操作的threadPool1中的线程执行。</span></span><br><span class="line">future1.thenApply(value -&gt; &#123;</span><br><span class="line">    System.out.println(<span class="string">"thenApply 执行线程："</span> + Thread.currentThread().getName());</span><br><span class="line">    <span class="keyword">return</span> value + <span class="string">"1"</span>;</span><br><span class="line">&#125;);</span><br><span class="line"><span class="comment">//使用ForkJoinPool中的共用线程池CommonPool</span></span><br><span class="line">future1.thenApplyAsync(value -&gt; &#123;</span><br><span class="line"><span class="comment">//do something</span></span><br><span class="line">  <span class="keyword">return</span> value + <span class="string">"1"</span>;</span><br><span class="line">&#125;);</span><br><span class="line"><span class="comment">//使用指定线程池</span></span><br><span class="line">future1.thenApplyAsync(value -&gt; &#123;</span><br><span class="line"><span class="comment">//do something</span></span><br><span class="line">  <span class="keyword">return</span> value + <span class="string">"1"</span>;</span><br><span class="line">&#125;, threadPool1);</span><br></pre></td></tr></table></figure>
+<h3 id="线程池须知"><a href="#线程池须知" class="headerlink" title="线程池须知"></a>线程池须知</h3><h4 id="异步回调要传线程池"><a href="#异步回调要传线程池" class="headerlink" title="异步回调要传线程池"></a>异步回调要传线程池</h4>前面提到，异步回调方法可以选择是否传递线程池参数Executor，这里我们建议强制传线程池，且根据实际情况做线程池隔离。</li>
+</ul>
+<p>当不传递线程池时，会使用ForkJoinPool中的公共线程池CommonPool，这里所有调用将共用该线程池，核心线程数=处理器数量-1（单核核心线程数为1），所有异步回调都会共用该CommonPool，核心与非核心业务都竞争同一个池中的线程，很容易成为系统瓶颈。手动传递线程池参数可以更方便的调节参数，并且可以给不同的业务分配不同的线程池，以求资源隔离，减少不同业务之间的相互干扰。</p>
+<h4 id="线程池循环引用会导致死锁"><a href="#线程池循环引用会导致死锁" class="headerlink" title="线程池循环引用会导致死锁"></a>线程池循环引用会导致死锁</h4><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> Object <span class="title">doGet</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  ExecutorService threadPool1 = <span class="keyword">new</span> ThreadPoolExecutor(<span class="number">10</span>, <span class="number">10</span>, <span class="number">0L</span>, TimeUnit.MILLISECONDS, <span class="keyword">new</span> ArrayBlockingQueue&lt;&gt;(<span class="number">100</span>));</span><br><span class="line">  CompletableFuture cf1 = CompletableFuture.supplyAsync(() -&gt; &#123;</span><br><span class="line">  <span class="comment">//do sth</span></span><br><span class="line">    <span class="keyword">return</span> CompletableFuture.supplyAsync(() -&gt; &#123;</span><br><span class="line">        System.out.println(<span class="string">"child"</span>);</span><br><span class="line">        <span class="keyword">return</span> <span class="string">"child"</span>;</span><br><span class="line">      &#125;, threadPool1).join();<span class="comment">//子任务</span></span><br><span class="line">    &#125;, threadPool1);</span><br><span class="line">  <span class="keyword">return</span> cf1.join();</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>如上代码块所示，doGet方法第三行通过supplyAsync向threadPool1请求线程，并且内部子任务又向threadPool1请求线程。threadPool1大小为10，当同一时刻有10个请求到达，则threadPool1被打满，子任务请求线程时进入阻塞队列排队，但是父任务的完成又依赖于子任务，这时由于子任务得不到线程，父任务无法完成。主线程执行cf1.join()进入阻塞状态，并且永远无法恢复。</p>
+<p>为了修复该问题，需要将父任务与子任务做线程池隔离，两个任务请求不同的线程池，避免循环依赖导致的阻塞。</p>
+<h4 id="异步RPC调用注意不要阻塞IO线程池"><a href="#异步RPC调用注意不要阻塞IO线程池" class="headerlink" title="异步RPC调用注意不要阻塞IO线程池"></a>异步RPC调用注意不要阻塞IO线程池</h4><p>服务异步化后很多步骤都会依赖于异步RPC调用的结果，这时需要特别注意一点，如果是使用基于NIO（比如Netty）的异步RPC，则返回结果是由IO线程负责设置的，即回调方法由IO线程触发，CompletableFuture同步回调（如thenApply、thenAccept等无Async后缀的方法）如果依赖的异步RPC调用的返回结果，那么这些同步回调将运行在IO线程上，而整个服务只有一个IO线程池，这时需要保证同步回调中不能有阻塞等耗时过长的逻辑，否则在这些逻辑执行完成前，IO线程将一直被占用，影响整个服务的响应。</p>
+<h3 id="其他"><a href="#其他" class="headerlink" title="其他"></a>其他</h3><h4 id="异常处理"><a href="#异常处理" class="headerlink" title="异常处理"></a>异常处理</h4><p>由于异步执行的任务在其他线程上执行，而异常信息存储在线程栈中，因此当前线程除非阻塞等待返回结果，否则无法通过try\catch捕获异常。CompletableFuture提供了异常捕获回调exceptionally，相当于同步调用中的try\catch。使用方法如下所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Autowired</span></span><br><span class="line"><span class="keyword">private</span> WmOrderAdditionInfoThriftService wmOrderAdditionInfoThriftService;<span class="comment">//内部接口</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> CompletableFuture&lt;Integer&gt; <span class="title">getCancelTypeAsync</span><span class="params">(<span class="keyword">long</span> orderId)</span> </span>&#123;</span><br><span class="line">    CompletableFuture&lt;WmOrderOpRemarkResult&gt; remarkResultFuture = wmOrderAdditionInfoThriftService.findOrderCancelledRemarkByOrderIdAsync(orderId);<span class="comment">//业务方法，内部会发起异步rpc调用</span></span><br><span class="line">    <span class="keyword">return</span> remarkResultFuture</span><br><span class="line">      .exceptionally(err -&gt; &#123;<span class="comment">//通过exceptionally 捕获异常，打印日志并返回默认值</span></span><br><span class="line">         log.error(<span class="string">"WmOrderRemarkService.getCancelTypeAsync Exception orderId=&#123;&#125;"</span>, orderId, err);</span><br><span class="line">         <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">      &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>有一点需要注意，CompletableFuture在回调方法中对异常进行了包装。大部分异常会封装成CompletionException后抛出，真正的异常存储在cause属性中，因此如果调用链中经过了回调方法处理那么就需要用Throwable.getCause()方法提取真正的异常。但是，有些情况下会直接返回真正的异常（Stack Overflow的讨论），最好使用工具类提取异常，如下代码所示：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Autowired</span></span><br><span class="line"><span class="keyword">private</span> WmOrderAdditionInfoThriftService wmOrderAdditionInfoThriftService;<span class="comment">//内部接口</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> CompletableFuture&lt;Integer&gt; <span class="title">getCancelTypeAsync</span><span class="params">(<span class="keyword">long</span> orderId)</span> </span>&#123;</span><br><span class="line">    CompletableFuture&lt;WmOrderOpRemarkResult&gt; remarkResultFuture = wmOrderAdditionInfoThriftService.findOrderCancelledRemarkByOrderIdAsync(orderId);<span class="comment">//业务方法，内部会发起异步rpc调用</span></span><br><span class="line">    <span class="keyword">return</span> remarkResultFuture</span><br><span class="line">          .thenApply(result -&gt; &#123;<span class="comment">//这里增加了一个回调方法thenApply，如果发生异常thenApply内部会通过new CompletionException(throwable) 对异常进行包装</span></span><br><span class="line">      <span class="comment">//这里是一些业务操作</span></span><br><span class="line">        &#125;)</span><br><span class="line">      .exceptionally(err -&gt; &#123;<span class="comment">//通过exceptionally 捕获异常，这里的err已经被thenApply包装过，因此需要通过Throwable.getCause()提取异常</span></span><br><span class="line">         log.error(<span class="string">"WmOrderRemarkService.getCancelTypeAsync Exception orderId=&#123;&#125;"</span>, orderId, ExceptionUtils.extractRealException(err));</span><br><span class="line">         <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">      &#125;);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>上面代码中用到了一个自定义的工具类ExceptionUtils，用于CompletableFuture的异常提取，在使用CompletableFuture做异步编程时，可以直接使用该工具类处理异常。实现代码如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">ExceptionUtils</span> </span>&#123;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> Throwable <span class="title">extractRealException</span><span class="params">(Throwable throwable)</span> </span>&#123;</span><br><span class="line">          <span class="comment">//这里判断异常类型是否为CompletionException、ExecutionException，如果是则进行提取，否则直接返回。</span></span><br><span class="line">        <span class="keyword">if</span> (throwable <span class="keyword">instanceof</span> CompletionException || throwable <span class="keyword">instanceof</span> ExecutionException) &#123;</span><br><span class="line">            <span class="keyword">if</span> (throwable.getCause() != <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="keyword">return</span> throwable.getCause();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">return</span> throwable;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<blockquote>
+<p>CF的思想其实可以抽象出来一个处理流的框架，而且这个框架是可以被复用和二次开发的。不过本身java自己的CF的功能已经覆盖了很全的功能，从同步到异步，从回调经历的线程到最终执行的线程，从承载的背景到最终回调的背景，可能会涉及的问题都有一些使用涉及，虽然有一些点的使用还是需要一些门槛，但是对于大部分场景都可以很好的满足。<br>CF编排业务的方式才是更加值得借鉴的，因为易读性很好。</p>
+</blockquote>
+<p>以上来自：<br><a href="https://tech.meituan.com/2022/05/12/principles-and-practices-of-completablefuture.html" target="_blank" rel="noopener">https://tech.meituan.com/2022/05/12/principles-and-practices-of-completablefuture.html</a></p>
+
       
     </div>
     
@@ -332,6 +467,12 @@
     
 
     <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/%E5%B9%B6%E5%8F%91/" rel="tag"># 并发</a>
+          
+        </div>
       
 
       
@@ -406,8 +547,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
 
-      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+      <section class="site-overview-wrap sidebar-panel">
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
             
@@ -422,7 +572,7 @@
               
                 <a href="/archives/%7C%7C%20archive">
               
-                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-count">142</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -433,7 +583,7 @@
               
               <div class="site-state-item site-state-categories">
                 <a href="/categories/index.html">
-                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-count">21</span>
                   <span class="site-state-item-name">分类</span>
                 </a>
               </div>
@@ -444,7 +594,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-count">51</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
@@ -467,6 +617,22 @@
         </div>
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#completableFuture的原理"><span class="nav-number">1.</span> <span class="nav-text">completableFuture的原理</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#背景"><span class="nav-number">1.1.</span> <span class="nav-text">背景</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#同种类型方案对比"><span class="nav-number">1.2.</span> <span class="nav-text">同种类型方案对比</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#CompletableFuture解决的问题"><span class="nav-number">1.3.</span> <span class="nav-text">CompletableFuture解决的问题</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#CompletableFuture的定义"><span class="nav-number">1.4.</span> <span class="nav-text">CompletableFuture的定义</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#CompletableFuture的使用"><span class="nav-number">1.5.</span> <span class="nav-text">CompletableFuture的使用</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#零依赖：CompletableFuture的创建"><span class="nav-number">1.5.1.</span> <span class="nav-text">零依赖：CompletableFuture的创建</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#一元依赖：依赖一个CF"><span class="nav-number">1.5.2.</span> <span class="nav-text">一元依赖：依赖一个CF</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#二元依赖：依赖两个CF"><span class="nav-number">1.6.</span> <span class="nav-text">二元依赖：依赖两个CF</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#多元依赖：依赖多个CF"><span class="nav-number">1.6.1.</span> <span class="nav-text">多元依赖：依赖多个CF</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#CompletableFuture原理"><span class="nav-number">1.7.</span> <span class="nav-text">CompletableFuture原理</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#CompletableFuture的设计思想"><span class="nav-number">1.8.</span> <span class="nav-text">CompletableFuture的设计思想</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#被观察者"><span class="nav-number">1.8.1.</span> <span class="nav-text">被观察者</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#观察者"><span class="nav-number">1.8.2.</span> <span class="nav-text">观察者</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#整体流程"><span class="nav-number">1.9.</span> <span class="nav-text">整体流程</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#一元依赖"><span class="nav-number">1.9.1.</span> <span class="nav-text">一元依赖</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#二元依赖"><span class="nav-number">1.9.2.</span> <span class="nav-text">二元依赖</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#多元依赖"><span class="nav-number">1.9.3.</span> <span class="nav-text">多元依赖</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#实践总结"><span class="nav-number">1.10.</span> <span class="nav-text">实践总结</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#线程阻塞问题"><span class="nav-number">1.10.1.</span> <span class="nav-text">线程阻塞问题</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#代码执行在哪个线程上？"><span class="nav-number">1.10.1.1.</span> <span class="nav-text">代码执行在哪个线程上？</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#线程池须知"><span class="nav-number">1.10.2.</span> <span class="nav-text">线程池须知</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#异步回调要传线程池"><span class="nav-number">1.10.2.1.</span> <span class="nav-text">异步回调要传线程池</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#线程池循环引用会导致死锁"><span class="nav-number">1.10.2.2.</span> <span class="nav-text">线程池循环引用会导致死锁</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#异步RPC调用注意不要阻塞IO线程池"><span class="nav-number">1.10.2.3.</span> <span class="nav-text">异步RPC调用注意不要阻塞IO线程池</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#其他"><span class="nav-number">1.10.3.</span> <span class="nav-text">其他</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#异常处理"><span class="nav-number">1.10.3.1.</span> <span class="nav-text">异常处理</span></a></li></ol></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       

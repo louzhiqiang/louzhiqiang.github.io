@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="Hexo, NexT" />
+  <meta name="keywords" content="面试," />
 
 
 
@@ -79,15 +79,16 @@
 
 
 
-<meta name="description" content="从自律开始">
+<meta name="description" content="面试点总纲主要涉及这么几个大块：  hadoop hdfs 读取 写入 append 各个节点的作用 高可用如何实现   yarn 各个节点作用 调度过程 各种调度策略   mapreduce框架 基本的mapreduce原理 mapreduce的shuffle     hive 数据仓库常用的模型有哪些 hms 如何做高可用 各种by的区别 数据倾斜如何解决 小文件如何解决 hive调优有哪些">
 <meta property="og:type" content="article">
 <meta property="og:title" content="面试点准备">
 <meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/08/31/%E9%9D%A2%E8%AF%95%E7%82%B9%E5%87%86%E5%A4%87/index.html">
 <meta property="og:site_name" content="痒痒 团团 和 咘咘">
-<meta property="og:description" content="从自律开始">
+<meta property="og:description" content="面试点总纲主要涉及这么几个大块：  hadoop hdfs 读取 写入 append 各个节点的作用 高可用如何实现   yarn 各个节点作用 调度过程 各种调度策略   mapreduce框架 基本的mapreduce原理 mapreduce的shuffle     hive 数据仓库常用的模型有哪些 hms 如何做高可用 各种by的区别 数据倾斜如何解决 小文件如何解决 hive调优有哪些">
 <meta property="article:published_time" content="2022-08-31T12:24:55.000Z">
-<meta property="article:modified_time" content="2022-08-31T12:24:54.000Z">
+<meta property="article:modified_time" content="2022-09-21T01:51:23.124Z">
 <meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="面试">
 <meta name="twitter:card" content="summary">
 
 
@@ -291,6 +292,28 @@
           </span>
 
           
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E9%9D%A2%E8%AF%95/" itemprop="url" rel="index">
+                    <span itemprop="name">面试</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
 
           
             
@@ -318,7 +341,219 @@
       
 
       
-        
+        <h1 id="面试点总纲"><a href="#面试点总纲" class="headerlink" title="面试点总纲"></a>面试点总纲</h1><p>主要涉及这么几个大块：</p>
+<ul>
+<li>hadoop<ul>
+<li>hdfs<ul>
+<li>读取</li>
+<li>写入</li>
+<li>append</li>
+<li>各个节点的作用</li>
+<li>高可用如何实现</li>
+</ul>
+</li>
+<li>yarn<ul>
+<li>各个节点作用</li>
+<li>调度过程</li>
+<li>各种调度策略</li>
+</ul>
+</li>
+<li>mapreduce框架<ul>
+<li>基本的mapreduce原理</li>
+<li>mapreduce的shuffle</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>hive<ul>
+<li>数据仓库常用的模型有哪些</li>
+<li>hms 如何做高可用</li>
+<li>各种by的区别</li>
+<li>数据倾斜如何解决</li>
+<li>小文件如何解决</li>
+<li>hive调优有哪些</li>
+</ul>
+</li>
+<li>spark<ul>
+<li>rdd怎么理解</li>
+<li>rdd的持久化原理</li>
+<li>cache和checkpoint的区别</li>
+<li>spark 如何做到数据不动，计算移动</li>
+<li>宽依赖和窄依赖</li>
+<li>spark任务提交流程</li>
+<li>spark的shuffle策略</li>
+<li>spark的广播原理</li>
+<li>sparksql的执行原理</li>
+<li>数据倾斜的解决</li>
+<li>sparksql的规则优化有哪些</li>
+<li>spark udf、udtf、udaf的区别和实现</li>
+<li>spark 算子常见的操作和区别：<ul>
+<li>repartition 和 colease的区别</li>
+<li>groupbykey 和 reducebykey的区别</li>
+<li>map 和 mappartition的区别</li>
+<li>mapPartition 和 foreachPartition的区别</li>
+<li>常见的会产生shuffle的算子</li>
+<li>union会产生shuffle吗</li>
+<li>笛卡尔积会产生shuffle吗</li>
+</ul>
+</li>
+<li>sparksql的各种join的区别</li>
+<li>HA机制<ul>
+<li>一个task失败了，spark是如何兼容的</li>
+<li>spark如何实现动态资源申请</li>
+<li>spark driver如何做到高可用</li>
+</ul>
+</li>
+<li>spark 内存管理</li>
+<li>钨丝计划如何进行优化</li>
+<li>spark 3.0之后的优化有哪些</li>
+<li>spark streaming的原理</li>
+<li>spark streaming 和 flink 流处理的区别</li>
+</ul>
+</li>
+<li>flink<ul>
+<li>flink 节点类型解析</li>
+<li>flink 各种graph的区别</li>
+<li>flink 反压如何实现</li>
+<li>flink task的内存管理</li>
+<li>flink exactly once的实现</li>
+<li>flink checkpoint的实现原理</li>
+<li>flink slot如何管理</li>
+<li>flink 如何兼容k8s</li>
+<li>flink 的任务提交流程</li>
+<li>flink 双流join的实现</li>
+<li>flink 任务重启策略</li>
+<li>flink connector的实现原理</li>
+<li>flink 状态存储 state 的基本原理</li>
+<li>flink 基于rockdb的增量checkpoint如何实现</li>
+<li>flink 如何支持流批一体的</li>
+<li>flink 的窗口有哪些类型，实现原理都是啥？</li>
+<li>flinksql的执行过程</li>
+<li>flinksql mini batch的优化原理</li>
+<li>flink 倾斜如何解决</li>
+<li>flink 异步io的实现</li>
+<li>flink 的shuffle的原理和调优</li>
+</ul>
+</li>
+<li>hudi<ul>
+<li>hudi的写入流程</li>
+<li>hudi的读取流程</li>
+<li>hudi的compact的原理</li>
+<li>hudi的clean原理</li>
+<li>hudi的clustering原理</li>
+<li>hudi的索引有哪些</li>
+<li>hudi的事务流程是如何实现的</li>
+<li>hudi的缺点</li>
+<li>hudi 对比 iceberg、delta</li>
+</ul>
+</li>
+<li>hbase<ul>
+<li>hbase的写入</li>
+<li>hbase的读取</li>
+<li>hbase的compact原理</li>
+<li>hbase的split原理</li>
+<li>hbase的rowkey的设计</li>
+<li>hbase 出现热点现象如何解决</li>
+<li>hbase的存储解构</li>
+<li>hfile的解构</li>
+<li>hbase常见的索引有哪些</li>
+<li>hbase的协处理器的原理</li>
+</ul>
+</li>
+<li>kafka<ul>
+<li>kafka的写入</li>
+<li>kafka的读取</li>
+<li>kafka如何保障数据不丢失</li>
+<li>kafka failover如何解决，比如机器宕机</li>
+<li>kafka事务</li>
+<li>kafka数据一致性如何保证</li>
+<li>如何确认kafka分区</li>
+<li>consumer group 如何增减consumer</li>
+<li>对比pulsar</li>
+</ul>
+</li>
+<li>flink-cdc<ul>
+<li>为什么选择flink-cdc</li>
+<li>flink-cdc的基本原理</li>
+<li>flink-cdc 在2.2版本抽离出来的框架的原理是什么</li>
+</ul>
+</li>
+<li>olap<ul>
+<li>kylin的原理</li>
+<li>kylin cuboid的原理</li>
+<li>kylin的优化</li>
+<li>kylin的构建原理</li>
+<li>kylin的查询原理</li>
+<li>kylin的精确去重</li>
+<li>druid的构建原理</li>
+<li>druid的查询原理</li>
+<li>druid的索引</li>
+<li>druid的二开的主要工作</li>
+<li>对比 clickHouse、starRocks、Doris</li>
+<li>join原理的对比</li>
+<li>在最新版本的一些改进</li>
+<li>mpp架构的查询过程一般是如何进行的</li>
+</ul>
+</li>
+<li>列式存储<ul>
+<li>索引有哪些、场景如何match</li>
+<li>向量化</li>
+<li>数据类型的支持</li>
+<li>压缩原理</li>
+<li>元数据管理以及扩展</li>
+<li>构建的原理</li>
+<li>查询优化</li>
+</ul>
+</li>
+<li>DSE<ul>
+<li>缓存</li>
+<li>如何支持更高的并发</li>
+<li>元数据管理</li>
+<li>如何衔接更多的数据源且sql可以兼容</li>
+</ul>
+</li>
+<li>数据治理<ul>
+<li>数据治理的场景和目标</li>
+<li>数据治理的手段</li>
+<li>数据生产过程如何质控</li>
+<li>如何溯源</li>
+</ul>
+</li>
+<li>数据仓库<ul>
+<li>模型<ul>
+<li>各种事实表</li>
+<li>维度退化</li>
+<li>拉链表</li>
+</ul>
+</li>
+<li>指标管理</li>
+<li>指标变更如何进行</li>
+</ul>
+</li>
+<li>基础<ul>
+<li>java<ul>
+<li>jvm</li>
+<li>java语言本身</li>
+</ul>
+</li>
+<li>分布式</li>
+<li>网络<ul>
+<li>rpc</li>
+<li>netty</li>
+</ul>
+</li>
+<li>linux<ul>
+<li>IO模型</li>
+</ul>
+</li>
+<li>算法<ul>
+<li>leetcode</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
       
     </div>
     
@@ -332,6 +567,12 @@
     
 
     <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/%E9%9D%A2%E8%AF%95/" rel="tag"># 面试</a>
+          
+        </div>
       
 
       
@@ -406,8 +647,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
 
-      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+      <section class="site-overview-wrap sidebar-panel">
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
             
@@ -422,7 +672,7 @@
               
                 <a href="/archives/%7C%7C%20archive">
               
-                  <span class="site-state-item-count">138</span>
+                  <span class="site-state-item-count">142</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -433,7 +683,7 @@
               
               <div class="site-state-item site-state-categories">
                 <a href="/categories/index.html">
-                  <span class="site-state-item-count">18</span>
+                  <span class="site-state-item-count">21</span>
                   <span class="site-state-item-name">分类</span>
                 </a>
               </div>
@@ -444,7 +694,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">48</span>
+                  <span class="site-state-item-count">51</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
@@ -467,6 +717,22 @@
         </div>
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#面试点总纲"><span class="nav-number">1.</span> <span class="nav-text">面试点总纲</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       

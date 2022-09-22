@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="sql," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="sql-行列转换使用spark进行行列转换 主要有两种使用方式： 行转列测试数据： 12345678910111213141516+----+----+----+|科目|姓名|分数|+----+----+----+|数学|张三|  88||数学|李雷|  67||数学|宫九|  77||数学|王五|  65||英语|张三|  77||英语|宫九|  90||英语|李雷|  24||英语|王五|">
+<meta property="og:type" content="article">
+<meta property="og:title" content="sql-行列转换">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/21/sql-%E8%A1%8C%E5%88%97%E8%BD%AC%E6%8D%A2/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="sql-行列转换使用spark进行行列转换 主要有两种使用方式： 行转列测试数据： 12345678910111213141516+----+----+----+|科目|姓名|分数|+----+----+----+|数学|张三|  88||数学|李雷|  67||数学|宫九|  77||数学|王五|  65||英语|张三|  77||英语|宫九|  90||英语|李雷|  24||英语|王五|">
+<meta property="article:published_time" content="2022-09-21T01:48:29.000Z">
+<meta property="article:modified_time" content="2022-09-21T02:56:33.462Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="sql">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/21/sql-行列转换/"/>
+
+
+
+
+
+  <title>sql-行列转换 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/21/sql-%E8%A1%8C%E5%88%97%E8%BD%AC%E6%8D%A2/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">sql-行列转换</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-09-21T09:48:29+08:00">
+                2022-09-21
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="sql-行列转换"><a href="#sql-行列转换" class="headerlink" title="sql-行列转换"></a>sql-行列转换</h1><p>使用spark进行行列转换 主要有两种使用方式：</p>
+<h2 id="行转列"><a href="#行转列" class="headerlink" title="行转列"></a>行转列</h2><p>测试数据：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">+----+----+----+</span><br><span class="line">|科目|姓名|分数|</span><br><span class="line">+----+----+----+</span><br><span class="line">|数学|张三|  88|</span><br><span class="line">|数学|李雷|  67|</span><br><span class="line">|数学|宫九|  77|</span><br><span class="line">|数学|王五|  65|</span><br><span class="line">|英语|张三|  77|</span><br><span class="line">|英语|宫九|  90|</span><br><span class="line">|英语|李雷|  24|</span><br><span class="line">|英语|王五|  90|</span><br><span class="line">|语文|李雷|  33|</span><br><span class="line">|语文|宫九|  87|</span><br><span class="line">|语文|张三|  92|</span><br><span class="line">|语文|王五|  87|</span><br><span class="line">+----+----+----+</span><br></pre></td></tr></table></figure>
+<h3 id="使用PIVOT函数即可实现行转列"><a href="#使用PIVOT函数即可实现行转列" class="headerlink" title="使用PIVOT函数即可实现行转列"></a>使用PIVOT函数即可实现行转列</h3><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> * <span class="keyword">from</span> scores </span><br><span class="line">                 <span class="keyword">pivot</span></span><br><span class="line">                 (</span><br><span class="line">                     <span class="keyword">sum</span>(<span class="string">`分数`</span>) <span class="keyword">for</span></span><br><span class="line">                     <span class="string">`姓名`</span> <span class="keyword">in</span> (<span class="string">'张三'</span>,<span class="string">'王五'</span>,<span class="string">'李雷'</span>,<span class="string">'宫九'</span>)</span><br><span class="line">                 )</span><br></pre></td></tr></table></figure>
+<p>上边语句的结果：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">+----+----+----+----+----+</span><br><span class="line">|科目|张三|王五|李雷|宫九|</span><br><span class="line">+----+----+----+----+----+</span><br><span class="line">|数学|  88|  65|  67|  77|</span><br><span class="line">|英语|  77|  90|  24|  90|</span><br><span class="line">|语文|  92|  87|  33|  87|</span><br><span class="line">+----+----+----+----+----+</span><br></pre></td></tr></table></figure>
+<h3 id="stack使用"><a href="#stack使用" class="headerlink" title="stack使用"></a>stack使用</h3><p>stack(n, expr1, …, exprk) - 会将expr1, …, exprk 分割为n行.</p>
+<figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">df_pivot.createOrReplaceTempView(<span class="symbol">'v_pivo</span>t')</span><br><span class="line"></span><br><span class="line">sql_content = ''<span class="symbol">'select</span> `科目`,</span><br><span class="line">                 stack(<span class="number">4</span>, '张三', `张三`, '王五', `王五`, '李雷', `李雷`, '宫九', `宫九`) as (`姓名`, `分数` )</span><br><span class="line">                 from  v_pivot             </span><br><span class="line">              '''</span><br><span class="line"></span><br><span class="line">df_unpivot1 = spark.sql(sql_content)</span><br><span class="line"></span><br><span class="line">df_unpivot1.show()</span><br></pre></td></tr></table></figure>
+<p>result :</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">+----+----+----+</span><br><span class="line">|科目|姓名|分数|</span><br><span class="line">+----+----+----+</span><br><span class="line">|数学|张三|  88|</span><br><span class="line">|数学|王五|  65|</span><br><span class="line">|数学|李雷|  67|</span><br><span class="line">|数学|宫九|  77|</span><br><span class="line">|英语|张三|  77|</span><br><span class="line">|英语|王五|  90|</span><br><span class="line">|英语|李雷|  24|</span><br><span class="line">|英语|宫九|  90|</span><br><span class="line">|语文|张三|  92|</span><br><span class="line">|语文|王五|  87|</span><br><span class="line">|语文|李雷|  33|</span><br><span class="line">|语文|宫九|  87|</span><br><span class="line">+----+----+----+</span><br></pre></td></tr></table></figure>
+<p>这个函数不咋常用，但是在一些场景还是可以直接被用来显示效果。</p>
+<h3 id="lateral-view-方式"><a href="#lateral-view-方式" class="headerlink" title="lateral view 方式"></a>lateral view 方式</h3><p>测试数据：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">A 20 篮球，排球，乒乓球</span><br><span class="line">B 30 跳舞，唱歌</span><br><span class="line">C 23 唱歌，爬山</span><br></pre></td></tr></table></figure>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">spark.sql("<span class="keyword">select</span> <span class="keyword">name</span>,age,t.hobby <span class="keyword">from</span> sr2 <span class="keyword">lateral</span> <span class="keyword">view</span> <span class="keyword">explode</span>(<span class="keyword">split</span>(hobby,<span class="string">'，'</span>)) t <span class="keyword">as</span> hobby<span class="string">").show()</span></span><br></pre></td></tr></table></figure>
+<p>结果：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">+----+---+-----+</span><br><span class="line">|name|age|hobby|</span><br><span class="line">+----+---+-----+</span><br><span class="line">|   A| 20|   篮球|</span><br><span class="line">|   A| 20|   排球|</span><br><span class="line">|   A| 20|  乒乓球|</span><br><span class="line">|   B| 30|   跳舞|</span><br><span class="line">|   B| 30|   唱歌|</span><br><span class="line">|   C| 23|   唱歌|</span><br><span class="line">|   C| 23|   爬山|</span><br><span class="line">+----+---+-----+</span><br></pre></td></tr></table></figure>
+<h2 id="列转行"><a href="#列转行" class="headerlink" title="列转行"></a>列转行</h2><p>测试数据：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">2018-01,项目1,100</span><br><span class="line">2018-01,项目2,200</span><br><span class="line">2018-01,项目3,300</span><br><span class="line">2018-01,项目3,400</span><br><span class="line">2018-02,项目1,1000</span><br><span class="line">2018-02,项目2,2000</span><br><span class="line">2018-03,项目x,999</span><br></pre></td></tr></table></figure>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">spark.sql("<span class="keyword">select</span> yue, collect_set(<span class="keyword">project</span>) projects,<span class="keyword">sum</span>(shouru) zsr  <span class="keyword">from</span> sr <span class="keyword">group</span> <span class="keyword">by</span> yue<span class="string">").show()</span></span><br></pre></td></tr></table></figure>
+<p>结果：</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">+-------+---------------+----+</span><br><span class="line">|    yue|       projects| zsr|</span><br><span class="line">+-------+---------------+----+</span><br><span class="line">|2018-03|          [项目x]| 999|</span><br><span class="line">|2018-02|     [项目1, 项目2]|3000|</span><br><span class="line">|2018-01|[项目1, 项目2, 项目3]| 600|</span><br></pre></td></tr></table></figure>
+<p>如果需要转化成字符串，可以使用<strong>concat_ws(‘分隔符’,字段)</strong> 函数。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/sql/" rel="tag"># sql</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/09/04/spark-top%E7%AE%97%E5%AD%90/" rel="next" title="spark-top算子">
+                <i class="fa fa-chevron-left"></i> spark-top算子
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/09/21/%E7%AE%A1%E7%90%86%E8%80%85%E4%B8%80%E5%AE%9A%E4%BC%9A%E7%A2%B0%E5%88%B0%E7%9A%84%E9%82%A3%E4%BA%9B%E4%BA%8B%E5%84%BF/" rel="prev" title="管理者一定会碰到的那些事儿">
+                管理者一定会碰到的那些事儿 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">142</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">21</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">51</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#sql-行列转换"><span class="nav-number">1.</span> <span class="nav-text">sql-行列转换</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#行转列"><span class="nav-number">1.1.</span> <span class="nav-text">行转列</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#使用PIVOT函数即可实现行转列"><span class="nav-number">1.1.1.</span> <span class="nav-text">使用PIVOT函数即可实现行转列</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#stack使用"><span class="nav-number">1.1.2.</span> <span class="nav-text">stack使用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#lateral-view-方式"><span class="nav-number">1.1.3.</span> <span class="nav-text">lateral view 方式</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#列转行"><span class="nav-number">1.2.</span> <span class="nav-text">列转行</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
