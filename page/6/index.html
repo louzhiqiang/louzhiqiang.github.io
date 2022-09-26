@@ -250,7 +250,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/02/flink%E5%8E%9F%E7%90%86-flink-cdc%E9%87%8D%E8%A6%81%E7%89%88%E6%9C%AC%E7%9A%84%E9%87%8D%E8%A6%81%E7%89%B9%E6%80%A7/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/24/%E7%89%A9%E5%8C%96%E5%92%8C%E5%BB%B6%E8%BF%9F%E7%89%A9%E5%8C%96/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -269,7 +269,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/06/02/flink%E5%8E%9F%E7%90%86-flink-cdc%E9%87%8D%E8%A6%81%E7%89%88%E6%9C%AC%E7%9A%84%E9%87%8D%E8%A6%81%E7%89%B9%E6%80%A7/" itemprop="url">flink原理--flink-cdc重要版本的重要特性</a></h1>
+                <a class="post-title-link" href="/2022/06/24/%E7%89%A9%E5%8C%96%E5%92%8C%E5%BB%B6%E8%BF%9F%E7%89%A9%E5%8C%96/" itemprop="url">物化和延迟物化</a></h1>
         
 
         <div class="post-meta">
@@ -281,8 +281,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-02T11:13:29+08:00">
-                2022-06-02
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-24T11:04:24+08:00">
+                2022-06-24
               </time>
             
 
@@ -343,12 +343,13 @@
       
         
           
-          flink原理–flink-cdc重要版本的重要特性本周有个关于数据入湖的需求，就看了一下入湖的解决方案，然后就看到了flink-cdc的实现。当前对于flink也比较适合我们的业务，所以就深入看一下flink-cdc的一些实现。
-白纸在flink-cdc之前，在大数据生态中，数据入湖一般都是靠两步
+          物化与延迟物化物化就是物理转化，而这里的转化，是指数据由一个编码转化成用户实际存储的且是用户看到的那个数据。
+
+在实际的数据读取过程中，由于用户数据的原值占据空间比较大，所以为了优化存储，选择进行字典优化，而经过优化的数值，除了存储上的优化之外，在查询效率、传输效率上也都更加高效，因为字节少了，自然
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/06/02/flink%E5%8E%9F%E7%90%86-flink-cdc%E9%87%8D%E8%A6%81%E7%89%88%E6%9C%AC%E7%9A%84%E9%87%8D%E8%A6%81%E7%89%B9%E6%80%A7/#more" rel="contents">
+            <a class="btn" href="/2022/06/24/%E7%89%A9%E5%8C%96%E5%92%8C%E5%BB%B6%E8%BF%9F%E7%89%A9%E5%8C%96/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -399,7 +400,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/31/flink%E5%8E%9F%E7%90%86-flip-27%E5%85%B3%E4%BA%8Esource%E6%8E%A5%E5%8F%A3%E6%94%B9%E8%BF%9B/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/22/hudi%E6%8E%A2%E7%B4%A2-%E5%A4%9A%E6%A8%A1%E7%B4%A2%E5%BC%95%E7%9A%84%E5%8E%9F%E7%90%86/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -418,7 +419,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/05/31/flink%E5%8E%9F%E7%90%86-flip-27%E5%85%B3%E4%BA%8Esource%E6%8E%A5%E5%8F%A3%E6%94%B9%E8%BF%9B/" itemprop="url">flink原理--flip-27关于source接口改进</a></h1>
+                <a class="post-title-link" href="/2022/06/22/hudi%E6%8E%A2%E7%B4%A2-%E5%A4%9A%E6%A8%A1%E7%B4%A2%E5%BC%95%E7%9A%84%E5%8E%9F%E7%90%86/" itemprop="url">hudi探索--多模索引的原理</a></h1>
         
 
         <div class="post-meta">
@@ -430,8 +431,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-31T15:53:07+08:00">
-                2022-05-31
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-22T18:29:36+08:00">
+                2022-06-22
               </time>
             
 
@@ -492,11 +493,11 @@
       
         
           
-          flip-27关于source接口改进最近在看flink-cdc的相关内容，cdc2.0有一个关于mysql数据源的无锁同步的实现，对于mysql数据源的同步不但效率提升，而且更加稳定。而这里一个实现的关键就是基于flink最新的关于source 接口的重构。这个改进是在flink的flip-27这
+          hudi探索–多模索引的原理前言索引是现在存储系统中加速查询和写入必不可少的子系统，而且，随着数据量的增加以及覆盖的场景越来越多，对于索引的要求也是越来越精细化，要求的索引的类型也越来越宽泛，不同的索引覆盖不同的场景。而这样，也会要求我们要对索引有更好的管理，否则，一个不能跟数据同步新鲜度的索引，他
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/05/31/flink%E5%8E%9F%E7%90%86-flip-27%E5%85%B3%E4%BA%8Esource%E6%8E%A5%E5%8F%A3%E6%94%B9%E8%BF%9B/#more" rel="contents">
+            <a class="btn" href="/2022/06/22/hudi%E6%8E%A2%E7%B4%A2-%E5%A4%9A%E6%A8%A1%E7%B4%A2%E5%BC%95%E7%9A%84%E5%8E%9F%E7%90%86/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -547,7 +548,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/31/flink%E5%8E%9F%E7%90%86-%E7%BA%BF%E7%A8%8B%E6%A8%A1%E5%9E%8B/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/22/%E7%89%A9%E5%8C%96%E8%A7%86%E5%9B%BE%E7%9A%84%E5%AE%9E%E7%8E%B0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -566,7 +567,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/05/31/flink%E5%8E%9F%E7%90%86-%E7%BA%BF%E7%A8%8B%E6%A8%A1%E5%9E%8B/" itemprop="url">flink原理--线程模型</a></h1>
+                <a class="post-title-link" href="/2022/06/22/%E7%89%A9%E5%8C%96%E8%A7%86%E5%9B%BE%E7%9A%84%E5%AE%9E%E7%8E%B0/" itemprop="url">物化视图的实现</a></h1>
         
 
         <div class="post-meta">
@@ -578,8 +579,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-31T10:26:47+08:00">
-                2022-05-31
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-22T14:12:05+08:00">
+                2022-06-22
               </time>
             
 
@@ -640,12 +641,20 @@
       
         
           
-          flink原理–线程模型 StreamTask 中基于 MailBox 实现的线程模型，这个模型从 1.9 开始实现，1.10发布。
-动机在之前 Flink 的线程模型中，会有多个潜在的线程去并发访问其内部的状态，比如 event-processing 和 checkpoint triggering
-          ...
+          物化视图物化视图现在对于olap场景是必不可少的，物化视图本身的建立并不是难事儿，他的主要难点在于：
+
+更新
+
+隐式查询
+
+管理
+
+
+
+          
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/05/31/flink%E5%8E%9F%E7%90%86-%E7%BA%BF%E7%A8%8B%E6%A8%A1%E5%9E%8B/#more" rel="contents">
+            <a class="btn" href="/2022/06/22/%E7%89%A9%E5%8C%96%E8%A7%86%E5%9B%BE%E7%9A%84%E5%AE%9E%E7%8E%B0/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -696,7 +705,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/27/hudi%E6%8E%A2%E7%B4%A2-%E5%A4%A7%E5%85%AC%E5%8F%B8%E6%A1%88%E4%BE%8B%E7%9A%84%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91%E6%B1%87%E6%80%BB/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/20/DDL%E7%9A%84%E5%AE%9E%E7%8E%B0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -715,7 +724,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/05/27/hudi%E6%8E%A2%E7%B4%A2-%E5%A4%A7%E5%85%AC%E5%8F%B8%E6%A1%88%E4%BE%8B%E7%9A%84%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91%E6%B1%87%E6%80%BB/" itemprop="url">hudi探索--大公司案例的优化方向汇总</a></h1>
+                <a class="post-title-link" href="/2022/06/20/DDL%E7%9A%84%E5%AE%9E%E7%8E%B0/" itemprop="url">DDL的实现</a></h1>
         
 
         <div class="post-meta">
@@ -727,8 +736,135 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-27T15:51:42+08:00">
-                2022-05-27
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-20T12:06:08+08:00">
+                2022-06-20
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+          DDL的实现这个话题其实有些宽泛，不过为了说明大数据中针对ddl的处理方式，尤其是实时场景，所以为了说明白这个问题，我们可以先说一下OLTP数据库的处理方式，然后再针对实时场景的特殊问题再去对比说一下会把哪些问题复杂化。
+SCHEMA EVOLUTIONSchema evolution 大致可以分为
+          ...
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2022/06/20/DDL%E7%9A%84%E5%AE%9E%E7%8E%B0/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/15/flink%E5%8E%9F%E7%90%86-Async-IO%E7%9A%84%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2022/06/15/flink%E5%8E%9F%E7%90%86-Async-IO%E7%9A%84%E5%8E%9F%E7%90%86/" itemprop="url">flink原理--Async IO的原理</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-15T20:18:42+08:00">
+                2022-06-15
               </time>
             
 
@@ -789,14 +925,12 @@
       
         
           
-          hudi探索–大公司案例的优化方向汇总阿里DLA团队对于hudi的改进：
-参数自动化：hudi的参数比较多，有一些是针对于计算任务中，线程并行度等等的设置，而这些参数针对每一种不同量级和不同计算复杂度的数据，都是有差异的。所以就进行了优化，任务提交的时候根据数据特征进行了复杂的计算而得到的。
-
-大表
+          flink原理–Async IO的原理异步IO是flink流计算效率提高的关键，很多处理都依赖于这个特性。
+动机在大多数情况下，I/O 访问是一个耗时的过程，这使得单个算子的 TPS 远低于内存计算，特别是对于流式作业，当低延迟是用户的一个大问题时。启动多个线程可能是解决此问题的一种选择，但缺点很明
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/05/27/hudi%E6%8E%A2%E7%B4%A2-%E5%A4%A7%E5%85%AC%E5%8F%B8%E6%A1%88%E4%BE%8B%E7%9A%84%E4%BC%98%E5%8C%96%E6%96%B9%E5%90%91%E6%B1%87%E6%80%BB/#more" rel="contents">
+            <a class="btn" href="/2022/06/15/flink%E5%8E%9F%E7%90%86-Async-IO%E7%9A%84%E5%8E%9F%E7%90%86/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -847,7 +981,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/27/hudi%E6%8E%A2%E7%B4%A2-timeline%E6%BA%90%E7%A0%81/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/15/flink%E5%8E%9F%E7%90%86-JM%E7%9A%84HA%E5%AE%9E%E7%8E%B0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -866,7 +1000,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/05/27/hudi%E6%8E%A2%E7%B4%A2-timeline%E6%BA%90%E7%A0%81/" itemprop="url">hudi探索--timeline源码</a></h1>
+                <a class="post-title-link" href="/2022/06/15/flink%E5%8E%9F%E7%90%86-JM%E7%9A%84HA%E5%AE%9E%E7%8E%B0/" itemprop="url">flink原理--JM的HA实现</a></h1>
         
 
         <div class="post-meta">
@@ -878,134 +1012,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-27T14:25:48+08:00">
-                2022-05-27
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-          
-          
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2022/05/27/hudi%E6%8E%A2%E7%B4%A2-timeline%E6%BA%90%E7%A0%81/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/27/hfile%E6%A0%BC%E5%BC%8F/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="zhiqiang.lou">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="痒痒 团团 和 咘咘">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2022/05/27/hfile%E6%A0%BC%E5%BC%8F/" itemprop="url">hfile格式</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-27T14:25:24+08:00">
-                2022-05-27
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-15T15:28:01+08:00">
+                2022-06-15
               </time>
             
 
@@ -1066,12 +1074,12 @@
       
         
           
-          最近在看hudi的索引的时候，hudi的索引支持中，有一个基于hfile的索引，用来根据key找数据路径的索引。然后就想起来很久之前看的hbase的很多原理，需要温习一下，看看是否有一些可以用在现在的架构设计上。
-本意是想着看一看hbase例hfile的文件存储结构，来作为入口，可是顺道看了一下范欣
+          flink原理–JM的HA实现flink中高可用的部分主要集中在jm上，他的实现方案是扩展式的，目前主要支持两种方式：zookeeper 和 Kubernetes.
+要实现HA，就代表有同等节点在运行，只不过角色上是跟随者的角色，至于是否提供服务或者其他作用，依赖于不同的设计就可以自己来定位，但是H
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/05/27/hfile%E6%A0%BC%E5%BC%8F/#more" rel="contents">
+            <a class="btn" href="/2022/06/15/flink%E5%8E%9F%E7%90%86-JM%E7%9A%84HA%E5%AE%9E%E7%8E%B0/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1122,7 +1130,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/26/hash%E7%9A%84%E7%BB%86%E5%8C%96%E5%9C%BA%E6%99%AF%E4%BD%BF%E7%94%A8/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/10/%E7%BA%BF%E6%AE%B5%E6%A0%91/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -1141,7 +1149,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/05/26/hash%E7%9A%84%E7%BB%86%E5%8C%96%E5%9C%BA%E6%99%AF%E4%BD%BF%E7%94%A8/" itemprop="url">hash的细化场景使用</a></h1>
+                <a class="post-title-link" href="/2022/06/10/%E7%BA%BF%E6%AE%B5%E6%A0%91/" itemprop="url">线段树</a></h1>
         
 
         <div class="post-meta">
@@ -1153,8 +1161,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-26T12:08:41+08:00">
-                2022-05-26
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-10T10:29:48+08:00">
+                2022-06-10
               </time>
             
 
@@ -1215,11 +1223,11 @@
       
         
           
-          hash的细化场景使用最近在看索引的原理，hash的使用还是比较多样化的，而如果没去细分的话，可能自己脑子里只有一个取余、一致性hash。然后hash在索引的细分领域里是有很多变种，我们会发现他更多的使用。因为hash本身就是一个O(1)的算法结果，天然的优势，让他在很多要求速率的场景都会是有限考虑
-          ...
+          
+          
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/05/26/hash%E7%9A%84%E7%BB%86%E5%8C%96%E5%9C%BA%E6%99%AF%E4%BD%BF%E7%94%A8/#more" rel="contents">
+            <a class="btn" href="/2022/06/10/%E7%BA%BF%E6%AE%B5%E6%A0%91/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1270,7 +1278,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/19/juypter-lab%E7%9A%84%E5%AE%89%E8%A3%85%EF%BC%8C%E6%94%AF%E6%8C%81%E5%A4%9A%E7%8E%AF%E5%A2%83/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/08/%E6%95%B0%E6%8D%AE%E5%BA%93%E5%8E%9F%E7%90%86-mysql%E7%9A%84%E4%BA%8B%E5%8A%A1%E7%9A%84%E5%AE%9E%E7%8E%B0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -1289,7 +1297,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/05/19/juypter-lab%E7%9A%84%E5%AE%89%E8%A3%85%EF%BC%8C%E6%94%AF%E6%8C%81%E5%A4%9A%E7%8E%AF%E5%A2%83/" itemprop="url">juypter lab的安装，支持多环境</a></h1>
+                <a class="post-title-link" href="/2022/06/08/%E6%95%B0%E6%8D%AE%E5%BA%93%E5%8E%9F%E7%90%86-mysql%E7%9A%84%E4%BA%8B%E5%8A%A1%E7%9A%84%E5%AE%9E%E7%8E%B0/" itemprop="url">数据库原理--mysql的事务的实现</a></h1>
         
 
         <div class="post-meta">
@@ -1301,8 +1309,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-19T15:56:48+08:00">
-                2022-05-19
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-08T19:39:22+08:00">
+                2022-06-08
               </time>
             
 
@@ -1324,8 +1332,8 @@
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%85%B6%E4%BB%96/" itemprop="url" rel="index">
-                    <span itemprop="name">其他</span>
+                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index">
+                    <span itemprop="name">数据库</span>
                   </a>
                 </span>
 
@@ -1363,12 +1371,13 @@
       
         
           
-          juypter lab的安装，支持多环境juypter 是 一个在线交互开发套件，相对于原先在机器上直接的操作，使用juypter，整体的交互更加顺畅，主题更多，组件也更多，他把一整套环境都迁移到了这个web工作台上。
-juypter notebook是比较早期的一个工作台版本，后来他的交互环境、配
+          数据库原理–mysql的事务的实现最近在看数据库设计的书籍，看到了很多关于事务的实现。以前一直用的是mysql，myslq的底层书籍也看了几本，今天看到这里突然想温顾一下mysql中关于事务的实现。
+概念理解好三个概念：
+redo logmysql 为了提升性能不会把每次的修改都实时同步到磁盘，而是
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/05/19/juypter-lab%E7%9A%84%E5%AE%89%E8%A3%85%EF%BC%8C%E6%94%AF%E6%8C%81%E5%A4%9A%E7%8E%AF%E5%A2%83/#more" rel="contents">
+            <a class="btn" href="/2022/06/08/%E6%95%B0%E6%8D%AE%E5%BA%93%E5%8E%9F%E7%90%86-mysql%E7%9A%84%E4%BA%8B%E5%8A%A1%E7%9A%84%E5%AE%9E%E7%8E%B0/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1419,7 +1428,7 @@ juypter notebook是比较早期的一个工作台版本，后来他的交互环�
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/18/flink%E5%8E%9F%E7%90%86-slot%E8%B0%83%E5%BA%A6%E4%BC%98%E5%8C%96/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/08/flink%E5%8E%9F%E7%90%86-barrier%E7%9A%84%E5%AE%9E%E7%8E%B0/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -1438,7 +1447,7 @@ juypter notebook是比较早期的一个工作台版本，后来他的交互环�
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/05/18/flink%E5%8E%9F%E7%90%86-slot%E8%B0%83%E5%BA%A6%E4%BC%98%E5%8C%96/" itemprop="url">flink原理--slot调度优化</a></h1>
+                <a class="post-title-link" href="/2022/06/08/flink%E5%8E%9F%E7%90%86-barrier%E7%9A%84%E5%AE%9E%E7%8E%B0/" itemprop="url">flink原理--barrier的实现</a></h1>
         
 
         <div class="post-meta">
@@ -1450,157 +1459,8 @@ juypter notebook是比较早期的一个工作台版本，后来他的交互环�
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-18T10:56:33+08:00">
-                2022-05-18
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category" >
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
-                    <span itemprop="name">大数据</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-          flink原理–slot调度优化这个命题不太好，不够准确，其实我想了解的是 slot 、 task 和 并行度之间的问题。
-chain的优化如果flink中每个subTask都占用一个单独的slot，任务执行的时候，尤其是实时任务，会不断进行切换，这部分成本比较高，系统的吞吐量比较受考验，所有fli
-          ...
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2022/05/18/flink%E5%8E%9F%E7%90%86-slot%E8%B0%83%E5%BA%A6%E4%BC%98%E5%8C%96/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/18/RSS%E5%8E%9F%E7%90%86/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="zhiqiang.lou">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="痒痒 团团 和 咘咘">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2022/05/18/RSS%E5%8E%9F%E7%90%86/" itemprop="url">RSS原理</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-18T10:54:25+08:00">
-                2022-05-18
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-08T10:41:45+08:00">
+                2022-06-08
               </time>
             
 
@@ -1661,16 +1521,161 @@ chain的优化如果flink中每个subTask都占用一个单独的slot，任务�
       
         
           
-          RSS原理在说RSS之前，先说一下ESS。
-shuffle无论是MR中的Shuffle流程，还是Spark中的Shuffle流程，都包含Shuffle读和Shuffle写这两块，其他的就是细节的东西。
-
-
-上边是shuffle的过程以及在spark中shuffle的实现细节。
-这张图里涉及到一个很关
+          flink原理–barrier的实现barrier简单来说就是一个牌子，一个标识，一个分界线。
+我是这么想象barrier的模型的：
+中学的时候举办的运动会，经过主席台的时候是一个代表团一个代表团在经过，而举牌子的是在最后的时候通过。如果有班级被分了组，假如分了5组，那么在主席台5个分组的举牌通过之
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/05/18/RSS%E5%8E%9F%E7%90%86/#more" rel="contents">
+            <a class="btn" href="/2022/06/08/flink%E5%8E%9F%E7%90%86-barrier%E7%9A%84%E5%AE%9E%E7%8E%B0/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/07/flink%E5%8E%9F%E7%90%86-%E5%8F%8D%E5%8E%8B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2022/06/07/flink%E5%8E%9F%E7%90%86-%E5%8F%8D%E5%8E%8B/" itemprop="url">flink原理--反压</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-07T10:49:51+08:00">
+                2022-06-07
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+          flink原理–反压为什么需要反压在下边的参考文章里有说明单点遇到处理效率低下的时候，会有什么问题。比如节点任务堆积，节点挂掉等。扩展一点想一下，在流式系统重，都有单节点任务不堪重负的容错，原因就是单节点不管不顾地接收数据，如果他处理不过来，会导致当前任务的不稳定，从而影响整个任务的稳定性，而关键的
+          ...
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2022/06/07/flink%E5%8E%9F%E7%90%86-%E5%8F%8D%E5%8E%8B/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1712,7 +1717,7 @@ shuffle无论是MR中的Shuffle流程，还是Spark中的Shuffle流程，都包�
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/5/">&lt;i class&#x3D;&quot;fa fa-angle-left&quot;&gt;&lt;&#x2F;i&gt;</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/5/">5</a><span class="page-number current">6</span><a class="page-number" href="/page/7/">7</a><span class="space">&hellip;</span><a class="page-number" href="/page/15/">15</a><a class="extend next" rel="next" href="/page/7/">&lt;i class&#x3D;&quot;fa fa-angle-right&quot;&gt;&lt;&#x2F;i&gt;</a>
+    <a class="extend prev" rel="prev" href="/page/5/">&lt;i class&#x3D;&quot;fa fa-angle-left&quot;&gt;&lt;&#x2F;i&gt;</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/5/">5</a><span class="page-number current">6</span><a class="page-number" href="/page/7/">7</a><span class="space">&hellip;</span><a class="page-number" href="/page/16/">16</a><a class="extend next" rel="next" href="/page/7/">&lt;i class&#x3D;&quot;fa fa-angle-right&quot;&gt;&lt;&#x2F;i&gt;</a>
   </nav>
 
 
@@ -1758,7 +1763,7 @@ shuffle无论是MR中的Shuffle流程，还是Spark中的Shuffle流程，都包�
               
                 <a href="/archives/%7C%7C%20archive">
               
-                  <span class="site-state-item-count">142</span>
+                  <span class="site-state-item-count">154</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -1780,7 +1785,7 @@ shuffle无论是MR中的Shuffle流程，还是Spark中的Shuffle流程，都包�
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">51</span>
+                  <span class="site-state-item-count">53</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

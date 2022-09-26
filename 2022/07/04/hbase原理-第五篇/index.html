@@ -85,21 +85,21 @@
 <meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/04/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E4%BA%94%E7%AF%87/index.html">
 <meta property="og:site_name" content="痒痒 团团 和 咘咘">
 <meta property="og:description" content="region的切分region的切分策略的主要原则是为了让当前region server上的region有更好的分布。region的管理的粒度可以在store级别。主要参考的角度就是store分布的大小、store的个数、store的业务数据特征。  这个跟hudi的clustering策略都比较相像  寻找 SplitPoint那切分点是如何定位的呢？整个 region 中最大 store 中的">
-<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/08/4-1.png">
-<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/08/20170827125036_16172.png">
-<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/08/20170827125935_73066.png">
-<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/08/20170827130021_69166.png">
-<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/08/20170827125629_94088.png">
-<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/08/20170827125737_62106.png">
-<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/08/20170827125820_25922.png">
-<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/09/1.png">
-<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2017/09/2.png">
+<meta property="og:image" content="https://github.com/images/5-4-1.png">
+<meta property="og:image" content="https://github.com/images/20170827125036_16172.png">
+<meta property="og:image" content="https://github.com/images/20170827125935_73066.png">
+<meta property="og:image" content="https://github.com/images/20170827130021_69166.png">
+<meta property="og:image" content="https://github.com/images/20170827125629_94088.png">
+<meta property="og:image" content="https://github.com/images/20170827125737_62106.png">
+<meta property="og:image" content="https://github.com/images/20170827125820_25922.png">
+<meta property="og:image" content="https://github.com/images/5-0926-1.png.png">
+<meta property="og:image" content="https://github.com/images/5-0928-2.png">
 <meta property="article:published_time" content="2022-07-04T08:31:05.000Z">
-<meta property="article:modified_time" content="2022-07-05T04:14:34.000Z">
+<meta property="article:modified_time" content="2022-09-26T12:56:32.007Z">
 <meta property="article:author" content="zhiqiang.lou">
 <meta property="article:tag" content="hbase">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://hbasefly.com/wp-content/uploads/2017/08/4-1.png">
+<meta name="twitter:image" content="https://github.com/images/5-4-1.png">
 
 
 
@@ -361,7 +361,7 @@
 <li>prepare 阶段：在内存中初始化两个子 region，具体是生成两个 HRegionInfo 对象，包含 tableName、regionName、startkey、endkey 等。同时会生成一个 transaction journal，这个对象用来记录切分的进展，具体见 rollback 阶段。</li>
 <li>execute 阶段：切分的核心操作。</li>
 </ul>
-<p><img src="http://hbasefly.com/wp-content/uploads/2017/08/4-1.png" alt=""></p>
+<p><img src="/images/5-4-1.png" alt=""></p>
 <ol>
 <li><p>regionserver 更改 ZK 节点 /region-in-transition 中该 region 的状态为 SPLITING。</p>
 </li>
@@ -377,45 +377,45 @@
 <p>其中 reference 文件名为 d24415c4fb44427b8f698143e5c4d9dc.00bb6239169411e4d0ecb6ddfdbacf66，格式看起来比较特殊，那这种文件名具体什么含义呢？那来看看该 reference 文件指向的父 region 文件，根据日志可以看到，切分的父 region 是 00bb6239169411e4d0ecb6ddfdbacf66，对应的切分文件是 d24415c4fb44427b8f698143e5c4d9dc，可见 reference 文件名是个信息量很大的命名方式，如下所示：</p>
 </li>
 </ol>
-<p><img src="http://hbasefly.com/wp-content/uploads/2017/08/20170827125036_16172.png" alt=""></p>
+<p><img src="/images/20170827125036_16172.png" alt=""></p>
 <p>除此之外，还需要关注 reference 文件的文件内容，reference 文件是一个引用文件（并非 linux 链接文件），文件内容很显然不是用户数据。文件内容其实非常简单，主要有两部分构成：其一是切分点 splitkey，其二是一个 boolean 类型的变量（true 或者 false），true 表示该 reference 文件引用的是父文件的上半部分（top），而 false 表示引用的是下半部分 （bottom）。为什么存储的是这两部分内容？且听下文分解。</p>
 <p>看官可以使用 hadoop 命令亲自来查看 reference 文件的具体内容：</p>
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hadoop dfs -cat /hbase-rsgroup/data/default/music/0155388346c3c919d3f05d7188e885e0/cf/d24415c4fb44427b8f698143e5c4d9dc.00bb6239169411e4d0ecb6ddfdbacf66</span><br></pre></td></tr></table></figure>
 
-<ol start="6">
+<ol>
 <li><p>父 region 分裂为两个子 region 后，将 daughter A、daughter B 拷贝到 HBase 根目录下，形成两个新的 region。</p>
 </li>
 <li><p>parent region 通知修改 hbase.meta 表后下线，不再提供服务。下线后 parent region 在 meta 表中的信息并不会马上删除，而是标注 split 列、offline 列为 true，并记录两个子 region。为什么不立马删除？且听下文分解。</p>
 </li>
 </ol>
-<p><img src="http://hbasefly.com/wp-content/uploads/2017/08/20170827125935_73066.png" alt=""></p>
-<ol start="8">
+<p><img src="/images/20170827125935_73066.png" alt=""></p>
+<ol>
 <li>开启 daughter A、daughter B 两个子 region。通知修改 hbase.meta 表，正式对外提供服务。</li>
 </ol>
-<p><img src="http://hbasefly.com/wp-content/uploads/2017/08/20170827130021_69166.png" alt=""></p>
+<p><img src="/images/20170827130021_69166.png" alt=""></p>
 <ul>
 <li><p>rollback 阶段：如果 execute 阶段出现异常，则执行 rollback 操作。为了实现回滚，整个切分过程被分为很多子阶段，回滚程序会根据当前进展到哪个子阶段清理对应的垃圾数据。代码中使用 JournalEntryType 来表征各个子阶段，具体见下图：</p>
-<p><img src="http://hbasefly.com/wp-content/uploads/2017/08/20170827125629_94088.png" alt=""></p>
+<p><img src="/images/20170827125629_94088.png" alt=""></p>
 </li>
 </ul>
 <h3 id="Region-切分事务性保证"><a href="#Region-切分事务性保证" class="headerlink" title="Region 切分事务性保证"></a><strong>Region 切分事务性保证</strong></h3><p>整个 region 切分是一个比较复杂的过程，涉及到父 region 中 HFile 文件的切分、两个子 region 的生成、系统 meta 元数据的更改等很多子步骤，因此必须保证整个切分过程的事务性，即要么切分完全成功，要么切分完全未开始，在任何情况下也不能出现切分只完成一半的情况。</p>
 <p>为了实现事务性，hbase 设计了使用状态机（见 SplitTransaction 类）的方式保存切分过程中的每个子步骤状态，这样一旦出现异常，系统可以根据当前所处的状态决定是否回滚，以及如何回滚。遗憾的是，目前实现中这些中间状态都只存储在内存中，因此一旦在切分过程中出现 regionserver 宕机的情况，有可能会出现切分处于中间状态的情况，也就是 RIT 状态。这种情况下需要使用 hbck 工具进行具体查看并分析解决方案。在 2.0 版本之后，HBase 实现了新的分布式事务框架 Procedure V2(HBASE-12439)，新框架将会使用 HLog 存储这种单机事务（DDL 操作、Split 操作、Move 操作等）的中间状态，因此可以保证即使在事务执行过程中参与者发生了宕机，依然可以使用 HLog 作为协调者对事务进行回滚操作或者重试提交，大大减少甚至杜绝 RIT 现象。这也是是 2.0 在可用性方面最值得期待的一个亮点！！！</p>
 <h3 id="Region-切分对其他模块的影响"><a href="#Region-切分对其他模块的影响" class="headerlink" title="Region 切分对其他模块的影响"></a><strong>Region 切分对其他模块的影响</strong></h3><p>通过 region 切分流程的了解，我们知道整个 region 切分过程并没有涉及数据的移动，所以切分成本本身并不是很高，可以很快完成。切分后子 region 的文件实际没有任何用户数据，文件中存储的仅是一些元数据信息－切分点 rowkey 等，那通过引用文件如何查找数据呢？子 region 的数据实际在什么时候完成真正迁移？数据迁移完成之后父 region 什么时候会被删掉？</p>
-<h4 id="通过-reference-文件如何查找数据？"><a href="#通过-reference-文件如何查找数据？" class="headerlink" title="通过 reference 文件如何查找数据？"></a>通过 reference 文件如何查找数据？</h4><p><img src="http://hbasefly.com/wp-content/uploads/2017/08/20170827125737_62106.png" alt=""></p>
+<h4 id="通过-reference-文件如何查找数据？"><a href="#通过-reference-文件如何查找数据？" class="headerlink" title="通过 reference 文件如何查找数据？"></a>通过 reference 文件如何查找数据？</h4><p><img src="/images/20170827125737_62106.png" alt=""></p>
 <p>（1）根据 reference 文件名（region 名 + 真实文件名）定位到真实数据所在文件路径</p>
 <p>（2）定位到真实数据文件就可以在整个文件中扫描待查 KV 了么？非也。因为 reference 文件通常都只引用了数据文件的一半数据，以切分点为界，要么上半部分文件数据，要么下半部分数据。那到底哪部分数据？切分点又是哪个点？还记得上文又提到 reference 文件的文件内容吧，没错，就记录在文件中。</p>
 <h4 id="父-region-的数据什么时候会迁移到子-region-目录？"><a href="#父-region-的数据什么时候会迁移到子-region-目录？" class="headerlink" title="父 region 的数据什么时候会迁移到子 region 目录？"></a>父 region 的数据什么时候会迁移到子 region 目录？</h4><p>答案是子 region 发生 major_compaction 时。我们知道 compaction 的执行实际上是将 store 中所有小文件一个 KV 一个 KV 从小到大读出来之后再顺序写入一个大文件，完成之后再将小文件删掉，因此 compaction 本身就需要读取并写入大量数据。子 region 执行 major_compaction 后会将父目录中属于该子 region 的所有数据读出来并写入子 region 目录数据文件中。可见将数据迁移放到 compaction 这个阶段来做，是一件顺便的事。</p>
 <h4 id="父-region-什么时候会被删除？"><a href="#父-region-什么时候会被删除？" class="headerlink" title="父 region 什么时候会被删除？"></a>父 region 什么时候会被删除？</h4><p>实际上 HMaster 会启动一个线程定期遍历检查所有处于 splitting 状态的父 region，确定检查父 region 是否可以被清理。检测线程首先会在 meta 表中揪出所有 split 列为 true 的 region，并加载出其分裂后生成的两个子 region（meta 表中 splitA 列和 splitB 列），只需要检查此两个子 region 是否还存在引用文件，如果都不存在引用文件就可以认为该父 region 对应的文件可以被删除。现在再来看看上文中父目录在 meta 表中的信息，就大概可以理解为什么会存储这些信息了：</p>
-<p><img src="http://hbasefly.com/wp-content/uploads/2017/08/20170827125820_25922.png" alt=""></p>
+<p><img src="/images/20170827125820_25922.png" alt=""></p>
 <blockquote>
 <p>hbase的region跟现在很多大数据的存储方式的切分都很相似。</p>
 </blockquote>
 <p>参考：</p>
 <p><a href="http://hbasefly.com/2017/08/27/hbase-split/" target="_blank" rel="noopener">HBase原理 &#8211; 所有Region切分的细节都在这里了 &#8211; 有态度的HBase/Spark/BigData</a></p>
-<h1 id="snapshot（快照）基础原理"><a href="#snapshot（快照）基础原理" class="headerlink" title="snapshot（快照）基础原理"></a>snapshot（快照）基础原理</h1><p><img src="http://hbasefly.com/wp-content/uploads/2017/09/1.png" alt=""></p>
+<h1 id="snapshot（快照）基础原理"><a href="#snapshot（快照）基础原理" class="headerlink" title="snapshot（快照）基础原理"></a>snapshot（快照）基础原理</h1><p><img src="/images/5-0926-1.png.png" alt=""></p>
 <h3 id="hbase-snapshot-分布式架构－两阶段提交"><a href="#hbase-snapshot-分布式架构－两阶段提交" class="headerlink" title="hbase snapshot 分布式架构－两阶段提交"></a><strong>hbase snapshot 分布式架构－两阶段提交</strong></h3><p>hbase 为指定表执行 snapshot 操作，实际上真正执行 snapshot 的是对应表的所有 region。这些 region 因为分布在多个 RegionServer 上，所以需要一种机制来保证所有参与执行 snapshot 的 region 要么全部完成，要么都没有开始做，不能出现中间状态，比如某些 region 完成了，某些 region 未完成。</p>
 <p>hbase的快照实现是依赖于zookeeper来实现两阶段提交的，通过在zk上建立一个节点，所有region server根据这个prepare阶段的节点进行相应，hmaster确认可以下一步的时候，会再建立一个commit的zk节点，然后所有节点会根据这个监听的节点来获取任务并且commit。如果hmaster确认需要abort任务，那么也会在zk上建立一个abort节点，所有节点在监听到abort信息之后，会进行abort操作。</p>
-<h4 id="region-如何实现-snapshot？"><a href="#region-如何实现-snapshot？" class="headerlink" title="region 如何实现 snapshot？"></a>region 如何实现 snapshot？</h4><p><img src="http://hbasefly.com/wp-content/uploads/2017/09/2.png" alt=""></p>
+<h4 id="region-如何实现-snapshot？"><a href="#region-如何实现-snapshot？" class="headerlink" title="region 如何实现 snapshot？"></a>region 如何实现 snapshot？</h4><p><img src="/images/5-0928-2.png" alt=""></p>
 <blockquote>
 <p>region 生成的 snapshot 文件是临时文件，生成目录在 / hbase/.hbase-snapshot/.tmp 下，一般因为 snapshot 过程特别快，所以很难看到单个 region 生成的 snapshot 文件。</p>
 </blockquote>
@@ -544,7 +544,7 @@
               
                 <a href="/archives/%7C%7C%20archive">
               
-                  <span class="site-state-item-count">142</span>
+                  <span class="site-state-item-count">154</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -566,7 +566,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">51</span>
+                  <span class="site-state-item-count">53</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

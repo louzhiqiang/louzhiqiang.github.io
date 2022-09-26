@@ -250,7 +250,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/18/hudi%E6%8E%A2%E7%B4%A2-compact%E5%8E%9F%E7%90%86/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/18/flink%E5%8E%9F%E7%90%86-slot%E8%B0%83%E5%BA%A6%E4%BC%98%E5%8C%96/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -269,7 +269,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/04/18/hudi%E6%8E%A2%E7%B4%A2-compact%E5%8E%9F%E7%90%86/" itemprop="url">hudi探索--compact原理</a></h1>
+                <a class="post-title-link" href="/2022/05/18/flink%E5%8E%9F%E7%90%86-slot%E8%B0%83%E5%BA%A6%E4%BC%98%E5%8C%96/" itemprop="url">flink原理--slot调度优化</a></h1>
         
 
         <div class="post-meta">
@@ -281,8 +281,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-04-18T10:50:59+08:00">
-                2022-04-18
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-18T10:56:33+08:00">
+                2022-05-18
               </time>
             
 
@@ -343,12 +343,12 @@
       
         
           
-          hudi探索–compact原理compaction 操作是针对于MOR表类型独有的操作，老生常谈的小文件，是必须要进行合并成大文件的，这样读的效率才更高。这样的思路在hbase等系统里也都是常规操作。
-compact的过程hudi针对compact主要分成两个过程，生成 HoodieCompact
+          flink原理–slot调度优化这个命题不太好，不够准确，其实我想了解的是 slot 、 task 和 并行度之间的问题。
+chain的优化如果flink中每个subTask都占用一个单独的slot，任务执行的时候，尤其是实时任务，会不断进行切换，这部分成本比较高，系统的吞吐量比较受考验，所有fli
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/04/18/hudi%E6%8E%A2%E7%B4%A2-compact%E5%8E%9F%E7%90%86/#more" rel="contents">
+            <a class="btn" href="/2022/05/18/flink%E5%8E%9F%E7%90%86-slot%E8%B0%83%E5%BA%A6%E4%BC%98%E5%8C%96/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -399,7 +399,7 @@ compact的过程hudi针对compact主要分成两个过程，生成 HoodieCompact
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/15/flink%E5%8E%9F%E7%90%86-%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0EXACTLY-ONCE/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/18/RSS%E5%8E%9F%E7%90%86/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -418,7 +418,7 @@ compact的过程hudi针对compact主要分成两个过程，生成 HoodieCompact
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/04/15/flink%E5%8E%9F%E7%90%86-%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0EXACTLY-ONCE/" itemprop="url">flink原理--如何实现EXACTLY_ONCE</a></h1>
+                <a class="post-title-link" href="/2022/05/18/RSS%E5%8E%9F%E7%90%86/" itemprop="url">RSS原理</a></h1>
         
 
         <div class="post-meta">
@@ -430,8 +430,8 @@ compact的过程hudi针对compact主要分成两个过程，生成 HoodieCompact
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-04-15T18:03:50+08:00">
-                2022-04-15
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-18T10:54:25+08:00">
+                2022-05-18
               </time>
             
 
@@ -492,12 +492,16 @@ compact的过程hudi针对compact主要分成两个过程，生成 HoodieCompact
       
         
           
-          flink是如何实现EXACTLY_ONCE的？提到flink的EXACTLY_ONCE，这是flink在实时计算上的一块招牌。而这里如果提到flink就不得了解一下checkpoint、state、barrier这三个概念。这三个概念也是flink框架里的关键信息。
-CheckPointFlink
+          RSS原理在说RSS之前，先说一下ESS。
+shuffle无论是MR中的Shuffle流程，还是Spark中的Shuffle流程，都包含Shuffle读和Shuffle写这两块，其他的就是细节的东西。
+
+
+上边是shuffle的过程以及在spark中shuffle的实现细节。
+这张图里涉及到一个很关
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/04/15/flink%E5%8E%9F%E7%90%86-%E5%A6%82%E4%BD%95%E5%AE%9E%E7%8E%B0EXACTLY-ONCE/#more" rel="contents">
+            <a class="btn" href="/2022/05/18/RSS%E5%8E%9F%E7%90%86/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -548,7 +552,7 @@ CheckPointFlink
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/15/decimal%EF%BC%8Cfloat%E5%92%8Cdouble%E7%9A%84%E5%8C%BA%E5%88%AB%E6%98%AF%E4%BB%80%E4%B9%88%EF%BC%9F/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/18/flink%E5%8E%9F%E7%90%86-taskManager%E5%8E%9F%E7%90%86/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -567,7 +571,7 @@ CheckPointFlink
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/04/15/decimal%EF%BC%8Cfloat%E5%92%8Cdouble%E7%9A%84%E5%8C%BA%E5%88%AB%E6%98%AF%E4%BB%80%E4%B9%88%EF%BC%9F/" itemprop="url">decimal，float和double的区别是什么？</a></h1>
+                <a class="post-title-link" href="/2022/05/18/flink%E5%8E%9F%E7%90%86-taskManager%E5%8E%9F%E7%90%86/" itemprop="url">flink原理--taskManager原理</a></h1>
         
 
         <div class="post-meta">
@@ -579,160 +583,8 @@ CheckPointFlink
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-04-15T16:28:40+08:00">
-                2022-04-15
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category" >
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%9F%BA%E7%A1%80/" itemprop="url" rel="index">
-                    <span itemprop="name">基础</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-          参考：
-float、double(浮点数)区别还有和decimal(定点数)的比较 - arun_yh - 博客园
-Float Double Decimal 区别 - 简书
-decimal，float和double的区别是什么？_吃鱼的羊的博客-CSDN博客_decimal和double的区别
-先科
-          ...
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2022/04/15/decimal%EF%BC%8Cfloat%E5%92%8Cdouble%E7%9A%84%E5%8C%BA%E5%88%AB%E6%98%AF%E4%BB%80%E4%B9%88%EF%BC%9F/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/08/%E4%BD%BF%E7%94%A8spark-shell%E7%9A%84%E6%96%B9%E5%BC%8F%E8%AF%BB%E5%8F%96hudi%E6%95%B0%E6%8D%AE/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="zhiqiang.lou">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="痒痒 团团 和 咘咘">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2022/04/08/%E4%BD%BF%E7%94%A8spark-shell%E7%9A%84%E6%96%B9%E5%BC%8F%E8%AF%BB%E5%8F%96hudi%E6%95%B0%E6%8D%AE/" itemprop="url">使用spark-shell的方式读取hudi数据</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-04-08T16:05:19+08:00">
-                2022-04-08
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-18T10:51:27+08:00">
+                2022-05-18
               </time>
             
 
@@ -793,13 +645,12 @@ decimal，float和double的区别是什么？_吃鱼的羊的博客-CSDN博客_d
       
         
           
-          使用spark-shell的方式读取hudi数据在本地进入spark-shell的环境，同时加上上hudi的spark包
-1、引入需要的类
-123456import org.apache.hudi.QuickstartUtils._import scala.collection.JavaConver
+          flink原理–taskManager原理TM是flink的work节点，它运行的基本单位是slot，一个slot在一个时间单位内只会运行一个task。TM会负责维护本地的slot，同时会把资源的使用等状况传给JM。
+TM启动流程与 JobManager 类似，TaskManager 的启动类是 T
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/04/08/%E4%BD%BF%E7%94%A8spark-shell%E7%9A%84%E6%96%B9%E5%BC%8F%E8%AF%BB%E5%8F%96hudi%E6%95%B0%E6%8D%AE/#more" rel="contents">
+            <a class="btn" href="/2022/05/18/flink%E5%8E%9F%E7%90%86-taskManager%E5%8E%9F%E7%90%86/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -850,7 +701,7 @@ decimal，float和double的区别是什么？_吃鱼的羊的博客-CSDN博客_d
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/04/completableFuture%E7%9A%84%E5%8E%9F%E7%90%86/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/17/flink%E5%8E%9F%E7%90%86-jobManager%E5%8E%9F%E7%90%86/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -869,7 +720,7 @@ decimal，float和double的区别是什么？_吃鱼的羊的博客-CSDN博客_d
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/04/04/completableFuture%E7%9A%84%E5%8E%9F%E7%90%86/" itemprop="url">completableFuture的原理</a></h1>
+                <a class="post-title-link" href="/2022/05/17/flink%E5%8E%9F%E7%90%86-jobManager%E5%8E%9F%E7%90%86/" itemprop="url">flink原理--jobManager原理</a></h1>
         
 
         <div class="post-meta">
@@ -881,8 +732,305 @@ decimal，float和double的区别是什么？_吃鱼的羊的博客-CSDN博客_d
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-04-04T09:02:19+08:00">
-                2022-04-04
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-17T17:03:26+08:00">
+                2022-05-17
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+          flink原理–jobManager原理根据master的原理，jm属于master里的组件之一，在dispatcher阶段会初始化一个jobManager服务，用来协作当前这个作业的运行。比如：调度这个作业的 task、触发 Checkpoint 以及作业的容错恢复等。
+JM角色的定位当用户向 F
+          ...
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2022/05/17/flink%E5%8E%9F%E7%90%86-jobManager%E5%8E%9F%E7%90%86/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/13/flink%E5%8E%9F%E7%90%86-master%E8%AF%A6%E8%A7%A3/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2022/05/13/flink%E5%8E%9F%E7%90%86-master%E8%AF%A6%E8%A7%A3/" itemprop="url">flink原理--master详解</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-13T20:26:35+08:00">
+                2022-05-13
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+          flink原理–master详解Flink 是 Master/Slave 架构，这里的master就是flink的主轴节点，负责整个集群的一些协调工作，Flink 中 Master 节点主要包含三大组件：Flink Resource Manager、Flink Dispatcher 以及为每个运行的
+          ...
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2022/05/13/flink%E5%8E%9F%E7%90%86-master%E8%AF%A6%E8%A7%A3/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/12/hashmap%E7%9A%84%E6%AD%BB%E5%BE%AA%E7%8E%AF/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2022/05/12/hashmap%E7%9A%84%E6%AD%BB%E5%BE%AA%E7%8E%AF/" itemprop="url">hashmap的死循环</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-12T11:20:58+08:00">
+                2022-05-12
               </time>
             
 
@@ -943,11 +1091,12 @@ decimal，float和double的区别是什么？_吃鱼的羊的博客-CSDN博客_d
       
         
           
-          completableFuture的原理背景completableFuture在最近看hudi以及flink源码的时候，发现碰到的比较多，所以这里记录以下他的原理，让自己碰到对应的代码实现的时候可以更好的理解。在IO密集型业务应用中，如果当前需要的数据总集是来自于多个业务领域，那么在获取数据的时候，
+          hashmap的死循环hashmap在1.7版本，有个循环依赖问题，所以导致在并发场景会遇到死循环问题。所以hashmap是非线程安全的，这才有了后来的concurrentHashMap。后者的原理我们稍后来看，先看看这个死锁是咋回事。
+自己在剖析这个问题的过程中，其实是在探索并发设计的一些原理，对
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/04/04/completableFuture%E7%9A%84%E5%8E%9F%E7%90%86/#more" rel="contents">
+            <a class="btn" href="/2022/05/12/hashmap%E7%9A%84%E6%AD%BB%E5%BE%AA%E7%8E%AF/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -998,7 +1147,7 @@ decimal，float和double的区别是什么？_吃鱼的羊的博客-CSDN博客_d
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/04/01/flink%E5%8E%9F%E7%90%86-join/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/05/hudi%E6%8E%A2%E7%B4%A2-clustering%E5%8E%9F%E7%90%86/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -1017,7 +1166,7 @@ decimal，float和double的区别是什么？_吃鱼的羊的博客-CSDN博客_d
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/04/01/flink%E5%8E%9F%E7%90%86-join/" itemprop="url">flink原理--join</a></h1>
+                <a class="post-title-link" href="/2022/05/05/hudi%E6%8E%A2%E7%B4%A2-clustering%E5%8E%9F%E7%90%86/" itemprop="url">hudi探索--clustering原理</a></h1>
         
 
         <div class="post-meta">
@@ -1029,8 +1178,8 @@ decimal，float和double的区别是什么？_吃鱼的羊的博客-CSDN博客_d
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-04-01T16:39:51+08:00">
-                2022-04-01
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-05T10:35:34+08:00">
+                2022-05-05
               </time>
             
 
@@ -1091,12 +1240,11 @@ decimal，float和double的区别是什么？_吃鱼的羊的博客-CSDN博客_d
       
         
           
-          flink原理–join的实现join的应用场景join本身的sql语义就是通过指定的条件进行数据关联。如果A join B，那么就需要把A和B的数据按照执行的join类型以及条件进行关联，形成一个基于两个数据集之后的数据。
-实时数据流的join比批处理场景的join要更复杂，因为流处理本身的复杂场
+          hudi探索–clustering原理大数据技术栈中，在支持一定数量级以上的数据的时候，都会根据查询特征来优化查询或者摄入。相悖的是，实时系统为了写入较快，都会选择写入的之后直接追加的方式，而hadoop的写入恰好支持append数据流的语义。然而这样的缺点也就是会产生小文件。而针对于这样的问题，首
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/04/01/flink%E5%8E%9F%E7%90%86-join/#more" rel="contents">
+            <a class="btn" href="/2022/05/05/hudi%E6%8E%A2%E7%B4%A2-clustering%E5%8E%9F%E7%90%86/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1147,7 +1295,7 @@ decimal，float和double的区别是什么？_吃鱼的羊的博客-CSDN博客_d
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/03/31/flink%E5%8E%9F%E7%90%86-state%E7%9A%84%E4%BD%BF%E7%94%A8%E3%80%81%E5%8E%9F%E7%90%86%E3%80%81rescale%E7%9A%84%E6%93%8D%E4%BD%9C/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/05/flink%E5%8E%9F%E7%90%86-executionGraph%E7%9A%84%E7%94%9F%E6%88%90/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -1166,7 +1314,7 @@ decimal，float和double的区别是什么？_吃鱼的羊的博客-CSDN博客_d
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/03/31/flink%E5%8E%9F%E7%90%86-state%E7%9A%84%E4%BD%BF%E7%94%A8%E3%80%81%E5%8E%9F%E7%90%86%E3%80%81rescale%E7%9A%84%E6%93%8D%E4%BD%9C/" itemprop="url">flink原理--state的使用、原理、rescale的操作</a></h1>
+                <a class="post-title-link" href="/2022/05/05/flink%E5%8E%9F%E7%90%86-executionGraph%E7%9A%84%E7%94%9F%E6%88%90/" itemprop="url">flink原理--executionGraph的生成</a></h1>
         
 
         <div class="post-meta">
@@ -1178,8 +1326,8 @@ decimal，float和double的区别是什么？_吃鱼的羊的博客-CSDN博客_d
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-03-31T15:40:23+08:00">
-                2022-03-31
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-05T10:22:28+08:00">
+                2022-05-05
               </time>
             
 
@@ -1240,12 +1388,11 @@ decimal，float和double的区别是什么？_吃鱼的羊的博客-CSDN博客_d
       
         
           
-          state的使用、原理以及rescale的操作state的翻译本源是状态，而如果广泛地去理解的话，状态其实就是数据。
-为啥会有state在流计算的常用场景中，我们的计算规则经常会覆盖历史数据，这个历史数据可以是原始的数据也可以是经过计算的数据，这样场景我们就需要依赖state。这个场景在流式数据生产
+          flink原理–executionGraph的生成当 JobGraph 从 client 端提交到 JobManager 端后，JobManager 会根据 JobGraph 生成对应的 ExecutionGraph，ExecutionGraph 是 Flink 作业调度时使用到的核心数据结构，它包
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/03/31/flink%E5%8E%9F%E7%90%86-state%E7%9A%84%E4%BD%BF%E7%94%A8%E3%80%81%E5%8E%9F%E7%90%86%E3%80%81rescale%E7%9A%84%E6%93%8D%E4%BD%9C/#more" rel="contents">
+            <a class="btn" href="/2022/05/05/flink%E5%8E%9F%E7%90%86-executionGraph%E7%9A%84%E7%94%9F%E6%88%90/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1296,7 +1443,7 @@ decimal，float和double的区别是什么？_吃鱼的羊的博客-CSDN博客_d
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/03/30/parquet%E6%96%87%E4%BB%B6%E7%9A%84%E8%AF%BB%E5%8F%96%E8%BF%87%E7%A8%8B/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/05/flink%E5%8E%9F%E7%90%86-jobGraph%E7%9A%84%E7%94%9F%E6%88%90/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -1315,7 +1462,7 @@ decimal，float和double的区别是什么？_吃鱼的羊的博客-CSDN博客_d
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/03/30/parquet%E6%96%87%E4%BB%B6%E7%9A%84%E8%AF%BB%E5%8F%96%E8%BF%87%E7%A8%8B/" itemprop="url">parquet文件的读取过程</a></h1>
+                <a class="post-title-link" href="/2022/05/05/flink%E5%8E%9F%E7%90%86-jobGraph%E7%9A%84%E7%94%9F%E6%88%90/" itemprop="url">flink原理--jobGraph的生成</a></h1>
         
 
         <div class="post-meta">
@@ -1327,8 +1474,8 @@ decimal，float和double的区别是什么？_吃鱼的羊的博客-CSDN博客_d
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-03-30T07:46:36+08:00">
-                2022-03-30
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-05T10:22:15+08:00">
+                2022-05-05
               </time>
             
 
@@ -1389,13 +1536,11 @@ decimal，float和double的区别是什么？_吃鱼的羊的博客-CSDN博客_d
       
         
           
-          parquet文件的读取过程最近在修改hudi读取复杂数据的bug，然后钻研了一下parquet文件的读取，这里记录一下。
-hudi本身实现的是向量化读取，而parquet-tool实现的是基础算法。这里先研究一下这个基础算法，最后再来看怎么修改那个向量化读取的算法。
-关于parquet的基础概念，
+          flink原理–jobGraph的生成为啥需要jobgraphStreamGraph是用户逻辑的拓扑，它并没有做任何的优化。而这里为什么要分成两层，不是一次性直接生成jobGraph呢？里最主要的原因是为兼容 batch process，Streaming process 最初产生的是 Stream
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/03/30/parquet%E6%96%87%E4%BB%B6%E7%9A%84%E8%AF%BB%E5%8F%96%E8%BF%87%E7%A8%8B/#more" rel="contents">
+            <a class="btn" href="/2022/05/05/flink%E5%8E%9F%E7%90%86-jobGraph%E7%9A%84%E7%94%9F%E6%88%90/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1446,7 +1591,7 @@ hudi本身实现的是向量化读取，而parquet-tool实现的是基础算法�
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/03/05/hudi%E6%8E%A2%E7%B4%A2-%E5%9F%BA%E4%BA%8Eflink%E7%9A%84%E6%B5%81%E5%BC%8F%E5%A4%84%E7%90%86%E7%9A%84%E5%86%99%E6%95%B0%E6%8D%AE%E8%BF%87%E7%A8%8B/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/05/05/flink%E5%8E%9F%E7%90%86-streamGraph%E7%9A%84%E7%94%9F%E6%88%90/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -1465,7 +1610,7 @@ hudi本身实现的是向量化读取，而parquet-tool实现的是基础算法�
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/03/05/hudi%E6%8E%A2%E7%B4%A2-%E5%9F%BA%E4%BA%8Eflink%E7%9A%84%E6%B5%81%E5%BC%8F%E5%A4%84%E7%90%86%E7%9A%84%E5%86%99%E6%95%B0%E6%8D%AE%E8%BF%87%E7%A8%8B/" itemprop="url">hudi探索--基于flink的流式处理的写数据过程</a></h1>
+                <a class="post-title-link" href="/2022/05/05/flink%E5%8E%9F%E7%90%86-streamGraph%E7%9A%84%E7%94%9F%E6%88%90/" itemprop="url">flink原理--streamGraph的生成</a></h1>
         
 
         <div class="post-meta">
@@ -1477,8 +1622,8 @@ hudi本身实现的是向量化读取，而parquet-tool实现的是基础算法�
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-03-05T20:46:22+08:00">
-                2022-03-05
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-05-05T10:22:05+08:00">
+                2022-05-05
               </time>
             
 
@@ -1539,160 +1684,12 @@ hudi本身实现的是向量化读取，而parquet-tool实现的是基础算法�
       
         
           
-          hudi探索–基于flink的流式处理的写数据过程hudi的主要写入类是 HoodieTableSink ，其中的getSinkRuntimeProvider 跟source里的getSinkRuntimeProvider 是一样的作用，提供了 sink的流式写入的类。
-12345678910111
+          flink原理–streamGraph的生成flink端的原语目前有两种方式，一种是通过API进行操作，还有一种就是sql，后者是更高级的写法，底层到TASK级别的执行粒度，两者都是统一的。
+然而面对这样复杂的执行逻辑，任何服务想要做到优化的可扩展，都会对执行进行分层解读，也就是说，从高级API到低
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/03/05/hudi%E6%8E%A2%E7%B4%A2-%E5%9F%BA%E4%BA%8Eflink%E7%9A%84%E6%B5%81%E5%BC%8F%E5%A4%84%E7%90%86%E7%9A%84%E5%86%99%E6%95%B0%E6%8D%AE%E8%BF%87%E7%A8%8B/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/02/13/hudi%E6%8E%A2%E7%B4%A2-flink%E4%BB%8Ehudi%E7%9A%84changelog%E8%BF%9B%E8%A1%8C%E6%95%B0%E6%8D%AE%E7%94%9F%E4%BA%A7/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="zhiqiang.lou">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="痒痒 团团 和 咘咘">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2022/02/13/hudi%E6%8E%A2%E7%B4%A2-flink%E4%BB%8Ehudi%E7%9A%84changelog%E8%BF%9B%E8%A1%8C%E6%95%B0%E6%8D%AE%E7%94%9F%E4%BA%A7/" itemprop="url">hudi探索--flink从hudi的changelog进行数据生产</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-02-13T14:56:40+08:00">
-                2022-02-13
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category" >
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
-                    <span itemprop="name">大数据</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-          hudi探索–flink从hudi的changelog进行数据生产在数据生产中，我们都希望流式数据生产可以实现端到端的全流程，也就是希望从A到B到C的生成，但是中间不能再增加个什么消息中间件之类的，否则这套服务就会变得臃肿。而flink cdc的诞生，从开始就是以变化事件来触发变更作为场景切入，完成
-          ...
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2022/02/13/hudi%E6%8E%A2%E7%B4%A2-flink%E4%BB%8Ehudi%E7%9A%84changelog%E8%BF%9B%E8%A1%8C%E6%95%B0%E6%8D%AE%E7%94%9F%E4%BA%A7/#more" rel="contents">
+            <a class="btn" href="/2022/05/05/flink%E5%8E%9F%E7%90%86-streamGraph%E7%9A%84%E7%94%9F%E6%88%90/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1734,7 +1731,7 @@ hudi本身实现的是向量化读取，而parquet-tool实现的是基础算法�
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/7/">&lt;i class&#x3D;&quot;fa fa-angle-left&quot;&gt;&lt;&#x2F;i&gt;</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/7/">7</a><span class="page-number current">8</span><a class="page-number" href="/page/9/">9</a><span class="space">&hellip;</span><a class="page-number" href="/page/15/">15</a><a class="extend next" rel="next" href="/page/9/">&lt;i class&#x3D;&quot;fa fa-angle-right&quot;&gt;&lt;&#x2F;i&gt;</a>
+    <a class="extend prev" rel="prev" href="/page/7/">&lt;i class&#x3D;&quot;fa fa-angle-left&quot;&gt;&lt;&#x2F;i&gt;</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/7/">7</a><span class="page-number current">8</span><a class="page-number" href="/page/9/">9</a><span class="space">&hellip;</span><a class="page-number" href="/page/16/">16</a><a class="extend next" rel="next" href="/page/9/">&lt;i class&#x3D;&quot;fa fa-angle-right&quot;&gt;&lt;&#x2F;i&gt;</a>
   </nav>
 
 
@@ -1780,7 +1777,7 @@ hudi本身实现的是向量化读取，而parquet-tool实现的是基础算法�
               
                 <a href="/archives/%7C%7C%20archive">
               
-                  <span class="site-state-item-count">142</span>
+                  <span class="site-state-item-count">154</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -1802,7 +1799,7 @@ hudi本身实现的是向量化读取，而parquet-tool实现的是基础算法�
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">51</span>
+                  <span class="site-state-item-count">53</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

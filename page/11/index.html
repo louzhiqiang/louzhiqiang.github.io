@@ -250,7 +250,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/03/carbondata%E6%8E%A2%E7%B4%A2-%E6%95%B0%E6%8D%AE%E7%94%9F%E6%88%90%E6%AD%A5%E9%AA%A4/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/01/04/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-ZAB%E7%AE%97%E6%B3%95/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -269,7 +269,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2021/12/03/carbondata%E6%8E%A2%E7%B4%A2-%E6%95%B0%E6%8D%AE%E7%94%9F%E6%88%90%E6%AD%A5%E9%AA%A4/" itemprop="url">carbondata探索-数据生成步骤</a></h1>
+                <a class="post-title-link" href="/2022/01/04/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-ZAB%E7%AE%97%E6%B3%95/" itemprop="url">分布式算法-ZAB算法</a></h1>
         
 
         <div class="post-meta">
@@ -281,8 +281,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-12-03T12:56:44+08:00">
-                2021-12-03
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-01-04T14:43:51+08:00">
+                2022-01-04
               </time>
             
 
@@ -304,8 +304,8 @@
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
-                    <span itemprop="name">大数据</span>
+                  <a href="/categories/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95/" itemprop="url" rel="index">
+                    <span itemprop="name">分布式算法</span>
                   </a>
                 </span>
 
@@ -343,13 +343,13 @@
       
         
           
-          carbondata的数据生成步骤今天来说一下carbondata的数据生成过程，这部分原理主要是弄清楚一个列存的生成过程的主要步骤，在重要步骤，要找出来具体使用的优化或者设计模式，理解中间一些涉及精髓。比如，如何减小存储，如何进行编码，数据类型如何管理，schema如何管理等等。
-
-下边展开记录的
+          分布式算法–ZAB算法Zookeeper中数据是以节点形式存在的。
+zookeeper之所以没有使用Multi-paxos，因为兰伯特的 Multi-Paxos，虽然能保证达成共识后的值不再改变，但它不关心达成共识的值是什么，也无法保证各值（也就是操作）的顺序性。
+在一个集群中，当一个节点出现异常的
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2021/12/03/carbondata%E6%8E%A2%E7%B4%A2-%E6%95%B0%E6%8D%AE%E7%94%9F%E6%88%90%E6%AD%A5%E9%AA%A4/#more" rel="contents">
+            <a class="btn" href="/2022/01/04/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-ZAB%E7%AE%97%E6%B3%95/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -400,7 +400,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/11/26/carbondata%E6%8E%A2%E7%B4%A2-%E7%8E%AF%E5%A2%83%E5%AE%89%E8%A3%85/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/28/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-Pow%E7%AE%97%E6%B3%95/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -419,7 +419,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2021/11/26/carbondata%E6%8E%A2%E7%B4%A2-%E7%8E%AF%E5%A2%83%E5%AE%89%E8%A3%85/" itemprop="url">carbondata探索-环境安装</a></h1>
+                <a class="post-title-link" href="/2021/12/28/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-Pow%E7%AE%97%E6%B3%95/" itemprop="url">分布式算法-Pow算法</a></h1>
         
 
         <div class="post-meta">
@@ -431,8 +431,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-11-26T14:49:54+08:00">
-                2021-11-26
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-12-28T21:36:54+08:00">
+                2021-12-28
               </time>
             
 
@@ -454,8 +454,8 @@
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
-                    <span itemprop="name">大数据</span>
+                  <a href="/categories/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95/" itemprop="url" rel="index">
+                    <span itemprop="name">分布式算法</span>
                   </a>
                 </span>
 
@@ -493,14 +493,12 @@
       
         
           
-          carbondata探索-环境安装最近开始钻研列式存储上的一些细节，我的首要目标放在以前一直在应用的carbondata上，最近准备跟他死磕，看一下他的一些底层实现，希望自己从中挖掘出自己想要的拼图。
-今天主要说一下在本地的安装，这样方便在自己后续复盘沉淀。
-环境mac M1
-版本hadoop  2
+          分布式算法–Pow算法经过上次对于PBFT算法的了解，PBFT 算法虽然能防止坏人作恶，但只能防止少数的坏人作恶，也就是 (n - 1) / 3 个坏人 (其中 n 为节点数)。
+但是对于实际落地的场景，这个数字很可能会直接扩展到四位数。那么这个时候，对于集群内的节点要去就比较苛刻，而且也比较难以发
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2021/11/26/carbondata%E6%8E%A2%E7%B4%A2-%E7%8E%AF%E5%A2%83%E5%AE%89%E8%A3%85/#more" rel="contents">
+            <a class="btn" href="/2021/12/28/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-Pow%E7%AE%97%E6%B3%95/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -551,7 +549,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/11/22/parquet%E7%9A%84%E7%BB%93%E6%9E%84%E5%8C%96%E6%95%B0%E6%8D%AE%E6%98%AF%E5%A6%82%E4%BD%95%E5%AD%98%E5%82%A8%E7%9A%84/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/24/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-PBFT%E7%AE%97%E6%B3%95/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -570,7 +568,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2021/11/22/parquet%E7%9A%84%E7%BB%93%E6%9E%84%E5%8C%96%E6%95%B0%E6%8D%AE%E6%98%AF%E5%A6%82%E4%BD%95%E5%AD%98%E5%82%A8%E7%9A%84/" itemprop="url">parquet的结构化数据是如何存储的</a></h1>
+                <a class="post-title-link" href="/2021/12/24/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-PBFT%E7%AE%97%E6%B3%95/" itemprop="url">分布式算法-PBFT算法</a></h1>
         
 
         <div class="post-meta">
@@ -582,8 +580,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-11-22T10:27:39+08:00">
-                2021-11-22
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-12-24T08:26:03+08:00">
+                2021-12-24
               </time>
             
 
@@ -605,8 +603,8 @@
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
-                    <span itemprop="name">大数据</span>
+                  <a href="/categories/%E5%88%86%E5%B8%83%E5%BC%8F/" itemprop="url" rel="index">
+                    <span itemprop="name">分布式</span>
                   </a>
                 </span>
 
@@ -644,11 +642,13 @@
       
         
           
-          parquet是如何支持结构化数据存储的Apache Parquet 是由 Twitter 和 Cloudera 最先发起并合作开发的列存项目，也是 2010 年 Google 发表的 Dremel 论文中描述的内部列存格式的开源实现。和一些传统的列式存储（C-Store、MonetDB 等）系统相
+          分布式算法–PBFT算法PBFT 全称 Practical Byzantine-Fault-Tolerant。（实用拜占庭容错算法）
+PBFT 算法非常实用，是一种能在实际场景中落地的拜占庭容错算法，它在区块链中应用广泛（比如 Hyperledger Sawtooth、Zilliqa）。
+PBFT算
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2021/11/22/parquet%E7%9A%84%E7%BB%93%E6%9E%84%E5%8C%96%E6%95%B0%E6%8D%AE%E6%98%AF%E5%A6%82%E4%BD%95%E5%AD%98%E5%82%A8%E7%9A%84/#more" rel="contents">
+            <a class="btn" href="/2021/12/24/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-PBFT%E7%AE%97%E6%B3%95/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -699,7 +699,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/30/%E3%80%8A%E5%85%B3%E4%BA%8ESQL%E8%A7%A3%E6%9E%90%E4%BB%A5%E5%8F%8ASQL%E5%9C%A8spark%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8%E3%80%8B%E5%88%86%E4%BA%AB/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/23/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-%E4%B8%80%E8%87%B4%E6%80%A7%E8%A7%A3%E8%AF%BB/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -718,7 +718,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2021/10/30/%E3%80%8A%E5%85%B3%E4%BA%8ESQL%E8%A7%A3%E6%9E%90%E4%BB%A5%E5%8F%8ASQL%E5%9C%A8spark%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8%E3%80%8B%E5%88%86%E4%BA%AB/" itemprop="url">《关于SQL解析以及SQL在spark中的应用》分享</a></h1>
+                <a class="post-title-link" href="/2021/12/23/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-%E4%B8%80%E8%87%B4%E6%80%A7%E8%A7%A3%E8%AF%BB/" itemprop="url">分布式算法-一致性解读</a></h1>
         
 
         <div class="post-meta">
@@ -730,8 +730,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-30T11:26:45+08:00">
-                2021-10-30
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-12-23T13:53:30+08:00">
+                2021-12-23
               </time>
             
 
@@ -753,8 +753,8 @@
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%82%9F/" itemprop="url" rel="index">
-                    <span itemprop="name">悟</span>
+                  <a href="/categories/%E5%88%86%E5%B8%83%E5%BC%8F/" itemprop="url" rel="index">
+                    <span itemprop="name">分布式</span>
                   </a>
                 </span>
 
@@ -792,13 +792,13 @@
       
         
           
-          《关于SQL解析以及SQL在spark中的应用》分享最近打算在团队内分享一下关于sql的一些知识，提升大家对于sql知识的知识补充，帮组大家扩展优化的角度。
-主要角度就是sql的原理、思考以及应用。
-思考NO.1SQL为啥会成为大数据交互组件的首选方式？优化规则如何构建和使用？RBO和CBO如何发挥
+          分布式算法–一致性解读一致性问题是分布式领域最为基础也是最重要的问题。
+一致性的含义随着场景的变化，一致性的含义也在跟着变化，但是答题归为下边几类：
+强一致性顺序一致性如果一个并发执行过程所包含的所有读写操作能够重排成一个全局线性有序的序列，并且这个序列满足以下两个条件，那么这个并发执行过程就是满足
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2021/10/30/%E3%80%8A%E5%85%B3%E4%BA%8ESQL%E8%A7%A3%E6%9E%90%E4%BB%A5%E5%8F%8ASQL%E5%9C%A8spark%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8%E3%80%8B%E5%88%86%E4%BA%AB/#more" rel="contents">
+            <a class="btn" href="/2021/12/23/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-%E4%B8%80%E8%87%B4%E6%80%A7%E8%A7%A3%E8%AF%BB/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -849,7 +849,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/27/LSM%E5%8E%9F%E7%90%86/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/22/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-Quorum/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -868,7 +868,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2021/10/27/LSM%E5%8E%9F%E7%90%86/" itemprop="url">LSM原理</a></h1>
+                <a class="post-title-link" href="/2021/12/22/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-Quorum/" itemprop="url">分布式算法-Quorum</a></h1>
         
 
         <div class="post-meta">
@@ -880,8 +880,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-27T09:19:10+08:00">
-                2021-10-27
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-12-22T16:22:47+08:00">
+                2021-12-22
               </time>
             
 
@@ -903,8 +903,8 @@
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
-                    <span itemprop="name">大数据</span>
+                  <a href="/categories/%E5%88%86%E5%B8%83%E5%BC%8F/" itemprop="url" rel="index">
+                    <span itemprop="name">分布式</span>
                   </a>
                 </span>
 
@@ -942,17 +942,15 @@
       
         
           
-          LSM原理Log Structured Merge Trees(LSM) 
-LSM更好的说法应该叫  文件组织方式 。
-LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐量，通过消去随机的本地更新操作来达到这个目标。
+          分布式算法–Quorum系统是支持何种数据一致性，对于服务的架构影响比较深入，所以现在每一个分布式系统在定基调的时候，也就是数据支持何种一致性的时候，大部分都是提前定义好的，这样使用人员就可以在自己使用的时候根据特定的语境或者说是前提条件来使用了。
 
-原则就是避免随机写，增加顺序写。
+参考另一篇文章专门思考数据一致性的几种语义。
 
-而针对顺序写，最简单的
+
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2021/10/27/LSM%E5%8E%9F%E7%90%86/#more" rel="contents">
+            <a class="btn" href="/2021/12/22/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-Quorum/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1003,7 +1001,7 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/25/%E5%88%86%E5%B8%83%E5%BC%8F%E5%8D%8F%E8%AE%AE%E7%9A%84%E7%90%86%E8%AE%BA%E7%9F%A5%E8%AF%86%E9%93%BA%E5%9E%AB/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/22/%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BAflink%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83%E9%81%87%E5%88%B0%E7%9A%84%E9%97%AE%E9%A2%98%EF%BC%88MAC-pro-M1%EF%BC%89/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -1022,7 +1020,7 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2021/10/25/%E5%88%86%E5%B8%83%E5%BC%8F%E5%8D%8F%E8%AE%AE%E7%9A%84%E7%90%86%E8%AE%BA%E7%9F%A5%E8%AF%86%E9%93%BA%E5%9E%AB/" itemprop="url">分布式协议的理论知识铺垫</a></h1>
+                <a class="post-title-link" href="/2021/12/22/%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BAflink%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83%E9%81%87%E5%88%B0%E7%9A%84%E9%97%AE%E9%A2%98%EF%BC%88MAC-pro-M1%EF%BC%89/" itemprop="url">本地搭建flink开发环境遇到的问题（MAC pro M1）</a></h1>
         
 
         <div class="post-meta">
@@ -1034,8 +1032,8 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-25T13:51:50+08:00">
-                2021-10-25
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-12-22T14:35:29+08:00">
+                2021-12-22
               </time>
             
 
@@ -1057,8 +1055,8 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
-                    <span itemprop="name">大数据</span>
+                  <a href="/categories/flink/" itemprop="url" rel="index">
+                    <span itemprop="name">flink</span>
                   </a>
                 </span>
 
@@ -1096,12 +1094,16 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
       
         
           
-          分布式协议的理论知识铺垫之所以会有这么一个章节，因为我还是相信知识都是有需求源头的，知道了你会的框架是怎么来的，那么也就知道他解决问题也不是万能的，也是基于某些场景进化过来的，那么我们就需要破冰去了解这些，这样才能知道怎么改进她们。
-现阶段，我们应用的很多大数据系统以及非大数据的很多系统，都是分布式
+          flink基于mac pro(m1) 的搭建最近在钻研flink的细节问题，还是要是实地摸一遍代码，才能对更多细节问题有比较深入的认识。然后就开始了本地环境的搭建。
+本地安装了idea，基于java8环境。主要安装的服务：
+hadoop 2.7.3
+hive 1.2.2
+kafka 3.0.0
+fl
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2021/10/25/%E5%88%86%E5%B8%83%E5%BC%8F%E5%8D%8F%E8%AE%AE%E7%9A%84%E7%90%86%E8%AE%BA%E7%9F%A5%E8%AF%86%E9%93%BA%E5%9E%AB/#more" rel="contents">
+            <a class="btn" href="/2021/12/22/%E6%9C%AC%E5%9C%B0%E6%90%AD%E5%BB%BAflink%E5%BC%80%E5%8F%91%E7%8E%AF%E5%A2%83%E9%81%87%E5%88%B0%E7%9A%84%E9%97%AE%E9%A2%98%EF%BC%88MAC-pro-M1%EF%BC%89/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1152,7 +1154,7 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/24/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93%EF%BC%88%E4%BA%94%EF%BC%89/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/21/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-gossip%E5%8D%8F%E8%AE%AE/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -1171,7 +1173,7 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2021/10/24/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93%EF%BC%88%E4%BA%94%EF%BC%89/" itemprop="url">《如何成为学习高手》总结（五）</a></h1>
+                <a class="post-title-link" href="/2021/12/21/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-gossip%E5%8D%8F%E8%AE%AE/" itemprop="url">分布式算法--gossip协议</a></h1>
         
 
         <div class="post-meta">
@@ -1183,8 +1185,8 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-24T17:18:21+08:00">
-                2021-10-24
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-12-21T21:00:26+08:00">
+                2021-12-21
               </time>
             
 
@@ -1206,8 +1208,8 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%82%9F/" itemprop="url" rel="index">
-                    <span itemprop="name">悟</span>
+                  <a href="/categories/%E5%88%86%E5%B8%83%E5%BC%8F/" itemprop="url" rel="index">
+                    <span itemprop="name">分布式</span>
                   </a>
                 </span>
 
@@ -1245,16 +1247,11 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
       
         
           
-          《如何成为学习高手》总结（五）书接上文
-学得快的方法你已经学会的，对你将要去学的，影响很大。对任何新知识的理解，都要建立在旧的知识储备的基础上。你懂得越多，你学得越快。
-
-所以这是一个正向循环，且是越来越轻松的，而且将会是越来越两极化的，想超车，就需要比别人付出更多的努力。
-
-当你的知识储备很少时，
+          分布式算法：gossip协议Gossip 协议，顾名思义，就像流言蜚语一样，利用一种随机、带有传染性的方式，将信息传播到整个网络中，并在一定时间内，使得系统内的所有节点数据一致。对你来说，掌握这个协议不仅能很好地理解这种最常用的，实现最终一致性的算法，也能在后续工作中得心应手地实现数据的最终一致性。
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2021/10/24/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93%EF%BC%88%E4%BA%94%EF%BC%89/#more" rel="contents">
+            <a class="btn" href="/2021/12/21/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-gossip%E5%8D%8F%E8%AE%AE/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1305,7 +1302,7 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/21/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93%EF%BC%88%E5%9B%9B%EF%BC%89/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/17/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-%E4%B8%80%E8%87%B4%E6%80%A7hash/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -1324,7 +1321,7 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2021/10/21/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93%EF%BC%88%E5%9B%9B%EF%BC%89/" itemprop="url">《如何成为学习高手》总结（四）</a></h1>
+                <a class="post-title-link" href="/2021/12/17/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-%E4%B8%80%E8%87%B4%E6%80%A7hash/" itemprop="url">分布式算法--一致性hash</a></h1>
         
 
         <div class="post-meta">
@@ -1336,8 +1333,8 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-21T16:20:20+08:00">
-                2021-10-21
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-12-17T14:14:13+08:00">
+                2021-12-17
               </time>
             
 
@@ -1359,8 +1356,8 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%82%9F/" itemprop="url" rel="index">
-                    <span itemprop="name">悟</span>
+                  <a href="/categories/%E5%88%86%E5%B8%83%E5%BC%8F/" itemprop="url" rel="index">
+                    <span itemprop="name">分布式</span>
                   </a>
                 </span>
 
@@ -1398,15 +1395,12 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
       
         
           
-          《如何成为学习高手》总结（四）书接上文：时间管理
-制订计划SMART 原则：
-
-计划应该是具体的，包括任务内容，以及时间、频率的具体。计划细节不到位，执行也就没法到位，因为细节会影响效果。
-计划应该是可衡量的。”可衡量“不是为了束缚住自己，而是为了有一个标准可以参考，对自己做某件事情的速度和效率有个
+          分布式算法：一致性hash的原理hash是我们常见的分块算法，简单，好用，但是对于需要灵活扩展的场景，缺点会被方法。
+比如：扩展集群时增加节点，由于hash的除数产生了变更，变大了，相应的历史数据也就跟着需要变化。为了集群的稳定，我们通常要进行数据重分布，这样整体才能更加平均地接受请求，但是这个重分
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2021/10/21/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93%EF%BC%88%E5%9B%9B%EF%BC%89/#more" rel="contents">
+            <a class="btn" href="/2021/12/17/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-%E4%B8%80%E8%87%B4%E6%80%A7hash/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1457,7 +1451,7 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/20/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93%EF%BC%88%E4%B8%89%EF%BC%89/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/14/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-raft/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -1476,7 +1470,7 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2021/10/20/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93%EF%BC%88%E4%B8%89%EF%BC%89/" itemprop="url">《如何成为学习高手》总结（三）</a></h1>
+                <a class="post-title-link" href="/2021/12/14/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-raft/" itemprop="url">分布式算法--raft</a></h1>
         
 
         <div class="post-meta">
@@ -1488,8 +1482,8 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-20T18:38:31+08:00">
-                2021-10-20
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-12-14T20:55:58+08:00">
+                2021-12-14
               </time>
             
 
@@ -1511,8 +1505,8 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%82%9F/" itemprop="url" rel="index">
-                    <span itemprop="name">悟</span>
+                  <a href="/categories/%E5%88%86%E5%B8%83%E5%BC%8F/" itemprop="url" rel="index">
+                    <span itemprop="name">分布式</span>
                   </a>
                 </span>
 
@@ -1550,13 +1544,13 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
       
         
           
-          《如何成为学习高手》总结（三）书接上文
-高度自律一般来说，我们在做事情之前，总是希望找到充分的理由和动力，说服自己去做。我们会觉得，“说服”是绕不过去的一步，不然没法开始。但是结果大家也都知道了，这个思路经常失败，很多时候我们找不到充足的动力，即使找到了，也很难转化为行动。
-为什么呢？因为，在想的层
+          分布式算法–RaftRaft 算法属于 Multi-Paxos 算法，它是在兰伯特 Multi-Paxos 思想的基础上，做了一些简化和限制，比如增加了日志必须是连续的，只支持领导者、跟随者和候选人三种状态，在理解和算法实现上都相对容易许多。
+Raft 算法是现在分布式系统开发首选的共识算法。
+从本
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2021/10/20/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93%EF%BC%88%E4%B8%89%EF%BC%89/#more" rel="contents">
+            <a class="btn" href="/2021/12/14/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-raft/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1607,7 +1601,7 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/19/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93%EF%BC%88%E4%BA%8C%EF%BC%89/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/13/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-Paxos/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -1626,7 +1620,7 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2021/10/19/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93%EF%BC%88%E4%BA%8C%EF%BC%89/" itemprop="url">《如何成为学习高手》总结（二）</a></h1>
+                <a class="post-title-link" href="/2021/12/13/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-Paxos/" itemprop="url">分布式算法--Paxos</a></h1>
         
 
         <div class="post-meta">
@@ -1638,8 +1632,8 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-19T13:03:11+08:00">
-                2021-10-19
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-12-13T13:27:39+08:00">
+                2021-12-13
               </time>
             
 
@@ -1661,8 +1655,8 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%82%9F/" itemprop="url" rel="index">
-                    <span itemprop="name">悟</span>
+                  <a href="/categories/%E5%88%86%E5%B8%83%E5%BC%8F/" itemprop="url" rel="index">
+                    <span itemprop="name">分布式</span>
                   </a>
                 </span>
 
@@ -1700,14 +1694,13 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
       
         
           
-          《如何成为学习高手》总结（二）书接上文。
-高效学习如何提升专注力提升专注力的第一个要点是  “互动”  ，且互动的发起方是自己。
-方法之一就是默默重复目标点的“关键词”，这个只能去记住关键词，而不是全部复述或者非重点片段。
-方法之二就是记笔记，但是不能直接誊抄，因为誊抄属于被动、重复性的机械动作。笔
+          分布式协议–Paxos算法Paxos 算法是目前分布式算法基础，几乎所有的分布式算法都是基于Paxos衍生出来的。所以针对这个算法的来龙去脉是有必要深入了解的，这样对于后续其他算法的了解，就能找到所以然的部分。
+Paxos 算法的主要目标就是如何在多节点之间就某个值（提案）达成共识。
+在 Basic
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2021/10/19/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93%EF%BC%88%E4%BA%8C%EF%BC%89/#more" rel="contents">
+            <a class="btn" href="/2021/12/13/%E5%88%86%E5%B8%83%E5%BC%8F%E7%AE%97%E6%B3%95-Paxos/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1749,7 +1742,7 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/10/">&lt;i class&#x3D;&quot;fa fa-angle-left&quot;&gt;&lt;&#x2F;i&gt;</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/10/">10</a><span class="page-number current">11</span><a class="page-number" href="/page/12/">12</a><span class="space">&hellip;</span><a class="page-number" href="/page/15/">15</a><a class="extend next" rel="next" href="/page/12/">&lt;i class&#x3D;&quot;fa fa-angle-right&quot;&gt;&lt;&#x2F;i&gt;</a>
+    <a class="extend prev" rel="prev" href="/page/10/">&lt;i class&#x3D;&quot;fa fa-angle-left&quot;&gt;&lt;&#x2F;i&gt;</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/10/">10</a><span class="page-number current">11</span><a class="page-number" href="/page/12/">12</a><span class="space">&hellip;</span><a class="page-number" href="/page/16/">16</a><a class="extend next" rel="next" href="/page/12/">&lt;i class&#x3D;&quot;fa fa-angle-right&quot;&gt;&lt;&#x2F;i&gt;</a>
   </nav>
 
 
@@ -1795,7 +1788,7 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
               
                 <a href="/archives/%7C%7C%20archive">
               
-                  <span class="site-state-item-count">142</span>
+                  <span class="site-state-item-count">154</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -1817,7 +1810,7 @@ LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐�
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">51</span>
+                  <span class="site-state-item-count">53</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

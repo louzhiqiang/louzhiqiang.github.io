@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="内存模型," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="java内存模型Java 内存模型定义了 Java 语言如何与内存进行交互，具体地说是 Java 语言运行时的变量，如何与我们的硬件内存进行交互的。  注意与jvm内存模型的区分  Java 内存模型是并发编程的基础，只有对 Java 内存模型理解较为透彻，我们才能避免一些错误地理解。Java 中一些高级的特性，也建立在 Java 内存模型的基础上，例如：volatile 关键字。Java 内存模">
+<meta property="og:type" content="article">
+<meta property="og:title" content="java内存模型">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/23/java%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="java内存模型Java 内存模型定义了 Java 语言如何与内存进行交互，具体地说是 Java 语言运行时的变量，如何与我们的硬件内存进行交互的。  注意与jvm内存模型的区分  Java 内存模型是并发编程的基础，只有对 Java 内存模型理解较为透彻，我们才能避免一些错误地理解。Java 中一些高级的特性，也建立在 Java 内存模型的基础上，例如：volatile 关键字。Java 内存模">
+<meta property="og:image" content="https://shuyi-tech-blog.oss-cn-shenzhen.aliyuncs.com/halo_blog_system_file/%E6%96%B0%E5%A2%9E%20CPU%20%E9%AB%98%E9%80%9F%E7%BC%93%E5%AD%98.png">
+<meta property="og:image" content="https://shuyi-tech-blog.oss-cn-shenzhen.aliyuncs.com/halo_blog_system_file/%E5%A4%9A%E6%A0%B8%20CPU%20%E5%8F%8A%E9%AB%98%E9%80%9F%E7%BC%93%E5%AD%98%E5%AF%BC%E8%87%B4%E7%9A%84%E9%97%AE%E9%A2%98.png">
+<meta property="og:image" content="https://shuyi-tech-blog.oss-cn-shenzhen.aliyuncs.com/halo_blog_system_file/%E5%8A%A0%E5%85%A5%E7%BC%93%E5%AD%98%E4%B8%80%E8%87%B4%E6%80%A7%E5%8D%8F%E8%AE%AE.png">
+<meta property="og:image" content="https://shuyi-tech-blog.oss-cn-shenzhen.aliyuncs.com/halo_blog_system_file/Java%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B%20-%20%E4%B8%8D%E5%90%8C%E5%B1%82%E9%9D%A2%E6%8A%BD%E8%B1%A1%E5%8F%8A%E6%96%B9%E6%A1%88.png">
+<meta property="og:image" content="https://shuyi-tech-blog.oss-cn-shenzhen.aliyuncs.com/halo_blog_system_file/Java%20%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B%E5%9B%BE%E8%A7%A3.png">
+<meta property="og:image" content="https://shuyi-tech-blog.oss-cn-shenzhen.aliyuncs.com/halo_blog_system_file/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%20Java%20%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B.png">
+<meta property="article:published_time" content="2022-09-23T01:30:54.000Z">
+<meta property="article:modified_time" content="2022-09-23T08:28:53.203Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="内存模型">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://shuyi-tech-blog.oss-cn-shenzhen.aliyuncs.com/halo_blog_system_file/%E6%96%B0%E5%A2%9E%20CPU%20%E9%AB%98%E9%80%9F%E7%BC%93%E5%AD%98.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/23/java内存模型/"/>
+
+
+
+
+
+  <title>java内存模型 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/23/java%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">java内存模型</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-09-23T09:30:54+08:00">
+                2022-09-23
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/java/" itemprop="url" rel="index">
+                    <span itemprop="name">java</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="java内存模型"><a href="#java内存模型" class="headerlink" title="java内存模型"></a>java内存模型</h1><p>Java 内存模型定义了 Java 语言如何与内存进行交互，具体地说是 Java 语言运行时的变量，如何与我们的硬件内存进行交互的。</p>
+<blockquote>
+<p>注意与jvm内存模型的区分</p>
+</blockquote>
+<p>Java 内存模型是并发编程的基础，只有对 Java 内存模型理解较为透彻，我们才能避免一些错误地理解。Java 中一些高级的特性，也建立在 Java 内存模型的基础上，例如：volatile 关键字。<br>Java 内存模型的本身的发展也是跟计算发展息息相关的，在计算机语言发展的历史中，不同语言对于这部分内容的态度是不一样的，因为这块内容是牵扯计算机操作系统和语言本身的一个环节。<br>带着以下三个问题来看下边的内容：</p>
+<ul>
+<li>为什么要有 Java 内存模型？</li>
+<li>Java 内存模型解决了什么问题？</li>
+<li>Java 内存模型是怎样的一个东西？</li>
+</ul>
+<h2 id="CPU"><a href="#CPU" class="headerlink" title="CPU"></a>CPU</h2><p>cpu和内存是计算机的两大组件，cpu负责计算，内存负责存储数据，但是cpu的计算速度远远大于从内存获取数据的速度，因此也就会出现cpu等待的现象。<br>由于两者的速度差距实在太大，我们为了加快运行速度，于是计算机的设计者在 CPU 中加了一个CPU 高速缓存。这个 CPU 高速缓存的速度介于 CPU 与内存之间，每次需要读取数据的时候，先从内存读取到CPU缓存中，CPU再从CPU缓存中读取。这样虽然还是存在速度差异，但至少不像之前差距那么大了。</p>
+<p><img src="https://shuyi-tech-blog.oss-cn-shenzhen.aliyuncs.com/halo_blog_system_file/%E6%96%B0%E5%A2%9E%20CPU%20%E9%AB%98%E9%80%9F%E7%BC%93%E5%AD%98.png" alt=""></p>
+<p>随着技术的发展，多核 CPU 出现了，CPU 的计算能力进一步提高。原本同一时间只能运行一个任务，但现在可以同时运行多个任务。由于多核 CPU 的出现，虽然提高了 CPU 的处理速度，但也带来了新的问题：缓存一致性。<br>在多 CPU 系统中，每个处理器都有自己的高速缓存，而它们又共享同一主内存，如下图所示。当多个 CPU 的运算任务都涉及同一块主内存区域时，可能导致各自的缓存数据不一致。如果发生了这种情况，那同步回主内存时以哪个 CPU 高速缓存的数据为准呢？</p>
+<p>这是在并行领域必然遇到的问题。</p>
+<p><img src="https://shuyi-tech-blog.oss-cn-shenzhen.aliyuncs.com/halo_blog_system_file/%E5%A4%9A%E6%A0%B8%20CPU%20%E5%8F%8A%E9%AB%98%E9%80%9F%E7%BC%93%E5%AD%98%E5%AF%BC%E8%87%B4%E7%9A%84%E9%97%AE%E9%A2%98.png" alt=""></p>
+<p>到这里，就产生了第一个问题：硬件层面上，由于多 CPU 的存在，以及加入 CPU 高速缓存，导致的数据一致性问题。</p>
+<p>要注意的是，这个问题是硬件层面上的问题。只要使用了多 CPU 并且 CPU 有高速缓存，那就会遇到这个问题。对于生产该 CPU 的厂商，就需要去解决这个问题，这与具体操作系统无关，也与编程语言无关。</p>
+<p>那么如何解决这个问题呢？答案是：缓存一致性协议。</p>
+<p><img src="https://shuyi-tech-blog.oss-cn-shenzhen.aliyuncs.com/halo_blog_system_file/%E5%8A%A0%E5%85%A5%E7%BC%93%E5%AD%98%E4%B8%80%E8%87%B4%E6%80%A7%E5%8D%8F%E8%AE%AE.png" alt=""></p>
+<p>所谓的缓存一致性协议，指的是在 CPU 高速缓存与主内存交互的时候，遵守特定的规则，这样就可以避免数据一致性问题了。</p>
+<p>在不同的 CPU 中，会使用不同的缓存一致性协议。例如 MESI 协议用于奔腾系列的 CPU 中，而 MOSEI 协议则用于 AMD 系列 CPU 中，Intel 的 core i7 处理器使用 MESIF 协议。在这里我们介绍最为常见的一种：MESI数据一致性协议。</p>
+<p>在 MESI 协议中，每个缓存可能有有4个状态，它们分别是：</p>
+<ul>
+<li>M(Modified)：这行数据有效，数据被修改了，和内存中的数据不一致，数据只存在于本 Cache 中。</li>
+<li>E(Exclusive)：这行数据有效，数据和内存中的数据一致，数据只存在于本 Cache 中。</li>
+<li>S(Shared)：这行数据有效，数据和内存中的数据一致，数据存在于很多 Cache 中。</li>
+<li>I(Invalid)：这行数据无效。</li>
+</ul>
+<p>在数据回写到主内存的时候，会把其他cpu高速缓存中，该变量的值设置为Invalid，这样其他CPU从自己的缓存中读取到该变量的时候发现是Invalid状态，就会去主内存中获取数据。</p>
+<blockquote>
+<p>MESI 缓存一致性协议，本质上是定义了一些内存状态，然后通过消息的方式通知其他 CPU 高速缓存，从而解决了数据一致性的问题。</p>
+</blockquote>
+<h2 id="操作系统"><a href="#操作系统" class="headerlink" title="操作系统"></a>操作系统</h2><p>操作系统上层语言跟计算机硬件交互的桥梁，很多硬件资源都被虚拟化成另一个比较好理解的概念，让上层更容易交互。比如用户态、内核态、cpu时间片等。</p>
+<p>前面说到 CPU 与内存之间会存在缓存一致性问题，那操作系统抽象出来的 CPU 与内存也会面临这样的问题。因此，操作系统层面也需要去解决同样的问题。所以，对于任何一个系统来说，它们都需要去解决这样一个问题。<strong>我们把在特定的操作协议下，对特定内存或高速缓存进行读写访问的过程进行抽象，得到的就是内存模型了</strong>。 无论是 Windows 系统，还是 Linux 系统，它们都有特定的内存模型。</p>
+<p>Java 语言是建立在操作系统上层的高级语言，它只能与操作系统进行交互，而不与硬件进行交互。与操作系统相对于硬件类似，操作系统需要抽象出内存模型，那么 Java 语言也需要抽象出相对于操作系统的内存模型。一般来说，编程语言也可以直接复用操作系统层面的内存模型，例如：C++ 语言就是这么做的。但由于不同操作系统的内存模型不同，有可能导致程序在一套平台上并发完全正常，而在另外一套平台上并发访问却经常出错。因此在某些场景下，就必须针对不同的平台来编写程序。</p>
+<p>而我们都知道 Java 的最大特点是「Write Once, Run Anywhere」，即一次编译哪里都可以运行。而为了达到这样一个目标，Java 语言就必须在各个操作系统的基础上进一步抽象，建立起一套对内存或高速缓存的读写访问抽象标准。这样就可以保证无论在哪个操作系统，只要遵循了这个规范，都能保证并发访问是正常的。</p>
+<p><img src="https://shuyi-tech-blog.oss-cn-shenzhen.aliyuncs.com/halo_blog_system_file/Java%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B%20-%20%E4%B8%8D%E5%90%8C%E5%B1%82%E9%9D%A2%E6%8A%BD%E8%B1%A1%E5%8F%8A%E6%96%B9%E6%A1%88.png" alt=""></p>
+<h2 id="Java内存模型"><a href="#Java内存模型" class="headerlink" title="Java内存模型"></a>Java内存模型</h2><p><strong>Java 内存模型（Java Memory Model，JMM）用于屏蔽各种硬件和操作系统的内存访问差异，以实现让 Java 程序在各种平台都能达到一致的内存访问效果。</strong></p>
+<p>Java 内存模型定义程序中各个变量的访问规则，即在虚拟机中将变量存储到内存和从内存中取出变量这样的底层细节。这里说的变量包括了实例字段、静态字段和构成数组对象的元素，但不包括局部变量与方法参数。因为后者是线程私有的，不会被共享，自然就不会存在竞争问题。</p>
+<h3 id="内存模型的定义"><a href="#内存模型的定义" class="headerlink" title="内存模型的定义"></a>内存模型的定义</h3><p>Java 内存模型规定所有的变量都存储在主内存中，每条线程都有自己的工作内存。线程的工作内存中保存了被该线程使用到的变量的主内存副本拷贝，线程对变量的所有操作（读取、赋值等）都必须在工作内存中进行，而不能直接读写主内存中的变量。不同线程之间也无法直接访问对方工作内存中的变量，线程间变量值的传递都需要通过主内存来完成。主内存、工作内存、线程三者之间的关系如下图所示。</p>
+<p><img src="https://shuyi-tech-blog.oss-cn-shenzhen.aliyuncs.com/halo_blog_system_file/Java%20%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B%E5%9B%BE%E8%A7%A3.png" alt=""></p>
+<p>Java 内存模型的主内存、工作内存与 JVM 的堆、栈、方法区，并不是同一层次的内存划分，两者是没有关联的。如果一定要对应一下，那么主内存主要对应于 Java 堆中对象实例的数据部分，而工作内存则对应于虚拟机栈中的部分区域。</p>
+<h3 id="内存间的交互"><a href="#内存间的交互" class="headerlink" title="内存间的交互"></a>内存间的交互</h3><p>关于主内存与工作内存之间具体的交互协议，即一个变量如何从主内存拷贝到工作内存，以及如何从工作内存同步回主内存的细节，Java 内存模型定义了 8 种操作来完成。虚拟机实现的时候必须保证下面提及的每一种操作都是原子的、不可再分的。</p>
+<ul>
+<li>lock（锁定）：作用于主内存的变量，它把一个变量标识为一条线程独占的状态。</li>
+<li>unlock（解锁）：作用于主内存的变量，它把一个处于锁定状态的变量释放出来，释放后的变量才可以被其他线程锁定。</li>
+<li>read（读取）：作用于主内存的变量，它把一个变量的值从主内存传输到线程的工作内存中，以便随后的load动作使用。</li>
+<li>load（载入）：作用于工作内存的变量，它把read操作从主内存中得到的变量值放入工作内存的变量副本中。</li>
+<li>use（使用）：作用于工作内存的变量，它把工作内存中一个变量的值传递给执行引擎，每当虚拟机遇到一个需要使用到变量的值的字节码指令时将会执行这个操作。</li>
+<li>assign（赋值）：作用于工作内存的变量，它把一个从执行引擎接收到的值赋给工作内存的变量，每当虚拟机遇到一个给变量赋值的字节码指令时执行这个操作。</li>
+<li>store（存储）：作用于工作内存的变量，它把工作内存中一个变量的值传送到主内存中，以便随后的write操作使用。</li>
+<li>write（写入）：作用于主内存的变量，它把store操作从工作内存中得到的变量的值放入主内存的变量中。</li>
+</ul>
+<p>如果要把一个变量从主内存复制到工作内存，那就要顺序地执行 read 和 load 操作，如果要把变量从工作内存同步回主内存，就要顺序地执行 store 和 write 操作。注意，<strong>Java 内存模型只要求上述两个操作必须按顺序执行，而没有保证是连续执行</strong>。也就是说，read 与 load 之间、store 与 write 之间是可插入其他指令的，如对主内存中的变量 a、b 进行访问时，一种可能出现顺序是 read a、read b、load b、load a。</p>
+<blockquote>
+<p>通过以上操作其实可以推测出操作系统本身也是按照这个逻辑在操作的，而且有自己的优化在里边，比如回写主内存，实际上是依赖于操作系统自己的调度。</p>
+</blockquote>
+<p>此外，Java 内存模型还规定上述 8 种基本操作时必须满足如下规则：</p>
+<ul>
+<li>不允许read和load、store和write操作之一单独出现，即不允许一个变量从主内存读取了但工作内存不接受，或者从工作内存发起回写了但主内存不接受的情况出现。</li>
+<li>不允许一个线程丢弃它的最近的 assign 操作，即变量在工作内存中改变了之后必须把该变化同步回主内存。</li>
+<li>不允许一个线程无原因地（没有发生过任何assign操作）把数据从线程的工作内存同步回主内存中。</li>
+<li>一个新的变量只能在主内存中「诞生」，不允许在工作内存中直接使用一个未被初始化（load或assign）的变量，换句话说，就是对一个变量实施use、store操作之前，必须先执行过了assign和load操作。</li>
+<li>一个变量在同一个时刻只允许一条线程对其进行lock操作，但lock操作可以被同一条线程重复执行多次，多次执行lock后，只有执行相同次数的unlock操作，变量才会被解锁。</li>
+<li>如果对一个变量执行lock操作，那将会清空工作内存中此变量的值，在执行引擎使用这个变量前，需要重新执行load或assign操作初始化变量的值。</li>
+<li>如果一个变量事先没有被lock操作锁定，那就不允许对它执行unlock操作，也不允许去unlock一个被其他线程锁定住的变量。</li>
+<li>对一个变量执行unlock操作之前，必须先把此变量同步回主内存中（执行store、write操作）。</li>
+</ul>
+<blockquote>
+<p>这里对于lock和unlock的操作，都涉及数据的重新读取以及必须写回主内存的一些约定。这就对于一些消息机制有影响了，让lock操作看起来就是一个消息传递或者数据共享的过程。</p>
+</blockquote>
+<p>这 8 种内存访问操作以及上述规则限定，再加上对 volatile 的一些特殊规定，就已经完全确定了 Java 程序中哪些内存访问操作在并发下是安全的。 看完了 Java 内存模型的 8 个基本操作和 8 个规则，感觉太过于繁琐了，非常不利于我们日常代码的编写。为了能帮助编程人员理解，于是就有了与其相等价的判断原则 —— happen-before 原则，它可以用于判断一个访问在并发环境下是否安全。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><ol>
+<li>由于多核 CPU 和高速缓存在存在，导致了缓存一致性问题。这个问题属于硬件层面上的问题，而解决办法是各种缓存一致性协议。不同 CPU 采用的协议不同，MESI 是最经典的一个缓存一致性协议。</li>
+<li>操作系统作为对底层硬件的抽象，自然也需要解决 CPU 高速缓存与内存之间的缓存一致性问题。各个操作系统都对 CPU 高速缓存与缓存的读写访问过程进行抽象，最终得到的一个东西就是「内存模型」。</li>
+<li>Java 语言作为运行在操作系统层面的高级语言，为了解决多平台运行的问题，在操作系统基础上进一步抽象，得到了 Java 语言层面上的内存模型。</li>
+<li>Java 内存模型分为工作内存与主内存，每个线程都有自己的工作内存。每个线程都不能直接与主内存交互，只能与工作内存交互。此外，为了保证并发编程下的数据准确性，Java 内存模型还定义了 8 个基本的原子操作，以及 8 条基本的规则。</li>
+</ol>
+<blockquote>
+<p>如果 Java 程序能够遵守 Java 内存模型的规则，那么其写出的程序就是并发安全的，这就是 Java 内存模型最大的价值。</p>
+</blockquote>
+<p><img src="https://shuyi-tech-blog.oss-cn-shenzhen.aliyuncs.com/halo_blog_system_file/%E6%B7%B1%E5%85%A5%E7%90%86%E8%A7%A3%20Java%20%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B.png" alt=""></p>
+<p>参考：<br><a href="https://www.cnblogs.com/chanshuyi/p/deep-insight-of-java-memory-model.html" target="_blank" rel="noopener">https://www.cnblogs.com/chanshuyi/p/deep-insight-of-java-memory-model.html</a></p>
+<p>学习：<br><a href="https://www.zhihu.com/question/296949412/answer/747494794" target="_blank" rel="noopener">有了MESI,为什么还需要volatile</a></p>
+<p>上边那个问题的答案我单独记录以下：</p>
+<ol>
+<li>volatile是用户可以对java编译器进行指令重排序的一种干预。</li>
+<li>MESI只是保证了多核cpu的独占cache之间的一致性，但是cpu的并不是直接把数据写入L1 cache的，中间还可能有store buffer。有些arm和power架构的cpu还可能有load buffer或者invalid queue等等。也就是说MESI只是决定了回写，但是并不保证会立马写入主内存。而volatile可以有这样的能力。</li>
+<li>MSEI协议这里保证的仅仅coherence而不是consistency，而volatile可以两者都保证。<blockquote>
+<p>Coherence deals with maintaining a global order in which writes to a single location or single variable are seen by all processors. Consistency deals with the ordering of operations to multiple locations with respect to all processors.<br>Coherence处理的是维护一个全局顺序，在这个全局顺序中，所有处理器都可以看到对单个位置或单个变量的写入。Consistency处理相对于所有处理器的多个位置的操作顺序。<br>因此，MESI协议最多只是保证了对于一个变量，在多个核上的读写顺序，对于多个变量而言是没有任何保证的。</p>
+</blockquote>
+</li>
+<li>对于arm和power这个weak consistency[3]的架构的cpu来说，它们只会保证指令之间有比如控制依赖，数据依赖，地址依赖等等依赖关系的指令间提交的先后顺序，而对于完全没有依赖关系的指令，比如x=1;y=2，它们是不会保证执行提交的顺序的，除非你使用了volatile，java把volatile编译成arm和power能够识别的barrier指令，这个时候才是按顺序的。</li>
+</ol>
+<p><strong>Lock前缀的指令会强制写入主内存，也可以避免前后指令的重排序，并及时让其他核的相应缓存行失效，从而利用MESI达到符合预期的效果。</strong></p>
+<p>volatile是一个高层的表达意图的“抽象”，而MESI是为了实现这个抽象，在某种特定情况下需要使用的一个实现细节。可以把JSR-133看作是一套UT的规范。不管底下CPU/编译器怎么折腾，只要voltile修饰的变量满足JSR-133所描述的所有场景，就算是一个好的java实现。而基于这个规范，java开发人员才能安心的开发并发代码，而不至于被底层细节搞疯。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/%E5%86%85%E5%AD%98%E6%A8%A1%E5%9E%8B/" rel="tag"># 内存模型</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/09/23/%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6%E4%B9%8B%E5%BC%95%E7%94%A8%E8%AE%A1%E6%95%B0%E7%AE%97%E6%B3%95%E5%92%8C%E5%8F%AF%E8%BE%BE%E6%80%A7%E5%88%86%E6%9E%90%E7%AE%97%E6%B3%95/" rel="next" title="垃圾回收之引用计数算法和可达性分析算法">
+                <i class="fa fa-chevron-left"></i> 垃圾回收之引用计数算法和可达性分析算法
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/09/23/%E7%BA%BF%E7%A8%8B%E5%88%87%E6%8D%A2/" rel="prev" title="线程切换">
+                线程切换 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">154</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">21</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">53</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#java内存模型"><span class="nav-number">1.</span> <span class="nav-text">java内存模型</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#CPU"><span class="nav-number">1.1.</span> <span class="nav-text">CPU</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#操作系统"><span class="nav-number">1.2.</span> <span class="nav-text">操作系统</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#Java内存模型"><span class="nav-number">1.3.</span> <span class="nav-text">Java内存模型</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#内存模型的定义"><span class="nav-number">1.3.1.</span> <span class="nav-text">内存模型的定义</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#内存间的交互"><span class="nav-number">1.3.2.</span> <span class="nav-text">内存间的交互</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">1.4.</span> <span class="nav-text">总结</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

@@ -250,7 +250,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/18/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/06/carbondata%E6%8E%A2%E7%B4%A2-%E7%B4%A2%E5%BC%95%E7%9A%84%E7%94%9F%E6%88%90/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -269,7 +269,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2021/10/18/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93/" itemprop="url">《如何成为学习高手》总结</a></h1>
+                <a class="post-title-link" href="/2021/12/06/carbondata%E6%8E%A2%E7%B4%A2-%E7%B4%A2%E5%BC%95%E7%9A%84%E7%94%9F%E6%88%90/" itemprop="url">carbondata探索-索引的生成</a></h1>
         
 
         <div class="post-meta">
@@ -281,8 +281,757 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-18T07:48:11+08:00">
-                2021-10-18
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-12-06T12:33:28+08:00">
+                2021-12-06
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+          carbondata索引数据的生成carbondata查询数据快的第一大原因是索引。他有丰富的索引种类来覆盖他的查询。所有索引的共同点都是通过索引可以定位到数据具体的block。
+种类IndexWriter是实际的索引写入类，是一个抽象类，他的实现类主要如下：
+
+上边的两个实现主要是bloomfil
+          ...
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2021/12/06/carbondata%E6%8E%A2%E7%B4%A2-%E7%B4%A2%E5%BC%95%E7%9A%84%E7%94%9F%E6%88%90/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/03/carbondata%E6%8E%A2%E7%B4%A2-Event%E4%BD%BF%E7%94%A8/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2021/12/03/carbondata%E6%8E%A2%E7%B4%A2-Event%E4%BD%BF%E7%94%A8/" itemprop="url">carbondata探索-Event使用</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-12-03T16:06:04+08:00">
+                2021-12-03
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+          carbondata里关于Event的使用Event 事件。这里以这样的标题开始其实有些模棱两可，因为Event本身这个词条比较宽泛，即使是框在计算机这个领域中，他也是比较抽象的，一般用在某种设计模式的说法中。
+carbondata把一些由变更数据引起来的一些操作，演化为Event，这样在遇到一些特
+          ...
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2021/12/03/carbondata%E6%8E%A2%E7%B4%A2-Event%E4%BD%BF%E7%94%A8/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/12/03/carbondata%E6%8E%A2%E7%B4%A2-%E6%95%B0%E6%8D%AE%E7%94%9F%E6%88%90%E6%AD%A5%E9%AA%A4/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2021/12/03/carbondata%E6%8E%A2%E7%B4%A2-%E6%95%B0%E6%8D%AE%E7%94%9F%E6%88%90%E6%AD%A5%E9%AA%A4/" itemprop="url">carbondata探索-数据生成步骤</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-12-03T12:56:44+08:00">
+                2021-12-03
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+          carbondata的数据生成步骤今天来说一下carbondata的数据生成过程，这部分原理主要是弄清楚一个列存的生成过程的主要步骤，在重要步骤，要找出来具体使用的优化或者设计模式，理解中间一些涉及精髓。比如，如何减小存储，如何进行编码，数据类型如何管理，schema如何管理等等。
+
+下边展开记录的
+          ...
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2021/12/03/carbondata%E6%8E%A2%E7%B4%A2-%E6%95%B0%E6%8D%AE%E7%94%9F%E6%88%90%E6%AD%A5%E9%AA%A4/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/11/26/carbondata%E6%8E%A2%E7%B4%A2-%E7%8E%AF%E5%A2%83%E5%AE%89%E8%A3%85/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2021/11/26/carbondata%E6%8E%A2%E7%B4%A2-%E7%8E%AF%E5%A2%83%E5%AE%89%E8%A3%85/" itemprop="url">carbondata探索-环境安装</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-11-26T14:49:54+08:00">
+                2021-11-26
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+          carbondata探索-环境安装最近开始钻研列式存储上的一些细节，我的首要目标放在以前一直在应用的carbondata上，最近准备跟他死磕，看一下他的一些底层实现，希望自己从中挖掘出自己想要的拼图。
+今天主要说一下在本地的安装，这样方便在自己后续复盘沉淀。
+环境mac M1
+版本hadoop  2
+          ...
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2021/11/26/carbondata%E6%8E%A2%E7%B4%A2-%E7%8E%AF%E5%A2%83%E5%AE%89%E8%A3%85/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/11/22/parquet%E7%9A%84%E7%BB%93%E6%9E%84%E5%8C%96%E6%95%B0%E6%8D%AE%E6%98%AF%E5%A6%82%E4%BD%95%E5%AD%98%E5%82%A8%E7%9A%84/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2021/11/22/parquet%E7%9A%84%E7%BB%93%E6%9E%84%E5%8C%96%E6%95%B0%E6%8D%AE%E6%98%AF%E5%A6%82%E4%BD%95%E5%AD%98%E5%82%A8%E7%9A%84/" itemprop="url">parquet的结构化数据是如何存储的</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-11-22T10:27:39+08:00">
+                2021-11-22
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+          parquet是如何支持结构化数据存储的Apache Parquet 是由 Twitter 和 Cloudera 最先发起并合作开发的列存项目，也是 2010 年 Google 发表的 Dremel 论文中描述的内部列存格式的开源实现。和一些传统的列式存储（C-Store、MonetDB 等）系统相
+          ...
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2021/11/22/parquet%E7%9A%84%E7%BB%93%E6%9E%84%E5%8C%96%E6%95%B0%E6%8D%AE%E6%98%AF%E5%A6%82%E4%BD%95%E5%AD%98%E5%82%A8%E7%9A%84/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/30/%E3%80%8A%E5%85%B3%E4%BA%8ESQL%E8%A7%A3%E6%9E%90%E4%BB%A5%E5%8F%8ASQL%E5%9C%A8spark%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8%E3%80%8B%E5%88%86%E4%BA%AB/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2021/10/30/%E3%80%8A%E5%85%B3%E4%BA%8ESQL%E8%A7%A3%E6%9E%90%E4%BB%A5%E5%8F%8ASQL%E5%9C%A8spark%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8%E3%80%8B%E5%88%86%E4%BA%AB/" itemprop="url">《关于SQL解析以及SQL在spark中的应用》分享</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-30T11:26:45+08:00">
+                2021-10-30
               </time>
             
 
@@ -343,11 +1092,13 @@
       
         
           
-          《如何成为学习高手》总结(一)背景最近迫于人力变动频繁，我的工作调整变动很频繁，每天做的事情也变得没什么规律。我是期望自己每天都能够有一定输入的，如果没有，我会心虚、发慌、焦虑。所以，我需要让自己找到一些方式让自己能够平稳输入，效率也要有保证。我本人在大学时期其实对于这些思考是有的，但是发现自己并不
+          《关于SQL解析以及SQL在spark中的应用》分享最近打算在团队内分享一下关于sql的一些知识，提升大家对于sql知识的知识补充，帮组大家扩展优化的角度。
+主要角度就是sql的原理、思考以及应用。
+思考NO.1SQL为啥会成为大数据交互组件的首选方式？优化规则如何构建和使用？RBO和CBO如何发挥
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2021/10/18/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93/#more" rel="contents">
+            <a class="btn" href="/2021/10/30/%E3%80%8A%E5%85%B3%E4%BA%8ESQL%E8%A7%A3%E6%9E%90%E4%BB%A5%E5%8F%8ASQL%E5%9C%A8spark%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8%E3%80%8B%E5%88%86%E4%BA%AB/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -398,7 +1149,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/09/spark3%E7%9A%84%E4%BC%98%E5%8C%96%E7%82%B9%E6%9C%89%E5%93%AA%E4%BA%9B/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/27/LSM%E5%8E%9F%E7%90%86/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -417,7 +1168,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2021/10/09/spark3%E7%9A%84%E4%BC%98%E5%8C%96%E7%82%B9%E6%9C%89%E5%93%AA%E4%BA%9B/" itemprop="url">spark3的优化点有哪些</a></h1>
+                <a class="post-title-link" href="/2021/10/27/LSM%E5%8E%9F%E7%90%86/" itemprop="url">LSM原理</a></h1>
         
 
         <div class="post-meta">
@@ -429,487 +1180,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-09T13:50:32+08:00">
-                2021-10-09
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category" >
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
-                    <span itemprop="name">大数据</span>
-                  </a>
-                </span>
-
-                
-                
-                  ， 
-                
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/spark/" itemprop="url" rel="index">
-                    <span itemprop="name">spark</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-          spark 3 版本的优化点有哪些这里找了几个比较主要的方向来记录一下，可以让我们对于spark的发展和未来的趋势有一个比较好的认识，也可以扩展思考一下大数据生态的热点都在哪些方向，及时提醒自己跟进。
-自适应查询执行（AQE）spark在3.0版本之前，对于sql执行是RBO和CBO共存的方式，RB
-          ...
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2021/10/09/spark3%E7%9A%84%E4%BC%98%E5%8C%96%E7%82%B9%E6%9C%89%E5%93%AA%E4%BA%9B/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/05/spark%E5%8E%9F%E7%90%86-catalyst%E9%80%BB%E8%BE%91%E8%AE%A1%E5%88%92/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="zhiqiang.lou">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="痒痒 团团 和 咘咘">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2021/10/05/spark%E5%8E%9F%E7%90%86-catalyst%E9%80%BB%E8%BE%91%E8%AE%A1%E5%88%92/" itemprop="url">spark原理--catalyst逻辑计划</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-05T19:16:10+08:00">
-                2021-10-05
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category" >
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
-                    <span itemprop="name">大数据</span>
-                  </a>
-                </span>
-
-                
-                
-                  ， 
-                
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/spark/" itemprop="url" rel="index">
-                    <span itemprop="name">spark</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-          spark原理–catalyst观察了一下最近spark版本的迭代，优化目标基本都在spark sql上，可见现在spark sql的地位已经越来越重要。而在spark sql中，catalyst就是不得不说的一个重要部分。
-Spark SQL 端到端的完整优化流程主要包括两个阶段：Catalyst
-          ...
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2021/10/05/spark%E5%8E%9F%E7%90%86-catalyst%E9%80%BB%E8%BE%91%E8%AE%A1%E5%88%92/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/04/Tungsten%E4%BC%98%E5%8C%96%E4%BA%86%E4%B8%AA%E5%95%A5/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="zhiqiang.lou">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="痒痒 团团 和 咘咘">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2021/10/04/Tungsten%E4%BC%98%E5%8C%96%E4%BA%86%E4%B8%AA%E5%95%A5/" itemprop="url">Tungsten优化了个啥</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-04T21:24:08+08:00">
-                2021-10-04
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category" >
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
-                    <span itemprop="name">大数据</span>
-                  </a>
-                </span>
-
-                
-                
-                  ， 
-                
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/spark/" itemprop="url" rel="index">
-                    <span itemprop="name">spark</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-          Tungsten优化了个啥Tungsten 又叫钨丝计划，因为spark是用scala语言开发的，所以最终运行在jvm上的代码存在着各方面的限制和弊端，使得spark在性能上还有很大的提升空间。它主要围绕内核引擎做了三方面的改进：内存管理机制（memory management and binary
-          ...
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2021/10/04/Tungsten%E4%BC%98%E5%8C%96%E4%BA%86%E4%B8%AA%E5%95%A5/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/04/spark%E5%8E%9F%E7%90%86-%E5%86%85%E5%AD%98/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="zhiqiang.lou">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="痒痒 团团 和 咘咘">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2021/10/04/spark%E5%8E%9F%E7%90%86-%E5%86%85%E5%AD%98/" itemprop="url">spark原理-内存</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-04T13:36:34+08:00">
-                2021-10-04
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-27T09:19:10+08:00">
+                2021-10-27
               </time>
             
 
@@ -970,12 +1242,17 @@ Spark SQL 端到端的完整优化流程主要包括两个阶段：Catalyst
       
         
           
-          spark 内存我们谈到spark的内存，一般都是在说spark的executor端的内存。当涉及一些收集的操作，才会涉及driver端的内存，比如collect的操作，或者广播操作等。
-而在executor端的内存，由于executor主要是基于jvm运行，主要有两部分：堆内内存（On-heap 
+          LSM原理Log Structured Merge Trees(LSM) 
+LSM更好的说法应该叫  文件组织方式 。
+LSM 被设计来提供比传统的 B + 树或者 ISAM 更好的写操作吞吐量，通过消去随机的本地更新操作来达到这个目标。
+
+原则就是避免随机写，增加顺序写。
+
+而针对顺序写，最简单的
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2021/10/04/spark%E5%8E%9F%E7%90%86-%E5%86%85%E5%AD%98/#more" rel="contents">
+            <a class="btn" href="/2021/10/27/LSM%E5%8E%9F%E7%90%86/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1026,7 +1303,7 @@ Spark SQL 端到端的完整优化流程主要包括两个阶段：Catalyst
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/02/spark%E5%8E%9F%E7%90%86-%E5%AD%98%E5%82%A8/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/25/%E5%88%86%E5%B8%83%E5%BC%8F%E5%8D%8F%E8%AE%AE%E7%9A%84%E7%90%86%E8%AE%BA%E7%9F%A5%E8%AF%86%E9%93%BA%E5%9E%AB/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -1045,7 +1322,7 @@ Spark SQL 端到端的完整优化流程主要包括两个阶段：Catalyst
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2021/10/02/spark%E5%8E%9F%E7%90%86-%E5%AD%98%E5%82%A8/" itemprop="url">spark原理-存储</a></h1>
+                <a class="post-title-link" href="/2021/10/25/%E5%88%86%E5%B8%83%E5%BC%8F%E5%8D%8F%E8%AE%AE%E7%9A%84%E7%90%86%E8%AE%BA%E7%9F%A5%E8%AF%86%E9%93%BA%E5%9E%AB/" itemprop="url">分布式协议的理论知识铺垫</a></h1>
         
 
         <div class="post-meta">
@@ -1057,8 +1334,8 @@ Spark SQL 端到端的完整优化流程主要包括两个阶段：Catalyst
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-02T08:56:54+08:00">
-                2021-10-02
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-25T13:51:50+08:00">
+                2021-10-25
               </time>
             
 
@@ -1082,17 +1359,6 @@ Spark SQL 端到端的完整优化流程主要包括两个阶段：Catalyst
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
                   <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
                     <span itemprop="name">大数据</span>
-                  </a>
-                </span>
-
-                
-                
-                  ， 
-                
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/spark/" itemprop="url" rel="index">
-                    <span itemprop="name">spark</span>
                   </a>
                 </span>
 
@@ -1130,13 +1396,12 @@ Spark SQL 端到端的完整优化流程主要包括两个阶段：Catalyst
       
         
           
-          spark原理–存储spark中存储是非常非常重要的部分，因为所有环节都有他的影子，而且他对于扩展性的要求也是很高的，在介质的角度，要包括内存和硬盘，在系统上，对于扩展性也要足够灵活，比如不同的分布式系统。
-spark的存储主要是三种数据：rdd缓存数据、shuffle中间文件、广播变量。
-RDD 
+          分布式协议的理论知识铺垫之所以会有这么一个章节，因为我还是相信知识都是有需求源头的，知道了你会的框架是怎么来的，那么也就知道他解决问题也不是万能的，也是基于某些场景进化过来的，那么我们就需要破冰去了解这些，这样才能知道怎么改进她们。
+现阶段，我们应用的很多大数据系统以及非大数据的很多系统，都是分布式
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2021/10/02/spark%E5%8E%9F%E7%90%86-%E5%AD%98%E5%82%A8/#more" rel="contents">
+            <a class="btn" href="/2021/10/25/%E5%88%86%E5%B8%83%E5%BC%8F%E5%8D%8F%E8%AE%AE%E7%9A%84%E7%90%86%E8%AE%BA%E7%9F%A5%E8%AF%86%E9%93%BA%E5%9E%AB/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1187,7 +1452,7 @@ RDD
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/02/spark%E5%8E%9F%E7%90%86-%E8%B0%83%E5%BA%A6/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/24/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93%EF%BC%88%E4%BA%94%EF%BC%89/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -1206,7 +1471,7 @@ RDD
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2021/10/02/spark%E5%8E%9F%E7%90%86-%E8%B0%83%E5%BA%A6/" itemprop="url">spark原理-调度</a></h1>
+                <a class="post-title-link" href="/2021/10/24/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93%EF%BC%88%E4%BA%94%EF%BC%89/" itemprop="url">《如何成为学习高手》总结（五）</a></h1>
         
 
         <div class="post-meta">
@@ -1218,169 +1483,8 @@ RDD
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-02T08:56:22+08:00">
-                2021-10-02
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category" >
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
-                    <span itemprop="name">大数据</span>
-                  </a>
-                </span>
-
-                
-                
-                  ， 
-                
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/spark/" itemprop="url" rel="index">
-                    <span itemprop="name">spark</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-          spark原理–调度调度，老生常谈，但是我们往往还是有不断的黑盒，原因不是没有看过相关原理，而是我们变得冷血了，对于一些调优变得很无视。
-今天以白话方式总结一下，后续会不断回溯这些基本原理，让自己的思考多一些角度。
-Spark 调度系统的核心职责是，先将用户构建的 DAG 转化为分布式任务，结合分布
-          ...
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2021/10/02/spark%E5%8E%9F%E7%90%86-%E8%B0%83%E5%BA%A6/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/01/%E3%80%8A%E6%B7%B1%E5%BA%A6%E6%80%9D%E7%BB%B4%E3%80%8B/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="zhiqiang.lou">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="痒痒 团团 和 咘咘">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2021/10/01/%E3%80%8A%E6%B7%B1%E5%BA%A6%E6%80%9D%E7%BB%B4%E3%80%8B/" itemprop="url">《深度思维》</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-01T15:06:26+08:00">
-                2021-10-01
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-24T17:18:21+08:00">
+                2021-10-24
               </time>
             
 
@@ -1441,13 +1545,16 @@ Spark 调度系统的核心职责是，先将用户构建的 DAG 转化为分布
       
         
           
-          深度思维最近读完了《深度思维》，作者 叶修。
-我一直明白思维的重要性，工作和生活中，思维的转变或者思考的时候利用一些合适的思维，会让问题豁然开朗。但是自己一直没有沉淀下来，没有总结自己思考的时候怎么运用不同的思维的。
-最近团队内部有新人入职，跟新人交流的时候，发现有很多问题需要沟通很多次才能让他明白
+          《如何成为学习高手》总结（五）书接上文
+学得快的方法你已经学会的，对你将要去学的，影响很大。对任何新知识的理解，都要建立在旧的知识储备的基础上。你懂得越多，你学得越快。
+
+所以这是一个正向循环，且是越来越轻松的，而且将会是越来越两极化的，想超车，就需要比别人付出更多的努力。
+
+当你的知识储备很少时，
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2021/10/01/%E3%80%8A%E6%B7%B1%E5%BA%A6%E6%80%9D%E7%BB%B4%E3%80%8B/#more" rel="contents">
+            <a class="btn" href="/2021/10/24/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93%EF%BC%88%E4%BA%94%EF%BC%89/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1498,7 +1605,7 @@ Spark 调度系统的核心职责是，先将用户构建的 DAG 转化为分布
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/29/spark%E5%8E%9F%E7%90%86-DAG/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/10/21/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93%EF%BC%88%E5%9B%9B%EF%BC%89/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -1517,7 +1624,7 @@ Spark 调度系统的核心职责是，先将用户构建的 DAG 转化为分布
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2021/09/29/spark%E5%8E%9F%E7%90%86-DAG/" itemprop="url">spark原理--DAG</a></h1>
+                <a class="post-title-link" href="/2021/10/21/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93%EF%BC%88%E5%9B%9B%EF%BC%89/" itemprop="url">《如何成为学习高手》总结（四）</a></h1>
         
 
         <div class="post-meta">
@@ -1529,8 +1636,8 @@ Spark 调度系统的核心职责是，先将用户构建的 DAG 转化为分布
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-09-29T13:44:32+08:00">
-                2021-09-29
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-10-21T16:20:20+08:00">
+                2021-10-21
               </time>
             
 
@@ -1552,19 +1659,8 @@ Spark 调度系统的核心职责是，先将用户构建的 DAG 转化为分布
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
-                    <span itemprop="name">大数据</span>
-                  </a>
-                </span>
-
-                
-                
-                  ， 
-                
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/spark/" itemprop="url" rel="index">
-                    <span itemprop="name">spark</span>
+                  <a href="/categories/%E6%82%9F/" itemprop="url" rel="index">
+                    <span itemprop="name">悟</span>
                   </a>
                 </span>
 
@@ -1602,176 +1698,15 @@ Spark 调度系统的核心职责是，先将用户构建的 DAG 转化为分布
       
         
           
-          spark的DAG内存计算这里先说一下spark的内存计算的理解，方便对于后续DAG的运用有更深的认识。
-在spark中，内存计算主要是以下两方面:
+          《如何成为学习高手》总结（四）书接上文：时间管理
+制订计划SMART 原则：
 
-分布式缓存：这是spark计算效率的关键，但是在我们使用缓存的时候，要切记不可以盲目使用，只有需要频繁访问的数据集才有必要 cache。
-Stage
+计划应该是具体的，包括任务内容，以及时间、频率的具体。计划细节不到位，执行也就没法到位，因为细节会影响效果。
+计划应该是可衡量的。”可衡量“不是为了束缚住自己，而是为了有一个标准可以参考，对自己做某件事情的速度和效率有个
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2021/09/29/spark%E5%8E%9F%E7%90%86-DAG/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2021/09/28/spark%E5%8E%9F%E7%90%86-rdd/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="zhiqiang.lou">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="痒痒 团团 和 咘咘">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2021/09/28/spark%E5%8E%9F%E7%90%86-rdd/" itemprop="url">spark原理--rdd</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2021-09-28T13:25:12+08:00">
-                2021-09-28
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category" >
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
-                    <span itemprop="name">大数据</span>
-                  </a>
-                </span>
-
-                
-                
-                  ， 
-                
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/spark/" itemprop="url" rel="index">
-                    <span itemprop="name">spark</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-          spark原理-rdd首先，RDD 作为 Spark 对于分布式数据模型的抽象，是构建 Spark 分布式内存计算引擎的基石。很多 Spark 核心概念与核心组件，如 DAG 和调度系统都衍生自 RDD。因此，深入理解 RDD 有利于你更全面、系统地学习 Spark 的工作原理。
-
-基础概念弄懂，且
-          ...
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2021/09/28/spark%E5%8E%9F%E7%90%86-rdd/#more" rel="contents">
+            <a class="btn" href="/2021/10/21/%E3%80%8A%E5%A6%82%E4%BD%95%E6%88%90%E4%B8%BA%E5%AD%A6%E4%B9%A0%E9%AB%98%E6%89%8B%E3%80%8B%E6%80%BB%E7%BB%93%EF%BC%88%E5%9B%9B%EF%BC%89/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1813,7 +1748,7 @@ Stage
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/11/">&lt;i class&#x3D;&quot;fa fa-angle-left&quot;&gt;&lt;&#x2F;i&gt;</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/11/">11</a><span class="page-number current">12</span><a class="page-number" href="/page/13/">13</a><span class="space">&hellip;</span><a class="page-number" href="/page/15/">15</a><a class="extend next" rel="next" href="/page/13/">&lt;i class&#x3D;&quot;fa fa-angle-right&quot;&gt;&lt;&#x2F;i&gt;</a>
+    <a class="extend prev" rel="prev" href="/page/11/">&lt;i class&#x3D;&quot;fa fa-angle-left&quot;&gt;&lt;&#x2F;i&gt;</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/11/">11</a><span class="page-number current">12</span><a class="page-number" href="/page/13/">13</a><span class="space">&hellip;</span><a class="page-number" href="/page/16/">16</a><a class="extend next" rel="next" href="/page/13/">&lt;i class&#x3D;&quot;fa fa-angle-right&quot;&gt;&lt;&#x2F;i&gt;</a>
   </nav>
 
 
@@ -1859,7 +1794,7 @@ Stage
               
                 <a href="/archives/%7C%7C%20archive">
               
-                  <span class="site-state-item-count">142</span>
+                  <span class="site-state-item-count">154</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -1881,7 +1816,7 @@ Stage
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">51</span>
+                  <span class="site-state-item-count">53</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

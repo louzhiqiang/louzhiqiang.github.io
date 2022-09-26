@@ -250,7 +250,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/22/%E7%89%A9%E5%8C%96%E8%A7%86%E5%9B%BE%E7%9A%84%E5%AE%9E%E7%8E%B0/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/04/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E5%85%AD%E7%AF%87/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -269,7 +269,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/06/22/%E7%89%A9%E5%8C%96%E8%A7%86%E5%9B%BE%E7%9A%84%E5%AE%9E%E7%8E%B0/" itemprop="url">物化视图的实现</a></h1>
+                <a class="post-title-link" href="/2022/07/04/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E5%85%AD%E7%AF%87/" itemprop="url">hbase原理 第六篇</a></h1>
         
 
         <div class="post-meta">
@@ -281,8 +281,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-22T14:12:05+08:00">
-                2022-06-22
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-07-04T18:59:14+08:00">
+                2022-07-04
               </time>
             
 
@@ -343,147 +343,11 @@
       
         
           
-          物化视图物化视图现在对于olap场景是必不可少的，物化视图本身的建立并不是难事儿，他的主要难点在于：
-
-更新
-
-隐式查询
-
-管理
-
-
-
-          
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2022/06/22/%E7%89%A9%E5%8C%96%E8%A7%86%E5%9B%BE%E7%9A%84%E5%AE%9E%E7%8E%B0/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/20/DDL%E7%9A%84%E5%AE%9E%E7%8E%B0/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="zhiqiang.lou">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="痒痒 团团 和 咘咘">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2022/06/20/DDL%E7%9A%84%E5%AE%9E%E7%8E%B0/" itemprop="url">DDL的实现</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-20T12:06:08+08:00">
-                2022-06-20
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-          DDL的实现这个话题其实有些宽泛，不过为了说明大数据中针对ddl的处理方式，尤其是实时场景，所以为了说明白这个问题，我们可以先说一下OLTP数据库的处理方式，然后再针对实时场景的特殊问题再去对比说一下会把哪些问题复杂化。
-SCHEMA EVOLUTIONSchema evolution 大致可以分为
+          memstore的进化基于跳表实现的 MEMSTORE 基础模型实现 MemStore 模型的数据结构是 SkipList（跳表），跳表可以实现高效的查询 \ 插入 \ 删除操作，这些操作的期望复杂度都是 O(logN)。另外，因为跳表本质上是由链表构成，所以理解和实现都更加简单。这是很多 KV 数
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/06/20/DDL%E7%9A%84%E5%AE%9E%E7%8E%B0/#more" rel="contents">
+            <a class="btn" href="/2022/07/04/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E5%85%AD%E7%AF%87/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -534,7 +398,7 @@ SCHEMA EVOLUTIONSchema evolution 大致可以分为
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/15/flink%E5%8E%9F%E7%90%86-Async-IO%E7%9A%84%E5%8E%9F%E7%90%86/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/04/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E4%BA%94%E7%AF%87/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -553,7 +417,7 @@ SCHEMA EVOLUTIONSchema evolution 大致可以分为
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/06/15/flink%E5%8E%9F%E7%90%86-Async-IO%E7%9A%84%E5%8E%9F%E7%90%86/" itemprop="url">flink原理--Async IO的原理</a></h1>
+                <a class="post-title-link" href="/2022/07/04/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E4%BA%94%E7%AF%87/" itemprop="url">hbase原理 第五篇</a></h1>
         
 
         <div class="post-meta">
@@ -565,8 +429,8 @@ SCHEMA EVOLUTIONSchema evolution 大致可以分为
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-15T20:18:42+08:00">
-                2022-06-15
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-07-04T16:31:05+08:00">
+                2022-07-04
               </time>
             
 
@@ -627,12 +491,13 @@ SCHEMA EVOLUTIONSchema evolution 大致可以分为
       
         
           
-          flink原理–Async IO的原理异步IO是flink流计算效率提高的关键，很多处理都依赖于这个特性。
-动机在大多数情况下，I/O 访问是一个耗时的过程，这使得单个算子的 TPS 远低于内存计算，特别是对于流式作业，当低延迟是用户的一个大问题时。启动多个线程可能是解决此问题的一种选择，但缺点很明
+          region的切分region的切分策略的主要原则是为了让当前region server上的region有更好的分布。region的管理的粒度可以在store级别。主要参考的角度就是store分布的大小、store的个数、store的业务数据特征。
+
+这个跟hudi的clustering策略都比较相
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/06/15/flink%E5%8E%9F%E7%90%86-Async-IO%E7%9A%84%E5%8E%9F%E7%90%86/#more" rel="contents">
+            <a class="btn" href="/2022/07/04/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E4%BA%94%E7%AF%87/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -683,7 +548,7 @@ SCHEMA EVOLUTIONSchema evolution 大致可以分为
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/15/flink%E5%8E%9F%E7%90%86-JM%E7%9A%84HA%E5%AE%9E%E7%8E%B0/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/04/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E5%9B%9B%E7%AF%87/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -702,7 +567,7 @@ SCHEMA EVOLUTIONSchema evolution 大致可以分为
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/06/15/flink%E5%8E%9F%E7%90%86-JM%E7%9A%84HA%E5%AE%9E%E7%8E%B0/" itemprop="url">flink原理--JM的HA实现</a></h1>
+                <a class="post-title-link" href="/2022/07/04/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E5%9B%9B%E7%AF%87/" itemprop="url">hbase原理 第四篇</a></h1>
         
 
         <div class="post-meta">
@@ -714,8 +579,8 @@ SCHEMA EVOLUTIONSchema evolution 大致可以分为
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-15T15:28:01+08:00">
-                2022-06-15
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-07-04T10:33:46+08:00">
+                2022-07-04
               </time>
             
 
@@ -776,12 +641,13 @@ SCHEMA EVOLUTIONSchema evolution 大致可以分为
       
         
           
-          flink原理–JM的HA实现flink中高可用的部分主要集中在jm上，他的实现方案是扩展式的，目前主要支持两种方式：zookeeper 和 Kubernetes.
-要实现HA，就代表有同等节点在运行，只不过角色上是跟随者的角色，至于是否提供服务或者其他作用，依赖于不同的设计就可以自己来定位，但是H
+          hbase的行级事务针对于事务，如果并行插入多行数据，不能一次性写进wal的情况下，有可能造成事务的不一致。
+每个事务只会产生一个 WAL 单元。这样就可以保证 WAL 写入时候的原子性。
+HBase 事务隔离性写写并发控制实现写写并发其实很简单，只需要在写入（或更新）之前先获取行锁，如果获取不到，
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/06/15/flink%E5%8E%9F%E7%90%86-JM%E7%9A%84HA%E5%AE%9E%E7%8E%B0/#more" rel="contents">
+            <a class="btn" href="/2022/07/04/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E5%9B%9B%E7%AF%87/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -832,7 +698,7 @@ SCHEMA EVOLUTIONSchema evolution 大致可以分为
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/10/%E7%BA%BF%E6%AE%B5%E6%A0%91/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/03/hdfs%E7%9A%84Hedged-Read%E5%8E%9F%E7%90%86/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -851,7 +717,7 @@ SCHEMA EVOLUTIONSchema evolution 大致可以分为
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/06/10/%E7%BA%BF%E6%AE%B5%E6%A0%91/" itemprop="url">线段树</a></h1>
+                <a class="post-title-link" href="/2022/07/03/hdfs%E7%9A%84Hedged-Read%E5%8E%9F%E7%90%86/" itemprop="url">hdfs的Hedged Read原理</a></h1>
         
 
         <div class="post-meta">
@@ -863,8 +729,8 @@ SCHEMA EVOLUTIONSchema evolution 大致可以分为
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-10T10:29:48+08:00">
-                2022-06-10
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-07-03T19:46:09+08:00">
+                2022-07-03
               </time>
             
 
@@ -886,8 +752,8 @@ SCHEMA EVOLUTIONSchema evolution 大致可以分为
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%9F%BA%E7%A1%80/" itemprop="url" rel="index">
-                    <span itemprop="name">基础</span>
+                  <a href="/categories/hadoop/" itemprop="url" rel="index">
+                    <span itemprop="name">hadoop</span>
                   </a>
                 </span>
 
@@ -925,11 +791,12 @@ SCHEMA EVOLUTIONSchema evolution 大致可以分为
       
         
           
-          
-          
+          hdfs的Hedged Read原理最近在读 HDFS 的源码，本文记录一下 Hedged Read 实现的源码解析，以及它存在的一些局限性。
+对读慢节点问题来说，重启一个 speculative task，它依然可能读的是同一个节点，因为 namenode 很可能返回的 datanode 副本的顺
+          ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/06/10/%E7%BA%BF%E6%AE%B5%E6%A0%91/#more" rel="contents">
+            <a class="btn" href="/2022/07/03/hdfs%E7%9A%84Hedged-Read%E5%8E%9F%E7%90%86/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -980,7 +847,7 @@ SCHEMA EVOLUTIONSchema evolution 大致可以分为
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/08/%E6%95%B0%E6%8D%AE%E5%BA%93%E5%8E%9F%E7%90%86-mysql%E7%9A%84%E4%BA%8B%E5%8A%A1%E7%9A%84%E5%AE%9E%E7%8E%B0/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/03/hdfs%E7%9A%84Short-Circuit-Local-Read%E5%8E%9F%E7%90%86/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -999,7 +866,7 @@ SCHEMA EVOLUTIONSchema evolution 大致可以分为
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/06/08/%E6%95%B0%E6%8D%AE%E5%BA%93%E5%8E%9F%E7%90%86-mysql%E7%9A%84%E4%BA%8B%E5%8A%A1%E7%9A%84%E5%AE%9E%E7%8E%B0/" itemprop="url">数据库原理--mysql的事务的实现</a></h1>
+                <a class="post-title-link" href="/2022/07/03/hdfs%E7%9A%84Short-Circuit-Local-Read%E5%8E%9F%E7%90%86/" itemprop="url">hdfs的Short Circuit Local Read原理</a></h1>
         
 
         <div class="post-meta">
@@ -1011,8 +878,8 @@ SCHEMA EVOLUTIONSchema evolution 大致可以分为
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-08T19:39:22+08:00">
-                2022-06-08
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-07-03T19:44:47+08:00">
+                2022-07-03
               </time>
             
 
@@ -1034,8 +901,8 @@ SCHEMA EVOLUTIONSchema evolution 大致可以分为
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" itemprop="url" rel="index">
-                    <span itemprop="name">数据库</span>
+                  <a href="/categories/hadoop/" itemprop="url" rel="index">
+                    <span itemprop="name">hadoop</span>
                   </a>
                 </span>
 
@@ -1073,13 +940,11 @@ SCHEMA EVOLUTIONSchema evolution 大致可以分为
       
         
           
-          数据库原理–mysql的事务的实现最近在看数据库设计的书籍，看到了很多关于事务的实现。以前一直用的是mysql，myslq的底层书籍也看了几本，今天看到这里突然想温顾一下mysql中关于事务的实现。
-概念理解好三个概念：
-redo logmysql 为了提升性能不会把每次的修改都实时同步到磁盘，而是
+          hdfs的Short Circuit Local Read原理Hadoop的一大基本原则是移动计算的开销要比移动数据的开销小。因此，Hadoop通常是尽量移动计算到拥有数据的节点上。这就使得Hadoop中读取数据的客户端DFSClient和提供数据的Datanode经常是在一个节点上，也就造成了很多
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/06/08/%E6%95%B0%E6%8D%AE%E5%BA%93%E5%8E%9F%E7%90%86-mysql%E7%9A%84%E4%BA%8B%E5%8A%A1%E7%9A%84%E5%AE%9E%E7%8E%B0/#more" rel="contents">
+            <a class="btn" href="/2022/07/03/hdfs%E7%9A%84Short-Circuit-Local-Read%E5%8E%9F%E7%90%86/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1130,7 +995,7 @@ redo logmysql 为了提升性能不会把每次的修改都实时同步到磁盘
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/08/flink%E5%8E%9F%E7%90%86-barrier%E7%9A%84%E5%AE%9E%E7%8E%B0/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/01/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E4%B8%89%E7%AF%87/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -1149,7 +1014,7 @@ redo logmysql 为了提升性能不会把每次的修改都实时同步到磁盘
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/06/08/flink%E5%8E%9F%E7%90%86-barrier%E7%9A%84%E5%AE%9E%E7%8E%B0/" itemprop="url">flink原理--barrier的实现</a></h1>
+                <a class="post-title-link" href="/2022/07/01/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E4%B8%89%E7%AF%87/" itemprop="url">hbase原理 第三篇</a></h1>
         
 
         <div class="post-meta">
@@ -1161,158 +1026,8 @@ redo logmysql 为了提升性能不会把每次的修改都实时同步到磁盘
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-08T10:41:45+08:00">
-                2022-06-08
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category" >
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
-                    <span itemprop="name">大数据</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-          flink原理–barrier的实现barrier简单来说就是一个牌子，一个标识，一个分界线。
-我是这么想象barrier的模型的：
-中学的时候举办的运动会，经过主席台的时候是一个代表团一个代表团在经过，而举牌子的是在最后的时候通过。如果有班级被分了组，假如分了5组，那么在主席台5个分组的举牌通过之
-          ...
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2022/06/08/flink%E5%8E%9F%E7%90%86-barrier%E7%9A%84%E5%AE%9E%E7%8E%B0/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/07/flink%E5%8E%9F%E7%90%86-%E5%8F%8D%E5%8E%8B/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="zhiqiang.lou">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/images/avatar.gif">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="痒痒 团团 和 咘咘">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2022/06/07/flink%E5%8E%9F%E7%90%86-%E5%8F%8D%E5%8E%8B/" itemprop="url">flink原理--反压</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-07T10:49:51+08:00">
-                2022-06-07
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-07-01T18:50:32+08:00">
+                2022-07-01
               </time>
             
 
@@ -1373,11 +1088,12 @@ redo logmysql 为了提升性能不会把每次的修改都实时同步到磁盘
       
         
           
-          flink原理–反压为什么需要反压在下边的参考文章里有说明单点遇到处理效率低下的时候，会有什么问题。比如节点任务堆积，节点挂掉等。扩展一点想一下，在流式系统重，都有单节点任务不堪重负的容错，原因就是单节点不管不顾地接收数据，如果他处理不过来，会导致当前任务的不稳定，从而影响整个任务的稳定性，而关键的
+          RITRegion-In-Trasition 机制Region-In-Transition 说的是 Region 变迁机制，实际上是指在一次特定操作行为中 Region 状态的变迁。
+问题：Region 存在多少种状态？HBase 有哪些操作会触发 Region 状态变迁？一次正常操作过程中 Reg
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/06/07/flink%E5%8E%9F%E7%90%86-%E5%8F%8D%E5%8E%8B/#more" rel="contents">
+            <a class="btn" href="/2022/07/01/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E4%B8%89%E7%AF%87/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1428,7 +1144,7 @@ redo logmysql 为了提升性能不会把每次的修改都实时同步到磁盘
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/06/flink%E5%8E%9F%E7%90%86-%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/30/%E5%90%91%E9%87%8F%E5%8C%96%E6%89%A7%E8%A1%8C/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -1447,7 +1163,7 @@ redo logmysql 为了提升性能不会把每次的修改都实时同步到磁盘
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/06/06/flink%E5%8E%9F%E7%90%86-%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86/" itemprop="url">flink原理--内存管理</a></h1>
+                <a class="post-title-link" href="/2022/06/30/%E5%90%91%E9%87%8F%E5%8C%96%E6%89%A7%E8%A1%8C/" itemprop="url">向量化执行</a></h1>
         
 
         <div class="post-meta">
@@ -1459,8 +1175,134 @@ redo logmysql 为了提升性能不会把每次的修改都实时同步到磁盘
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-06T17:30:15+08:00">
-                2022-06-06
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-30T21:31:23+08:00">
+                2022-06-30
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+          
+          
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2022/06/30/%E5%90%91%E9%87%8F%E5%8C%96%E6%89%A7%E8%A1%8C/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/28/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E4%BA%8C%E7%AF%87/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2022/06/28/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E4%BA%8C%E7%AF%87/" itemprop="url">hbase原理 第二篇</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-28T08:42:01+08:00">
+                2022-06-28
               </time>
             
 
@@ -1521,15 +1363,12 @@ redo logmysql 为了提升性能不会把每次的修改都实时同步到磁盘
       
         
           
-          flink原理–内存管理基于jvm的计算引擎都要面对这样的几个问题：
-
-Java 对象存储密度低。一个只包含 boolean 属性的对象占用了 16 个字节内存：对象头占了 8 个，boolean 属性占了 1 个，对齐填充占了 7 个。而实际上只需要一个 bit（1/8 字节）就够了。
-
-Full
+          hbase的gchbase的gc优化的主要原则就是减少fullgc，优化目标主要是Memstore 和 blockcache。
+针对 Memstore 主要是Thread-Local Allocation Buffer和MemStore Chunk Pool ， 针对blockcache 主要是 B
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/06/06/flink%E5%8E%9F%E7%90%86-%E5%86%85%E5%AD%98%E7%AE%A1%E7%90%86/#more" rel="contents">
+            <a class="btn" href="/2022/06/28/hbase%E5%8E%9F%E7%90%86-%E7%AC%AC%E4%BA%8C%E7%AF%87/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1580,7 +1419,7 @@ Full
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/06/hudi%E6%8E%A2%E7%B4%A2-%E8%AF%BB%E5%8F%96%E6%97%B6%E5%A6%82%E4%BD%95%E8%BF%9B%E8%A1%8CFileSlice/">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/26/%E9%9B%B6%E6%8B%B7%E8%B4%9D/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
       <meta itemprop="name" content="zhiqiang.lou">
@@ -1599,7 +1438,7 @@ Full
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2022/06/06/hudi%E6%8E%A2%E7%B4%A2-%E8%AF%BB%E5%8F%96%E6%97%B6%E5%A6%82%E4%BD%95%E8%BF%9B%E8%A1%8CFileSlice/" itemprop="url">hudi探索--读取时如何进行FileSlice</a></h1>
+                <a class="post-title-link" href="/2022/06/26/%E9%9B%B6%E6%8B%B7%E8%B4%9D/" itemprop="url">零拷贝</a></h1>
         
 
         <div class="post-meta">
@@ -1611,8 +1450,157 @@ Full
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-06T12:02:29+08:00">
-                2022-06-06
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-26T16:47:34+08:00">
+                2022-06-26
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E8%AE%A1%E7%AE%97%E6%9C%BA/" itemprop="url" rel="index">
+                    <span itemprop="name">计算机</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+          零拷贝零拷贝机制(Zero-Copy)是在操作数据时不需要将数据从一块内存区域复制到另一块内存区域的技术,这样就避免了内存的拷贝,使得可以提高CPU的。零拷贝机制是一种操作数据的优化方案,通过避免数据在内存中拷贝达到的提高CPU性能的方案。
+操作系统的零拷贝机制操作系统的存储空间包含硬盘和内存,而内
+          ...
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2022/06/26/%E9%9B%B6%E6%8B%B7%E8%B4%9D/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/24/apache-doris%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2022/06/24/apache-doris%E5%8E%9F%E7%90%86/" itemprop="url">apache doris原理</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-06-24T11:46:15+08:00">
+                2022-06-24
               </time>
             
 
@@ -1673,13 +1661,12 @@ Full
       
         
           
-          hudi探索–读取时如何进行FileSlice在看hudi的小文件合并的时候，突然对于hudi的读取过程有些模糊，然后重温了一遍，把这块的细节记录一下。
-概念FileGrouppartition + fileId = FileGroup
-FileSlice一个commit timestamp 就是一
+          apache doris原理最近在多维分析的技术峰会上，doris的身影比较频繁，在各个大厂都有出现，所以他的适用场景以及技术原理，需要了解一下。
+出处Doris（原百度 Palo）是一款基于大规模并行处理技术的分布式 SQL 数据库，由百度在 2017 年开源，2018 年 8 月进入 Apach
           ...
           <!--noindex-->
           <div class="post-button text-center">
-            <a class="btn" href="/2022/06/06/hudi%E6%8E%A2%E7%B4%A2-%E8%AF%BB%E5%8F%96%E6%97%B6%E5%A6%82%E4%BD%95%E8%BF%9B%E8%A1%8CFileSlice/#more" rel="contents">
+            <a class="btn" href="/2022/06/24/apache-doris%E5%8E%9F%E7%90%86/#more" rel="contents">
               阅读全文 &raquo;
             </a>
           </div>
@@ -1721,7 +1708,7 @@ FileSlice一个commit timestamp 就是一
 
   
   <nav class="pagination">
-    <a class="extend prev" rel="prev" href="/page/4/">&lt;i class&#x3D;&quot;fa fa-angle-left&quot;&gt;&lt;&#x2F;i&gt;</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/4/">4</a><span class="page-number current">5</span><a class="page-number" href="/page/6/">6</a><span class="space">&hellip;</span><a class="page-number" href="/page/15/">15</a><a class="extend next" rel="next" href="/page/6/">&lt;i class&#x3D;&quot;fa fa-angle-right&quot;&gt;&lt;&#x2F;i&gt;</a>
+    <a class="extend prev" rel="prev" href="/page/4/">&lt;i class&#x3D;&quot;fa fa-angle-left&quot;&gt;&lt;&#x2F;i&gt;</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/4/">4</a><span class="page-number current">5</span><a class="page-number" href="/page/6/">6</a><span class="space">&hellip;</span><a class="page-number" href="/page/16/">16</a><a class="extend next" rel="next" href="/page/6/">&lt;i class&#x3D;&quot;fa fa-angle-right&quot;&gt;&lt;&#x2F;i&gt;</a>
   </nav>
 
 
@@ -1767,7 +1754,7 @@ FileSlice一个commit timestamp 就是一
               
                 <a href="/archives/%7C%7C%20archive">
               
-                  <span class="site-state-item-count">142</span>
+                  <span class="site-state-item-count">154</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -1789,7 +1776,7 @@ FileSlice一个commit timestamp 就是一
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">51</span>
+                  <span class="site-state-item-count">53</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

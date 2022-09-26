@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="ConcurrentHashMap原理ConcurrentHashMap和HashMap以及Hashtable的区别 HashMap是线程不安全的，因为HashMap中操作都没有加锁，因此在多线程环境下会导致数据覆盖之类的问题，所以，在多线程中使用HashMap是会抛出异常的。 HashTable是线程安全的,但是HashTable只是单纯的在put()方法上加上synchronized。保证插入">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ConcurrentHashMap原理">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/23/ConcurrentHashMap%E5%8E%9F%E7%90%86/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="ConcurrentHashMap原理ConcurrentHashMap和HashMap以及Hashtable的区别 HashMap是线程不安全的，因为HashMap中操作都没有加锁，因此在多线程环境下会导致数据覆盖之类的问题，所以，在多线程中使用HashMap是会抛出异常的。 HashTable是线程安全的,但是HashTable只是单纯的在put()方法上加上synchronized。保证插入">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/20200807200052113.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/20200807200123141.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/20200807201722260.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/20200807202323615.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/20200807202542921.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/20200807202759568.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/20200807203115482.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/20200807203318514.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/20200807203606205.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/2020080720541110.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/20200807205906631.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/8bf6d4aa717a871c73d5d2699d822fed.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/892f684f7d943d1194b290b5f414d558.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/d41507b8e7a653650561367d44e5411d.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/3e0ef497f95c88e6d409cd6f0737bfe3.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/d74b564ac361f2b01f314198eb5dc8ea.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/76cc8ca680a660a3a04b65b29801cb0b.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/d2eb3182bc96169e2f29c6df38f92891.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/19e8e13c0fc91718739fbc3388c9797f.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/753d017dc01e3096673800357165e067.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/7c1ca4b6190fe58a20f586164d017851.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/3f10cd575e3750a4e384f71fd7adc3cc.png">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/1e537606d716a73c972b0ebf7aa10da6.png">
+<meta property="article:published_time" content="2022-09-23T13:00:35.000Z">
+<meta property="article:modified_time" content="2022-09-23T14:12:34.215Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://img-blog.csdnimg.cn/20200807200052113.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/23/ConcurrentHashMap原理/"/>
+
+
+
+
+
+  <title>ConcurrentHashMap原理 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/23/ConcurrentHashMap%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">ConcurrentHashMap原理</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-09-23T21:00:35+08:00">
+                2022-09-23
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/java/" itemprop="url" rel="index">
+                    <span itemprop="name">java</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="ConcurrentHashMap原理"><a href="#ConcurrentHashMap原理" class="headerlink" title="ConcurrentHashMap原理"></a>ConcurrentHashMap原理</h1><h2 id="ConcurrentHashMap和HashMap以及Hashtable的区别"><a href="#ConcurrentHashMap和HashMap以及Hashtable的区别" class="headerlink" title="ConcurrentHashMap和HashMap以及Hashtable的区别"></a>ConcurrentHashMap和HashMap以及Hashtable的区别</h2><ul>
+<li>HashMap是线程不安全的，因为HashMap中操作都没有加锁，因此在多线程环境下会导致数据覆盖之类的问题，所以，在多线程中使用HashMap是会抛出异常的。</li>
+<li>HashTable是线程安全的,但是HashTable只是单纯的在put()方法上加上synchronized。保证插入时阻塞其他线程的插入操作。虽然安全，但因为设计简单，所以性能低下。</li>
+<li>ConcurrentHashMap是线程安全的，ConcurrentHashMap并非锁住整个方法，而是通过原子操作和局部加锁的方法保证了多线程的线程安全，且尽可能减少了性能损耗。</li>
+</ul>
+<h2 id="ConcurrentHashMap原理-1"><a href="#ConcurrentHashMap原理-1" class="headerlink" title="ConcurrentHashMap原理"></a>ConcurrentHashMap原理</h2><p>它由多个 Segment 组合而成。Segment 本身就相当于一个 HashMap 对象。同 HashMap 一样，Segment 包含一个 HashEntry 数组，数组中的每一个 HashEntry 既是一个键值对，也是一个链表的头节点。<br><img src="https://img-blog.csdnimg.cn/20200807200052113.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70" alt=""></p>
+<p>像这样的 Segment 对象，在 ConcurrentHashMap 集合中有多少个呢？有 2 的 N 次方个，共同保存在一个名为 segments 的数组当中。</p>
+<p><img src="https://img-blog.csdnimg.cn/20200807200123141.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70" alt=""></p>
+<p>可以说，ConcurrentHashMap 是一个二级哈希表。在一个总的哈希表下面，有若干个子哈希表。</p>
+<p><img src="https://img-blog.csdnimg.cn/20200807201722260.png" alt=""></p>
+<p>其中，Segment是它的一个内部类，主要组成如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">static</span> <span class="keyword">final</span> <span class="class"><span class="keyword">class</span> <span class="title">Segment</span>&lt;<span class="title">K</span>,<span class="title">V</span>&gt; <span class="keyword">extends</span> <span class="title">ReentrantLock</span> <span class="keyword">implements</span> <span class="title">Serializable</span> </span>&#123;</span><br><span class="line">	<span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">final</span> <span class="keyword">long</span> serialVersionUID = <span class="number">2249069246763182397L</span>;</span><br><span class="line">	<span class="comment">// 和 HashMap 中的 HashEntry 作用一样，真正存放数据的桶</span></span><br><span class="line">	<span class="keyword">transient</span> <span class="keyword">volatile</span> HashEntry&lt;K,V&gt;[] table;</span><br><span class="line">	</span><br><span class="line">	<span class="keyword">transient</span> <span class="keyword">int</span> count;</span><br><span class="line">	<span class="keyword">transient</span> <span class="keyword">int</span> modCount;</span><br><span class="line">	<span class="keyword">transient</span> <span class="keyword">int</span> threshold;</span><br><span class="line">	<span class="keyword">final</span> <span class="keyword">float</span> loadFactor;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// ...</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>HashEntry也是一个内部类，主要组成如下：<br><img src="https://img-blog.csdnimg.cn/20200807202323615.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70" alt=""><br>和 HashMap 的 Entry 基本一样，唯一的区别就是其中的核心数据如 value ，以及<strong>链表都是 volatile 修饰的，保证了获取时的可见性</strong>。</p>
+<p>基于volatile修饰之后，数据获取效率是很高的。</p>
+<h3 id="Put-操作"><a href="#Put-操作" class="headerlink" title="Put 操作"></a>Put 操作</h3><p><img src="https://img-blog.csdnimg.cn/20200807202542921.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70" alt=""></p>
+<p>首先是通过 key 定位到 Segment，之后在对应的 Segment 中进行具体的 put。<br><img src="https://img-blog.csdnimg.cn/20200807202759568.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70" alt=""></p>
+<p>这个put就是针对Segment的。<br>虽然 HashEntry 中的 value 是用 volatile 关键词修饰的，但是并不能保证并发的原子性，所以 put 操作时仍然需要加锁处理。</p>
+<p><img src="https://img-blog.csdnimg.cn/20200807203115482.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70" alt=""></p>
+<p>1、尝试自旋获取锁。<br>2、如果重试的次数达到了 MAX_SCAN_RETRIES 则改为阻塞锁获取，保证能获取成功。</p>
+<p><img src="https://img-blog.csdnimg.cn/20200807203318514.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70" alt=""></p>
+<p>1、加锁操作；<br>2、遍历该 HashEntry，如果不为空则判断传入的 key 和当前遍历的 key 是否相等，相等则覆盖旧的 value。<br>3、为空则需要新建一个 HashEntry 并加入到 Segment 中，同时会先判断是否需要扩容。<br>4、释放锁；</p>
+<p>Put 操作时，锁的是某个 Segment，其他线程对其他 Segment 的读写操作均不影响。因此解决了线程安全问题。</p>
+<h3 id="Get-操作"><a href="#Get-操作" class="headerlink" title="Get 操作"></a>Get 操作</h3><p><img src="https://img-blog.csdnimg.cn/20200807203606205.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70" alt=""></p>
+<p>1、Key 通过 Hash 之后定位到具体的 Segment；<br>2、再通过一次 Hash 定位到具体的元素上；<br>3、由于 HashEntry 中的 value 属性是用 volatile 关键词修饰的，保证了内存可见性，所以每次获取时都是最新值。</p>
+<h2 id="JDK-1-8-的改进"><a href="#JDK-1-8-的改进" class="headerlink" title="JDK 1.8 的改进"></a>JDK 1.8 的改进</h2><ul>
+<li>首先是结构上的变化，和 HashMap 一样，数组+链表改为数组+链表+红黑树。</li>
+<li>HashEntry 改为 Node</li>
+<li>Put 操作的变化<br><img src="https://img-blog.csdnimg.cn/2020080720541110.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70" alt=""><br>1、根据 key 计算出 hashcode，然后开始遍历 table；<br>2、判断是否需要初始化；<br>3、f 即为当前 key 定位出的 Node，如果为空表示当前位置可以写入数据，利用 CAS 尝试写入，失败则自旋保证成功。<br>4、如果当前位置的 hashcode == MOVED == -1,则需要进行扩容。<br>5、如果都不满足，则利用 synchronized 锁写入数据。<br>6、如果数量大于 TREEIFY_THRESHOLD 则要转换为红黑树。</li>
+<li>Get 操作的变化<br><img src="https://img-blog.csdnimg.cn/20200807205906631.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzI5MDUxNDEz,size_16,color_FFFFFF,t_70" alt=""><br>1、根据计算出来的 hashcode 寻址，如果就在桶上那么直接返回值。<br>2、如果是红黑树那就按照树的方式获取值。<br>3、都不满足那就按照链表的方式遍历获取值。</li>
+</ul>
+<blockquote>
+<p>1.8 在 1.7 的数据结构上做了大的改动，采用红黑树之后可以保证查询效率（O(logn)），甚至取消了 ReentrantLock 改为了 synchronized，这样可以看出在新版的 JDK 中对 synchronized 优化是很到位的。</p>
+</blockquote>
+<p>参考：<br><a href="https://blog.csdn.net/qq_42068856/article/details/126091526" target="_blank" rel="noopener">1.8版本ConcurrentHashMap的put原理</a></p>
+<h2 id="面试常问的"><a href="#面试常问的" class="headerlink" title="面试常问的"></a>面试常问的</h2><h3 id="1-7-版本和-1-8-版本有啥区别，关于ConcurrentHashMap"><a href="#1-7-版本和-1-8-版本有啥区别，关于ConcurrentHashMap" class="headerlink" title="1.7 版本和 1.8 版本有啥区别，关于ConcurrentHashMap"></a>1.7 版本和 1.8 版本有啥区别，关于ConcurrentHashMap</h3><h4 id="1-7"><a href="#1-7" class="headerlink" title="1.7"></a>1.7</h4><p>JDK1.7 中的 ConcurrentHashMap 是由 Segment 数组结构和 HashEntry 数组结构组成，即 ConcurrentHashMap 把哈希桶数组切分成小数组（Segment ），每个小数组有 n 个 HashEntry 组成。</p>
+<p>如下图所示，首先将数据分为一段一段的存储，然后给每一段数据配一把锁，当一个线程占用锁访问其中一段数据时，其他段的数据也能被其他线程访问，实现了真正的并发访问。<br><img src="https://img-blog.csdnimg.cn/img_convert/8bf6d4aa717a871c73d5d2699d822fed.png" alt=""></p>
+<p>Segment 是 ConcurrentHashMap 的一个内部类，主要的组成如下：<br><img src="https://img-blog.csdnimg.cn/img_convert/892f684f7d943d1194b290b5f414d558.png" alt=""></p>
+<p>Segment 继承了 ReentrantLock，所以 Segment 是一种可重入锁，扮演锁的角色。Segment 默认为 16，也就是并发度为 16。</p>
+<p>存放元素的 HashEntry，也是一个静态内部类，主要的组成如下：<br><img src="https://img-blog.csdnimg.cn/img_convert/d41507b8e7a653650561367d44e5411d.png" alt=""></p>
+<p>其中，用 volatile 修饰了 HashEntry 的数据 value 和 下一个节点 next，保证了多线程环境下数据获取时的可见性！</p>
+<h4 id="1-8"><a href="#1-8" class="headerlink" title="1.8"></a>1.8</h4><p>JDK1.8 中的ConcurrentHashMap 选择了与 HashMap 相同的Node数组+链表+红黑树结构；在锁的实现上，抛弃了原有的 Segment 分段锁，采用CAS + synchronized实现更加细粒度的锁。<br>将锁的级别控制在了更细粒度的<strong>哈希桶数组元素级别</strong>，也就是说只需要锁住这个链表头节点（红黑树的根节点），就不会影响其他的哈希桶数组元素的读写，大大提高了并发度。<br><img src="https://img-blog.csdnimg.cn/img_convert/3e0ef497f95c88e6d409cd6f0737bfe3.png" alt=""></p>
+<h3 id="JDK1-8-中为什么使用内置锁-synchronized替换-可重入锁-ReentrantLock？"><a href="#JDK1-8-中为什么使用内置锁-synchronized替换-可重入锁-ReentrantLock？" class="headerlink" title="JDK1.8 中为什么使用内置锁 synchronized替换 可重入锁 ReentrantLock？"></a>JDK1.8 中为什么使用内置锁 synchronized替换 可重入锁 ReentrantLock？</h3><ul>
+<li>1.6版本针对synchronized进行了优化，他的效率高了很多。</li>
+<li>减少内存开销 。假设使用可重入锁来获得同步支持，那么每个节点都需要通过继承 AQS 来获得同步支持。但并不是每个节点都需要获得同步支持的，只有<strong>链表的头节点（红黑树的根节点）需要同步</strong>，这无疑带来了巨大内存浪费。</li>
+</ul>
+<h3 id="ConcurrentHashMap-的-put-方法执行逻辑是什么？"><a href="#ConcurrentHashMap-的-put-方法执行逻辑是什么？" class="headerlink" title="ConcurrentHashMap 的 put 方法执行逻辑是什么？"></a>ConcurrentHashMap 的 put 方法执行逻辑是什么？</h3><h4 id="JDK1-7"><a href="#JDK1-7" class="headerlink" title="JDK1.7"></a>JDK1.7</h4><p><img src="https://img-blog.csdnimg.cn/img_convert/d74b564ac361f2b01f314198eb5dc8ea.png" alt=""><br>先定位到相应的 Segment ，然后再进行 put 操作。<br><img src="https://img-blog.csdnimg.cn/img_convert/76cc8ca680a660a3a04b65b29801cb0b.png" alt=""><br>首先会尝试获取锁，如果获取失败肯定就有其他线程存在竞争，则利用 scanAndLockForPut() 自旋获取锁。</p>
+<ul>
+<li>尝试自旋获取锁。</li>
+<li>如果重试的次数达到了 MAX_SCAN_RETRIES 则改为阻塞锁获取，保证能获取成功。</li>
+</ul>
+<h4 id="JDK1-8"><a href="#JDK1-8" class="headerlink" title="JDK1.8"></a>JDK1.8</h4><ul>
+<li>根据 key 计算出 hash 值；</li>
+<li>判断是否需要进行初始化；</li>
+<li>定位到 Node，拿到首节点 f，判断首节点 f：<ul>
+<li>如果为 null ，则通过 CAS 的方式尝试添加；</li>
+<li>如果为 f.hash = MOVED = -1 ，说明其他线程在扩容，参与一起扩容；</li>
+<li>如果都不满足 ，synchronized 锁住 f 节点，判断是链表还是红黑树，遍历插入；</li>
+<li>当在链表长度达到 8 的时候，数组扩容或者将链表转换为红黑树。<br><img src="https://img-blog.csdnimg.cn/img_convert/d2eb3182bc96169e2f29c6df38f92891.png" alt=""></li>
+</ul>
+</li>
+</ul>
+<h3 id="ConcurrentHashMap-的-get-方法执行逻辑是什么？"><a href="#ConcurrentHashMap-的-get-方法执行逻辑是什么？" class="headerlink" title="ConcurrentHashMap 的 get 方法执行逻辑是什么？"></a>ConcurrentHashMap 的 get 方法执行逻辑是什么？</h3><h4 id="JDK1-7-1"><a href="#JDK1-7-1" class="headerlink" title="JDK1.7"></a>JDK1.7</h4><p>首先，根据 key 计算出 hash 值定位到具体的 Segment ，再根据 hash 值获取定位 HashEntry 对象，并对 HashEntry 对象进行链表遍历，找到对应元素。</p>
+<p>由于 HashEntry 涉及到的共享变量都使用 volatile 修饰，volatile 可以保证内存可见性，所以每次获取时都是最新值。</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/19e8e13c0fc91718739fbc3388c9797f.png" alt=""></p>
+<h4 id="JDK1-8-1"><a href="#JDK1-8-1" class="headerlink" title="JDK1.8"></a>JDK1.8</h4><ul>
+<li>根据 key 计算出 hash 值，判断数组是否为空；</li>
+<li>如果是首节点，就直接返回；</li>
+<li>如果是红黑树结构，就从红黑树里面查询；</li>
+<li>如果是链表结构，循环遍历判断。<br><img src="https://img-blog.csdnimg.cn/img_convert/753d017dc01e3096673800357165e067.png" alt=""></li>
+</ul>
+<h3 id="ConcurrentHashMap-的-get-方法是否要加锁，为什么？"><a href="#ConcurrentHashMap-的-get-方法是否要加锁，为什么？" class="headerlink" title="ConcurrentHashMap 的 get 方法是否要加锁，为什么？"></a>ConcurrentHashMap 的 get 方法是否要加锁，为什么？</h3><p>get 方法不需要加锁。因为 Node 的元素 value 和指针 next 是用 volatile 修饰的，在多线程环境下线程A修改节点的 value 或者新增节点的时候是对线程B可见的。<br>这也是它比其他并发集合比如 Hashtable、用 Collections.synchronizedMap()包装的 HashMap 效率高的原因之一。</p>
+<p><img src="https://img-blog.csdnimg.cn/img_convert/7c1ca4b6190fe58a20f586164d017851.png" alt=""></p>
+<h3 id="get-方法不需要加锁与-volatile-修饰的哈希桶数组有关吗？"><a href="#get-方法不需要加锁与-volatile-修饰的哈希桶数组有关吗？" class="headerlink" title="get 方法不需要加锁与 volatile 修饰的哈希桶数组有关吗？"></a>get 方法不需要加锁与 volatile 修饰的哈希桶数组有关吗？</h3><p>没有关系。哈希桶数组table用 volatile 修饰主要是保证在数组扩容的时候保证可见性。<br><img src="https://img-blog.csdnimg.cn/img_convert/3f10cd575e3750a4e384f71fd7adc3cc.png" alt=""></p>
+<h3 id="ConcurrentHashMap-不支持-key-或者-value-为-null-的原因？"><a href="#ConcurrentHashMap-不支持-key-或者-value-为-null-的原因？" class="headerlink" title="ConcurrentHashMap 不支持 key 或者 value 为 null 的原因？"></a>ConcurrentHashMap 不支持 key 或者 value 为 null 的原因？</h3><p>我们先来说value 为什么不能为 null。因为 ConcurrentHashMap 是用于多线程的 ，如果ConcurrentHashMap.get(key)得到了 null ，这就无法判断，是映射的value是 null ，还是没有找到对应的key而为 null ，就有了<strong>二义性</strong>。</p>
+<p>而用于单线程状态的 HashMap 却可以用<strong>containsKey(key)</strong> 去判断到底是否包含了这个 null 。</p>
+<h3 id="ConcurrentHashMap-的并发度是什么？"><a href="#ConcurrentHashMap-的并发度是什么？" class="headerlink" title="ConcurrentHashMap 的并发度是什么？"></a>ConcurrentHashMap 的并发度是什么？</h3><p>并发度可以理解为程序运行时能够同时更新 ConccurentHashMap且不产生锁竞争的最大线程数。在JDK1.7中，实际上就是ConcurrentHashMap中的分段锁个数，即Segment[]的数组长度，默认是16，这个值可以在构造函数中设置。<br>如果自己设置了并发度，ConcurrentHashMap 会使用大于等于该值的最小的2的幂指数作为实际并发度，也就是比如你设置的值是17，那么实际并发度是32。<br>如果并发度设置的过小，会带来严重的锁竞争问题；如果并发度设置的过大，原本位于同一个Segment内的访问会扩散到不同的Segment中，CPU cache命中率会下降，从而引起程序性能下降。</p>
+<p>在JDK1.8中，已经摒弃了Segment的概念，选择了Node数组+链表+红黑树结构，并发度大小依赖于数组的大小。</p>
+<h3 id="ConcurrentHashMap-迭代器是强一致性还是弱一致性？"><a href="#ConcurrentHashMap-迭代器是强一致性还是弱一致性？" class="headerlink" title="ConcurrentHashMap 迭代器是强一致性还是弱一致性？"></a>ConcurrentHashMap 迭代器是强一致性还是弱一致性？</h3><p>与 HashMap 迭代器是强一致性不同，ConcurrentHashMap 迭代器是弱一致性。<br>ConcurrentHashMap 的迭代器创建后，就会按照哈希表结构遍历每个元素，但在遍历过程中，内部元素可能会发生变化，如果变化发生在已遍历过的部分，迭代器就不会反映出来，而如果变化发生在未遍历过的部分，迭代器就会发现并反映出来，这就是弱一致性。<br>这样迭代器线程可以使用原来老的数据，而写线程也可以并发的完成改变，更重要的，这保证了多个线程并发执行的连续性和扩展性，是性能提升的关键。</p>
+<h3 id="ConcurrentHashMap-和-Hashtable-的效率哪个更高？为什么？"><a href="#ConcurrentHashMap-和-Hashtable-的效率哪个更高？为什么？" class="headerlink" title="ConcurrentHashMap 和 Hashtable 的效率哪个更高？为什么？"></a>ConcurrentHashMap 和 Hashtable 的效率哪个更高？为什么？</h3><p>ConcurrentHashMap 的效率要高于 Hashtable，因为 Hashtable 给整个哈希表加了一把大锁从而实现线程安全。而ConcurrentHashMap 的锁粒度更低，在 JDK1.7 中采用分段锁实现线程安全，在 JDK1.8 中采用CAS+synchronized实现线程安全。</p>
+<h3 id="具体说一下Hashtable的锁机制"><a href="#具体说一下Hashtable的锁机制" class="headerlink" title="具体说一下Hashtable的锁机制"></a>具体说一下Hashtable的锁机制</h3><p>Hashtable 是使用 synchronized来实现线程安全的，给整个哈希表加了一把大锁，多线程访问时候，只要有一个线程访问或操作该对象，那其他线程只能阻塞等待需要的锁被释放，在竞争激烈的多线程场景中性能就会非常差！</p>
+<h3 id="多线程下安全的操作-map还有其他方法吗？"><a href="#多线程下安全的操作-map还有其他方法吗？" class="headerlink" title="多线程下安全的操作 map还有其他方法吗？"></a>多线程下安全的操作 map还有其他方法吗？</h3><p>还可以使用Collections.synchronizedMap方法，对方法进行加同步锁。<br><img src="https://img-blog.csdnimg.cn/img_convert/1e537606d716a73c972b0ebf7aa10da6.png" alt=""><br>如果传入的是 HashMap 对象，其实也是对 HashMap 做的方法做了一层包装，里面使用对象锁来保证多线程场景下，线程安全，本质也是对 HashMap 进行<strong>全表锁</strong>。在竞争激烈的多线程环境下性能依然也非常差，不推荐使用！</p>
+<blockquote>
+<p>补记：jdk 1.8 的put操作<br>做插入操作时，首先进入乐观锁，<br>然后，在乐观锁中判断容器是否初始化，<br>如果没初始化则初始化容器，<br>如果已经初始化，则判断该hash位置的节点是否为空，如果为空，则通过CAS操作进行插入。<br>如果该节点不为空，再判断容器是否在扩容中，如果在扩容，则帮助其扩容。<br>如果没有扩容，则进行最后一步，先加锁，然后找到hash值相同的那个节点(hash冲突)，<br>循环判断这个节点上的链表，决定做覆盖操作还是插入操作。<br>循环结束，插入完毕。</p>
+</blockquote>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/09/23/hashmap%E5%8E%9F%E7%90%86/" rel="next" title="hashmap原理">
+                <i class="fa fa-chevron-left"></i> hashmap原理
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/09/24/spark%E5%85%B1%E4%BA%AB%E5%8F%98%E9%87%8F/" rel="prev" title="spark共享变量">
+                spark共享变量 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">154</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">21</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">53</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#ConcurrentHashMap原理"><span class="nav-number">1.</span> <span class="nav-text">ConcurrentHashMap原理</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#ConcurrentHashMap和HashMap以及Hashtable的区别"><span class="nav-number">1.1.</span> <span class="nav-text">ConcurrentHashMap和HashMap以及Hashtable的区别</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#ConcurrentHashMap原理-1"><span class="nav-number">1.2.</span> <span class="nav-text">ConcurrentHashMap原理</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Put-操作"><span class="nav-number">1.2.1.</span> <span class="nav-text">Put 操作</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Get-操作"><span class="nav-number">1.2.2.</span> <span class="nav-text">Get 操作</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#JDK-1-8-的改进"><span class="nav-number">1.3.</span> <span class="nav-text">JDK 1.8 的改进</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#面试常问的"><span class="nav-number">1.4.</span> <span class="nav-text">面试常问的</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-7-版本和-1-8-版本有啥区别，关于ConcurrentHashMap"><span class="nav-number">1.4.1.</span> <span class="nav-text">1.7 版本和 1.8 版本有啥区别，关于ConcurrentHashMap</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#1-7"><span class="nav-number">1.4.1.1.</span> <span class="nav-text">1.7</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#1-8"><span class="nav-number">1.4.1.2.</span> <span class="nav-text">1.8</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#JDK1-8-中为什么使用内置锁-synchronized替换-可重入锁-ReentrantLock？"><span class="nav-number">1.4.2.</span> <span class="nav-text">JDK1.8 中为什么使用内置锁 synchronized替换 可重入锁 ReentrantLock？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ConcurrentHashMap-的-put-方法执行逻辑是什么？"><span class="nav-number">1.4.3.</span> <span class="nav-text">ConcurrentHashMap 的 put 方法执行逻辑是什么？</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#JDK1-7"><span class="nav-number">1.4.3.1.</span> <span class="nav-text">JDK1.7</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#JDK1-8"><span class="nav-number">1.4.3.2.</span> <span class="nav-text">JDK1.8</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ConcurrentHashMap-的-get-方法执行逻辑是什么？"><span class="nav-number">1.4.4.</span> <span class="nav-text">ConcurrentHashMap 的 get 方法执行逻辑是什么？</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#JDK1-7-1"><span class="nav-number">1.4.4.1.</span> <span class="nav-text">JDK1.7</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#JDK1-8-1"><span class="nav-number">1.4.4.2.</span> <span class="nav-text">JDK1.8</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ConcurrentHashMap-的-get-方法是否要加锁，为什么？"><span class="nav-number">1.4.5.</span> <span class="nav-text">ConcurrentHashMap 的 get 方法是否要加锁，为什么？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#get-方法不需要加锁与-volatile-修饰的哈希桶数组有关吗？"><span class="nav-number">1.4.6.</span> <span class="nav-text">get 方法不需要加锁与 volatile 修饰的哈希桶数组有关吗？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ConcurrentHashMap-不支持-key-或者-value-为-null-的原因？"><span class="nav-number">1.4.7.</span> <span class="nav-text">ConcurrentHashMap 不支持 key 或者 value 为 null 的原因？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ConcurrentHashMap-的并发度是什么？"><span class="nav-number">1.4.8.</span> <span class="nav-text">ConcurrentHashMap 的并发度是什么？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ConcurrentHashMap-迭代器是强一致性还是弱一致性？"><span class="nav-number">1.4.9.</span> <span class="nav-text">ConcurrentHashMap 迭代器是强一致性还是弱一致性？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#ConcurrentHashMap-和-Hashtable-的效率哪个更高？为什么？"><span class="nav-number">1.4.10.</span> <span class="nav-text">ConcurrentHashMap 和 Hashtable 的效率哪个更高？为什么？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#具体说一下Hashtable的锁机制"><span class="nav-number">1.4.11.</span> <span class="nav-text">具体说一下Hashtable的锁机制</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#多线程下安全的操作-map还有其他方法吗？"><span class="nav-number">1.4.12.</span> <span class="nav-text">多线程下安全的操作 map还有其他方法吗？</span></a></li></ol></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
