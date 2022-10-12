@@ -86,9 +86,9 @@
 <meta property="og:site_name" content="痒痒 团团 和 咘咘">
 <meta property="og:description" content="flink原理–反压为什么需要反压在下边的参考文章里有说明单点遇到处理效率低下的时候，会有什么问题。比如节点任务堆积，节点挂掉等。扩展一点想一下，在流式系统重，都有单节点任务不堪重负的容错，原因就是单节点不管不顾地接收数据，如果他处理不过来，会导致当前任务的不稳定，从而影响整个任务的稳定性，而关键的问题是，任务运行慢的因素是不确定的。所以，计算框架就把任务稳定性为首要考虑目标，单节点如果处理缓慢，">
 <meta property="og:image" content="http://img3.tbcdn.cn/5476e8b07b923/TB14fLsHVXXXXXWXFXXXXXXXXXX">
-<meta property="og:image" content="https://upload-images.jianshu.io/upload_images/19063731-346346a04d763d35.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1200/format/webp">
+<meta property="og:image" content="https://github.com/images/19063731-346346a04d763d35.webp">
 <meta property="article:published_time" content="2022-06-07T02:49:51.000Z">
-<meta property="article:modified_time" content="2022-07-28T13:19:56.000Z">
+<meta property="article:modified_time" content="2022-10-09T00:15:18.966Z">
 <meta property="article:author" content="zhiqiang.lou">
 <meta property="article:tag" content="flink">
 <meta name="twitter:card" content="summary">
@@ -369,7 +369,7 @@
 <p>1、由于buffer pool的创建是TM粒度的，单个task的反压是会反应到socket和netty级别都无法进行数据传输，也就是在上边提到的那种情况，同一个TM下的同种多个subTask会一起被受影响，从而都会无法工作。</p>
 <p>基于上边的原因，flink搞了一个credit的方案。</p>
 <p>反压机制作用于 Flink 的应用层，即在 ResultSubPartition 和 InputChannel 这一层引入了反压机制。每次上游 SubTask A.2 给下游 SubTask B.4 发送数据时，会把 Buffer 中的数据和上游 ResultSubPartition 堆积的数据量 Backlog size发给下游，下游会接收上游发来的数据，并向上游反馈目前下游现在的 Credit 值，Credit 值表示目前下游可以接收上游的 Buffer 量，1 个Buffer 等价于 1 个 Credit 。</p>
-<p><img src="https://upload-images.jianshu.io/upload_images/19063731-346346a04d763d35.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1200/format/webp" alt=""></p>
+<p><img src="/images/19063731-346346a04d763d35.webp" alt=""></p>
 <p>这个就是传输的时候，下家告诉上家，我还能接受多少，由于这个接受多少实际是task级别的，也就导致上家不会发送过多的数据，影响上，也就不会在socket已经满了的时候才知道压力很大，而是提前被告知了。</p>
 <p>这样的话，底层socket那一层就不会由于单个任务导致资源被占满了，也就不会波及到其他任务了。</p>
 <p>参考：</p>
@@ -516,7 +516,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">53</span>
+                  <span class="site-state-item-count">43</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

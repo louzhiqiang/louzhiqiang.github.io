@@ -92,7 +92,7 @@
 <meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220112_3a6f6d5a-736e-11ec-a8ac-fa163eb4f6be.png">
 <meta property="og:image" content="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220112_3a9ebc36-736e-11ec-a8ac-fa163eb4f6be.png">
 <meta property="article:published_time" content="2022-08-31T12:03:10.000Z">
-<meta property="article:modified_time" content="2022-08-31T12:41:26.000Z">
+<meta property="article:modified_time" content="2022-10-09T13:28:00.574Z">
 <meta property="article:author" content="zhiqiang.lou">
 <meta property="article:tag" content="spark">
 <meta name="twitter:card" content="summary">
@@ -353,7 +353,7 @@
 <p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220112_3992dda4-736e-11ec-a8ac-fa163eb4f6be.png" alt="img"></p>
 <p>这是spark的官方定义。</p>
 <p><img src="https://oss-emcsprod-public.modb.pro/wechatSpider/modb_20220112_39ae7f82-736e-11ec-a8ac-fa163eb4f6be.png" alt="img"></p>
-<p>不同的是spark.dynamicAllocation.shuffleTracking.enabled和spark.shuffle.service.enabled这两个参数的设置，那么这两个参数是干嘛用的？先提前透露一下，就是为了管理shuffle文件的，为什仫这么说呢？</p>
+<p>不同的是spark.dynamicAllocation.shuffleTracking.enabled和spark.shuffle.service.enabled这两个参数的设置，那么这两个参数是干嘛用的？先提前透露一下，就是为了管理shuffle文件的，为什么这么说呢？</p>
 <p><strong>请注意看allow executors to be removed这句话</strong>！也就是说动态分配可能会增减executor个数，如果你的作业中有shuffle存在的话，当减少executor个数的时候，那么shuffle文件就会被删除，可是这个时候下游怎么拉数据呀，任务不就嗝屁了吗！！</p>
 <p>为了避免shuffle文件被删除导致嗝屁的情况出现，就有了一个external shuffle service这么一个外部shuffle服务。</p>
 <p>Executor的申请：</p>
@@ -509,7 +509,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">53</span>
+                  <span class="site-state-item-count">43</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

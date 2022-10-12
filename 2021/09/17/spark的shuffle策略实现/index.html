@@ -103,7 +103,7 @@
 <meta property="og:image" content="https://github.com/images/shuffle_16.png">
 <meta property="og:image" content="https://static001.geekbang.org/resource/image/2c/eb/2c4ec7fb70bfd103f70f24e56yya91eb.jpg">
 <meta property="article:published_time" content="2021-09-17T04:53:05.000Z">
-<meta property="article:modified_time" content="2022-09-04T06:13:48.000Z">
+<meta property="article:modified_time" content="2022-10-09T13:25:30.624Z">
 <meta property="article:author" content="zhiqiang.lou">
 <meta property="article:tag" content="spark">
 <meta name="twitter:card" content="summary">
@@ -484,7 +484,7 @@
 <p><img src="/images/shuffle_16.png" alt="合并文件"></p>
 <p>每个spill 文件的分区索引都保存在 SpillInfo 数据结构中， Task结束前，我们要做一次mergeSpills操作， 如果 fastMergeEnabled  并且压缩方式支持 concatenation of compressed data， 就可以直接 简单地连接相同分区的压缩数据到一起，而且不用解压反序列化。使用一种高效的数据拷贝技术，比如  NIO’s transferTo 就可以避免解压和 buffer 拷贝。</p>
 <blockquote>
-<p>约到这个时候，就会发现一个解压带来的操作可能都是极其客观的。</p>
+<p>约到这个时候，就会发现一个解压带来的操作可能都是极其可观的。</p>
 </blockquote>
 <p>Reducer阶段：</p>
 <p><img src="https://static001.geekbang.org/resource/image/2c/eb/2c4ec7fb70bfd103f70f24e56yya91eb.jpg" alt="reducer过程"></p>
@@ -650,7 +650,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">53</span>
+                  <span class="site-state-item-count">43</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

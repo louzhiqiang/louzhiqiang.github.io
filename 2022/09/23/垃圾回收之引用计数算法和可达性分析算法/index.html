@@ -85,16 +85,16 @@
 <meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/23/%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6%E4%B9%8B%E5%BC%95%E7%94%A8%E8%AE%A1%E6%95%B0%E7%AE%97%E6%B3%95%E5%92%8C%E5%8F%AF%E8%BE%BE%E6%80%A7%E5%88%86%E6%9E%90%E7%AE%97%E6%B3%95/index.html">
 <meta property="og:site_name" content="痒痒 团团 和 咘咘">
 <meta property="og:description" content="垃圾回收之引用计数算法和可达性分析算法引用计数算法在java中是通过引用来和对象进行关联的，也就是说如果要操作对象，必须通过引用来进行。那么很显然一个简单的办法就是通过引用计数来判断一个对象是否可以被回收。如果一个对象没有任何引用与之关联，则说明该对象基本不太可能在其他地方被使用到，那么这个对象就成为可被回收的对象了。这种方式成为引用计数法。 什么是引用计数算法：给对象中添加一个引用计数器，每当有">
-<meta property="og:image" content="https://ask.qcloudimg.com/http-save/yehe-4860594/1leude29yj.png">
-<meta property="og:image" content="https://ask.qcloudimg.com/http-save/yehe-4860594/vj5hfsanr.png">
-<meta property="og:image" content="https://ask.qcloudimg.com/http-save/yehe-4860594/b1leejjzw6.png?imageView2/2/w/1620">
-<meta property="og:image" content="https://ask.qcloudimg.com/http-save/yehe-4860594/bpd0j0xoxn.png?imageView2/2/w/1620">
+<meta property="og:image" content="https://github.com/images/1leude29yj.png">
+<meta property="og:image" content="https://github.com/images/vj5hfsanr.png">
+<meta property="og:image" content="https://github.com/images/b1leejjzw6.png">
+<meta property="og:image" content="https://github.com/images/bpd0j0xoxn.png">
 <meta property="article:published_time" content="2022-09-23T00:55:35.000Z">
-<meta property="article:modified_time" content="2022-09-23T01:54:53.326Z">
+<meta property="article:modified_time" content="2022-10-08T07:33:06.261Z">
 <meta property="article:author" content="zhiqiang.lou">
 <meta property="article:tag" content="jvm">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://ask.qcloudimg.com/http-save/yehe-4860594/1leude29yj.png">
+<meta name="twitter:image" content="https://github.com/images/1leude29yj.png">
 
 
 
@@ -352,9 +352,9 @@
 <blockquote>
 <p>python 和 php 都是采用的此算法</p>
 </blockquote>
-<p>来分析一下为什么会产生循环引用的问题,且注意看图中的注释：<br><img src="https://ask.qcloudimg.com/http-save/yehe-4860594/1leude29yj.png" alt=""></p>
+<p>来分析一下为什么会产生循环引用的问题,且注意看图中的注释：<br><img src="/images/1leude29yj.png" alt=""></p>
 <p>原理如下:<br>第一步:创建A对象,存储在堆空间中,但是a变量是存储在栈帧里面的局部变量表中,所以a的引用地址就是堆空间引用地址<br>第二步:创建B对象,存储在堆空间中,但是b变量也是存储在栈帧里面的局部变量表中,所以b的引用地址就是堆空间引用地址<br>第三步:A对象的属性object的引用地址指向了B对象的引用地址<br>第四步:B对象的属性object的引用地址也执行了A对象的引用地址<br>代码图中的第五步:局部变量表中的a变量引用地址置为null,直接将下图中的第一步去掉了<br>代码图中的第六步:局部变量表中的b变量引用地址置为null,直接将下图中的第二步去掉了<br>这样就导致了堆空间中的循环相互引用的问题</p>
-<p><img src="https://ask.qcloudimg.com/http-save/yehe-4860594/vj5hfsanr.png" alt=""></p>
+<p><img src="/images/vj5hfsanr.png" alt=""></p>
 <h2 id="可达性分析算法（有称之-根搜索算法）"><a href="#可达性分析算法（有称之-根搜索算法）" class="headerlink" title="可达性分析算法（有称之:根搜索算法）"></a>可达性分析算法（有称之:根搜索算法）</h2><p>可达性分析算法的基本思路就是通过一系列名为”GC Roots”的对象作为起始点，从这些节点开始向下搜索，搜索所走过的路径称为<strong>引用链(Reference Chain)</strong>，当一个对象到GC Roots没有任何引用链相连时，则证明此对象是不可用的。<br>这个算法的基本思想是通过一系列称为“GC Roots”的对象作为起始点，从这些节点向下搜索，搜索所走过的路径称为引用链，当一个对象到GC Roots没有任何引用链（即GC Roots到对象不可达）时，则证明此对象是不可用的。</p>
 <p>在Java语言中,可作为GCRoots对象包含为以下几种:</p>
 <ul>
@@ -364,10 +364,10 @@
 <li>本地方法栈中(Native方法)引用的对象(可以理解为:引用Native方法的所有对象)</li>
 </ul>
 <p>理解：<br>(1)首先第一种是<strong>虚拟机栈中的引用的对象</strong>，我们在程序中正常创建一个对象，对象会在堆上开辟一块空间，同时会将这块空间的地址作为引用保存到虚拟机栈中，如果对象生命周期结束了，那么引用就会从虚拟机栈中出栈，因此如果在虚拟机栈中有引用，就说明这个对象还是有用的，这种情况是最常见的。<br>(2)第二种是我们在类中定义了<strong>全局的静态的对象</strong>，也就是使用了static关键字，由于虚拟机栈是线程私有的，所以这种对象的引用会保存在共有的方法区中，显然将方法区中的静态引用作为GC Roots是必须的。<br>(3)第三种便是常量引用，就是使用了<strong>static final关键字</strong>，由于这种引用初始化之后不会修改，所以方法区常量池里的引用的对象也应该作为GC Roots。<br>(4)最后一种是在使用<strong>JNI技术</strong>时，有时候单纯的Java代码并不能满足我们的需求，我们可能需要在Java中调用C或C++的代码，因此会使用native方法，JVM内存中专门有一块本地方法栈，用来保存这些对象的引用，所以本地方法栈中引用的对象也会被作为GC Roots。</p>
-<p><img src="https://ask.qcloudimg.com/http-save/yehe-4860594/b1leejjzw6.png?imageView2/2/w/1620" alt=""></p>
-<p><img src="https://ask.qcloudimg.com/http-save/yehe-4860594/bpd0j0xoxn.png?imageView2/2/w/1620" alt=""></p>
+<p><img src="/images/b1leejjzw6.png" alt=""></p>
+<p><img src="/images/bpd0j0xoxn.png" alt=""></p>
 <blockquote>
-<p> 即使在可达性分析算法中不可达的对象，也并非是“非死不可”的，这时候它们暂时处于“缓刑”阶段，要真正宣告一个对象死亡，至少要经历两次标记过程:如果对象在进行可达性分析后发现没有与GC Roots 相连接的引用链，那它将会被第一次标记并且进行一次筛选，筛选的条件是此对象是否有必要执行finalize() 方法。当对象没有覆盖finalize() 方法，或者finalize() 方法已经被虚拟机调用过，虚拟机将这两种情况都视为“没有必要执行”。<br>如果这个对象被判定为有必要执行finalize()方法，那么这个对象将会放置在一个叫做F-Queuc的队列之中，并在稍后由一个由虚拟机自动建立的、低优先级的Finalizer线程去执行它。这里所谓的“执行”是指虚拟机会触发这个方法，但并不承诺会等待它运行结束，这样做的原因是如果一个对象在finalizeO 方法中执行缓慢，或者发生了死循环(更极端的情况)，将很可能会导致F-Queue队列中其他对象永久处于等待，甚至导致整个内存回收系统崩溃。finalize() 方法是对象逃脱死亡命运的最后一次机公稍后GC将对F-QUCUC中的对象进行第二次小规模的标记，如果对象要在finalize()中成功扬救自己一只要重新与引用链上的任何- 一个对象建立关联即可，譬如把自己(this 关键字) 赋值给某个类变量或者对象的成员变量，那在第二次标记时它将被移除出“即将回收”的集合: 如果对象这时候还没有逃脱，那基本上它就真的被回收了。从代码清单3-2 中我们可以看到一个对象的finalize()被执行，但是它仍然可以存活。代码清单3-2一次对象自我拯救的演示。</p>
+<p> 即使在可达性分析算法中不可达的对象，也并非是“非死不可”的，这时候它们暂时处于“缓刑”阶段，要真正宣告一个对象死亡，至少要经历两次标记过程:如果对象在进行可达性分析后发现没有与GC Roots 相连接的引用链，那它将会被第一次标记并且进行一次筛选，筛选的条件是此对象是否有必要执行finalize() 方法。当对象没有覆盖finalize() 方法，或者finalize() 方法已经被虚拟机调用过，虚拟机将这两种情况都视为“没有必要执行”。<br>如果这个对象被判定为有必要执行finalize()方法，那么这个对象将会放置在一个叫做F-Queuc的队列之中，并在稍后由一个由虚拟机自动建立的、低优先级的Finalizer线程去执行它。这里所谓的“执行”是指虚拟机会触发这个方法，但并不承诺会等待它运行结束，这样做的原因是如果一个对象在finalizeO 方法中执行缓慢，或者发生了死循环(更极端的情况)，将很可能会导致F-Queue队列中其他对象永久处于等待，甚至导致整个内存回收系统崩溃。finalize() 方法是对象逃脱死亡命运的最后一次机会，稍后GC将对F-QUCUC中的对象进行第二次小规模的标记，如果对象要在finalize()中成功扬救自己一次，要重新与引用链上的任何一个对象建立关联即可，譬如把自己(this 关键字) 赋值给某个类变量或者对象的成员变量，那在第二次标记时它将被移除出“即将回收”的集合，如果对象这时候还没有逃脱，那基本上它就真的被回收了。从代码清单3-2 中我们可以看到一个对象的finalize()被执行，但是它仍然可以存活。代码清单3-2一次对象自我拯救的演示。</p>
 </blockquote>
 <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> ccc;</span><br><span class="line"><span class="comment">/*此代码演示了两点</span></span><br><span class="line"><span class="comment"> * 对象可以在GC时自我拯救</span></span><br><span class="line"><span class="comment"> * 这种自救只会有一次，因为一个对象的finalize方法只会被自动调用一次</span></span><br><span class="line"><span class="comment"> * */</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">FinalizeEscapeGC</span> </span>&#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> FinalizeEscapeGC SAVE_HOOK=<span class="keyword">null</span>;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">isAlive</span><span class="params">()</span></span>&#123;</span><br><span class="line">        System.out.println(<span class="string">"yes我还活着"</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">finalize</span><span class="params">()</span> <span class="keyword">throws</span> Throwable</span>&#123;</span><br><span class="line">        <span class="keyword">super</span>.finalize();</span><br><span class="line">        System.out.println(<span class="string">"执行finalize方法"</span>);</span><br><span class="line">        FinalizeEscapeGC.SAVE_HOOK=<span class="keyword">this</span>;<span class="comment">//自救</span></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> InterruptedException</span>&#123;</span><br><span class="line">        SAVE_HOOK=<span class="keyword">new</span> FinalizeEscapeGC();</span><br><span class="line">        <span class="comment">//对象的第一次回收</span></span><br><span class="line">        SAVE_HOOK=<span class="keyword">null</span>;</span><br><span class="line">        System.gc();</span><br><span class="line">        <span class="comment">//因为finalize方法的优先级很低所以暂停0.5秒等它</span></span><br><span class="line">        Thread.sleep(<span class="number">500</span>);</span><br><span class="line">        <span class="keyword">if</span>(SAVE_HOOK!=<span class="keyword">null</span>)&#123;</span><br><span class="line">            SAVE_HOOK.isAlive();</span><br><span class="line">        &#125;<span class="keyword">else</span>&#123;</span><br><span class="line">            System.out.println(<span class="string">"no我死了"</span>);</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">//下面的代码和上面的一样，但是这次自救却失败了</span></span><br><span class="line">        <span class="comment">//对象的第一次回收</span></span><br><span class="line">        SAVE_HOOK=<span class="keyword">null</span>;</span><br><span class="line">        System.gc();</span><br><span class="line">        Thread.sleep(<span class="number">500</span>);</span><br><span class="line">        <span class="keyword">if</span>(SAVE_HOOK!=<span class="keyword">null</span>)&#123;</span><br><span class="line">            SAVE_HOOK.isAlive();</span><br><span class="line">        &#125;<span class="keyword">else</span>&#123;</span><br><span class="line">            System.out.println(<span class="string">"no我死了"</span>);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 <p>这段代码可以自己运行一下，还是有收获的。</p>
@@ -514,7 +514,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">53</span>
+                  <span class="site-state-item-count">43</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

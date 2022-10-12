@@ -102,7 +102,7 @@
 <meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/04/22222.png">
 <meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2016/04/33333.png">
 <meta property="article:published_time" content="2022-05-27T06:25:24.000Z">
-<meta property="article:modified_time" content="2022-08-08T10:34:38.000Z">
+<meta property="article:modified_time" content="2022-10-09T09:45:02.194Z">
 <meta property="article:author" content="zhiqiang.lou">
 <meta property="article:tag" content="hbase">
 <meta name="twitter:card" content="summary">
@@ -360,7 +360,7 @@
       
         <p>最近在看hudi的索引的时候，hudi的索引支持中，有一个基于hfile的索引，用来根据key找数据路径的索引。然后就想起来很久之前看的hbase的很多原理，需要温习一下，看看是否有一些可以用在现在的架构设计上。</p>
 <p>本意是想着看一看hbase例hfile的文件存储结构，来作为入口，可是顺道看了一下范欣欣大神的博客，发现还是宝藏满满，所以准备花两三天时间把大神的hbase系列文章通读一遍，再记录一下自己的思考点。</p>
-<h1 id="hfile格式"><a href="#hfile格式" class="headerlink" title="hfile格式"></a>hfile格式</h1><p><img src="http://hbasefly.com/wp-content/uploads/2016/03/1.png" alt=""></p>
+<h1 id="hbase原理–hfile格式"><a href="#hbase原理–hfile格式" class="headerlink" title="hbase原理–hfile格式"></a>hbase原理–hfile格式</h1><p><img src="http://hbasefly.com/wp-content/uploads/2016/03/1.png" alt=""></p>
 <p>文件主要分为四个部分：Scanned block section，Non-scanned block section，Opening-time data section 和 Trailer。</p>
 <p>Scanned block section：顾名思义，表示顺序扫描 HFile 时所有的数据块将会被读取，包括 Leaf Index Block 和 Bloom Block。</p>
 <p>Non-scanned block section：表示在 HFile 顺序扫描的时候数据不会被读取，主要包括 Meta Block 和 Intermediate Level Data Index Blocks 两部分。</p>
@@ -631,7 +631,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">53</span>
+                  <span class="site-state-item-count">43</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
@@ -664,7 +664,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#hfile格式"><span class="nav-number">1.</span> <span class="nav-text">hfile格式</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#数据写入流程解析"><span class="nav-number">2.</span> <span class="nav-text">数据写入流程解析</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#memstore-flush原理"><span class="nav-number">3.</span> <span class="nav-text">memstore flush原理</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#HFile索引机制"><span class="nav-number">4.</span> <span class="nav-text">HFile索引机制</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#BlockCache"><span class="nav-number">5.</span> <span class="nav-text">BlockCache</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#BucketCache"><span class="nav-number">5.1.</span> <span class="nav-text">BucketCache</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#性能测试"><span class="nav-number">5.2.</span> <span class="nav-text">性能测试</span></a></li></ol></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#hbase原理–hfile格式"><span class="nav-number">1.</span> <span class="nav-text">hbase原理–hfile格式</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#数据写入流程解析"><span class="nav-number">2.</span> <span class="nav-text">数据写入流程解析</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#memstore-flush原理"><span class="nav-number">3.</span> <span class="nav-text">memstore flush原理</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#HFile索引机制"><span class="nav-number">4.</span> <span class="nav-text">HFile索引机制</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#BlockCache"><span class="nav-number">5.</span> <span class="nav-text">BlockCache</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#BucketCache"><span class="nav-number">5.1.</span> <span class="nav-text">BucketCache</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#性能测试"><span class="nav-number">5.2.</span> <span class="nav-text">性能测试</span></a></li></ol></li></ol></div>
             
 
           </div>

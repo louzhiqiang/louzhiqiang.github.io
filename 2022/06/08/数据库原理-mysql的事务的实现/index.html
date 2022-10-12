@@ -79,14 +79,14 @@
 
 
 
-<meta name="description" content="数据库原理–mysql的事务的实现最近在看数据库设计的书籍，看到了很多关于事务的实现。以前一直用的是mysql，myslq的底层书籍也看了几本，今天看到这里突然想温顾一下mysql中关于事务的实现。 概念理解好三个概念： redo logmysql 为了提升性能不会把每次的修改都实时同步到磁盘，而是会先存到Boffer Pool(缓冲池)里头，把这个当作缓存来用。然后使用后台线程去做缓冲池和磁盘之">
+<meta name="description" content="数据库原理–mysql的事务的实现最近在看数据库设计的书籍，看到了很多关于事务的实现。以前一直用的是mysql，mysql的底层书籍也看了几本，今天看到这里突然想温顾一下mysql中关于事务的实现。 概念理解好三个概念： redo logmysql 为了提升性能不会把每次的修改都实时同步到磁盘，而是会先存到Buffer Pool(缓冲池)里头，把这个当作缓存来用。然后使用后台线程去做缓冲池和磁盘之">
 <meta property="og:type" content="article">
 <meta property="og:title" content="数据库原理--mysql的事务的实现">
 <meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/06/08/%E6%95%B0%E6%8D%AE%E5%BA%93%E5%8E%9F%E7%90%86-mysql%E7%9A%84%E4%BA%8B%E5%8A%A1%E7%9A%84%E5%AE%9E%E7%8E%B0/index.html">
 <meta property="og:site_name" content="痒痒 团团 和 咘咘">
-<meta property="og:description" content="数据库原理–mysql的事务的实现最近在看数据库设计的书籍，看到了很多关于事务的实现。以前一直用的是mysql，myslq的底层书籍也看了几本，今天看到这里突然想温顾一下mysql中关于事务的实现。 概念理解好三个概念： redo logmysql 为了提升性能不会把每次的修改都实时同步到磁盘，而是会先存到Boffer Pool(缓冲池)里头，把这个当作缓存来用。然后使用后台线程去做缓冲池和磁盘之">
+<meta property="og:description" content="数据库原理–mysql的事务的实现最近在看数据库设计的书籍，看到了很多关于事务的实现。以前一直用的是mysql，mysql的底层书籍也看了几本，今天看到这里突然想温顾一下mysql中关于事务的实现。 概念理解好三个概念： redo logmysql 为了提升性能不会把每次的修改都实时同步到磁盘，而是会先存到Buffer Pool(缓冲池)里头，把这个当作缓存来用。然后使用后台线程去做缓冲池和磁盘之">
 <meta property="article:published_time" content="2022-06-08T11:39:22.000Z">
-<meta property="article:modified_time" content="2022-07-12T07:07:58.000Z">
+<meta property="article:modified_time" content="2022-10-08T08:56:56.979Z">
 <meta property="article:author" content="zhiqiang.lou">
 <meta property="article:tag" content="mysql">
 <meta name="twitter:card" content="summary">
@@ -341,9 +341,9 @@
       
 
       
-        <h1 id="数据库原理–mysql的事务的实现"><a href="#数据库原理–mysql的事务的实现" class="headerlink" title="数据库原理–mysql的事务的实现"></a>数据库原理–mysql的事务的实现</h1><p>最近在看数据库设计的书籍，看到了很多关于事务的实现。以前一直用的是mysql，myslq的底层书籍也看了几本，今天看到这里突然想温顾一下mysql中关于事务的实现。</p>
+        <h1 id="数据库原理–mysql的事务的实现"><a href="#数据库原理–mysql的事务的实现" class="headerlink" title="数据库原理–mysql的事务的实现"></a>数据库原理–mysql的事务的实现</h1><p>最近在看数据库设计的书籍，看到了很多关于事务的实现。以前一直用的是mysql，mysql的底层书籍也看了几本，今天看到这里突然想温顾一下mysql中关于事务的实现。</p>
 <h2 id="概念"><a href="#概念" class="headerlink" title="概念"></a>概念</h2><p>理解好三个概念：</p>
-<h3 id="redo-log"><a href="#redo-log" class="headerlink" title="redo log"></a>redo log</h3><p>mysql 为了提升性能不会把每次的修改都实时同步到磁盘，而是会先存到Boffer Pool(缓冲池)里头，把这个当作缓存来用。然后使用后台线程去做<strong>缓冲池和磁盘之间的同步</strong>。</p>
+<h3 id="redo-log"><a href="#redo-log" class="headerlink" title="redo log"></a>redo log</h3><p>mysql 为了提升性能不会把每次的修改都实时同步到磁盘，而是会先存到Buffer Pool(缓冲池)里头，把这个当作缓存来用。然后使用后台线程去做<strong>缓冲池和磁盘之间的同步</strong>。</p>
 <p>那么问题来了，如果还没来的同步的时候宕机或断电了怎么办？还没来得及执行上面图中红色的操作。这样会导致丢部分已提交事务的修改信息！</p>
 <p>所以引入了redo log来记录已成功提交事务的修改信息，并且会把redo log持久化到磁盘，系统重启之后在读取redo log恢复最新数据。</p>
 <p><strong>总结：</strong> redo log是用来恢复数据的 用于保障，已提交事务的持久化特性</p>
@@ -509,7 +509,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">53</span>
+                  <span class="site-state-item-count">43</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
