@@ -92,7 +92,7 @@
 <meta property="og:image" content="https://assets.website-files.com/61f38d7a4e41d6a673cd65c7/6297ef8a6cef924eb06f7d6c_Screen%20Shot%202022-06-01%20at%206.00.13%20PM.png">
 <meta property="og:image" content="https://assets.website-files.com/61f38d7a4e41d6a673cd65c7/6284240c375b15fbaf2258df_Screen%20Shot%202022-05-17%20at%203.38.58%20PM.png">
 <meta property="article:published_time" content="2022-06-22T10:29:36.000Z">
-<meta property="article:modified_time" content="2022-06-23T10:59:46.000Z">
+<meta property="article:modified_time" content="2022-10-14T00:01:41.107Z">
 <meta property="article:author" content="zhiqiang.lou">
 <meta property="article:tag" content="hudi">
 <meta name="twitter:card" content="summary">
@@ -373,7 +373,7 @@
 </ul>
 <p><img src="https://assets.website-files.com/61f38d7a4e41d6a673cd65c7/628419cdc20643b94614b9f1_N6ZFGrV9oHyC8ZHssLtC0dNbH-3NpMBueK_vCu2AI4ZWf0qfJu9jltNO1CjYWJ9QfuPC7T8t-slkyh7oTia4Th091HzMFwtqUQn1vjnmipgdHPkkibq34NSkDCPZfP7ND8JvFbYy1qxHs8z_xA.gif" alt=""></p>
 <h3 id="可扩展的元数据"><a href="#可扩展的元数据" class="headerlink" title="可扩展的元数据"></a>可扩展的元数据</h3><p>包含表元数据的所有索引都存储为一个内部 Hudi Merge-On-Read (MOR)表，即数据表中的元数据表。这种方式比较常见，属于用自己的服务来延展自己的扩展性。kafka也有过着这样的实现，这样元数据表就是无服务型的，而且可以扩展到TB级别也不是问题。</p>
-<p>hudi已经存在 colum_stats 和 Bloom 过滤器索引，可以在多方面提高性能，后续还可以继续扩展新的索引，比如位图、基于 R 的树的任何位置索引、记录级别索引等。任何这样的索引都可以根据需要启用和禁用，而不必与其他索引协调。此外，Hudi 支持异步索引，以与普通作者一起编制索引，但不会影响写入延迟（即将推出的一个博客将详细讨论索引）。</p>
+<p>hudi已经存在 colum_stats 和 Bloom 过滤器索引，可以在多方面提高性能，后续还可以继续扩展新的索引，比如位图、基于 R 树的任何位置索引、记录级别索引等。任何这样的索引都可以根据需要启用和禁用，而不必与其他索引协调。此外，Hudi 支持异步索引，随着普通写入更新索引，但不会影响写入延迟（即将推出的一个博客将详细讨论索引）。</p>
 <h3 id="事务级别更新"><a href="#事务级别更新" class="headerlink" title="事务级别更新"></a>事务级别更新</h3><p>元数据表保证具有事务性更新。对数据表的所有更改都转换为提交到元数据表的元数据记录。我们将其设计为一个多表事务，这样只有当数据表和元数据表都提交，当前这一次事务整体才算提交，并且这样的设计对故障具有弹性，因此对数据表的写操作不会暴露给其他读或写事务，具有隔离性。元数据表是自我管理的，因此不需要用户去操作或者管理，包括compact和clean。后续，我们利用日志压缩服务更新数据，以进一步减少写放大。</p>
 <h3 id="快速查找"><a href="#快速查找" class="headerlink" title="快速查找"></a>快速查找</h3><p>为了提高读写性能，元数据要具备高效的点查和范围查找，而当前hudi支持的parquet 和 avro 都不具备这样的特性。</p>
 <p>而Hbase的Hfile格式是专门为高效的点查设计的。</p>
@@ -389,14 +389,14 @@
 <p><img src="https://cwiki.apache.org/confluence/download/attachments/135860174/Screen%20Shot%202020-02-12%20at%201.00.31%20AM.png?version=1&modificationDate=1581498056000&api=v2" alt=""></p>
 <h2 id="异步构建"><a href="#异步构建" class="headerlink" title="异步构建"></a>异步构建</h2><p><img src="https://assets.website-files.com/61f38d7a4e41d6a673cd65c7/6297ef8a6cef924eb06f7d6c_Screen%20Shot%202022-06-01%20at%206.00.13%20PM.png" alt="Asynchronous Indexing using Hudi"></p>
 <p>鉴于可扩展的索引系统的开发，索引的异步构建是一个很好的建议，异步索引有两个好处，改进写入延迟和解耦故障。这样对于hudi整体的稳定性、易用性都有很好的保证。</p>
-<p>这里的核心问题是异步更新的索引如何与实际写入的数据保持一致。简单的处理方式就是锁定index分区，然后就要历史数据进行构建。但是这种方式在应对超长事务的时候会存在冲突的可能性。</p>
-<p>而hudi是实现并不是这样的，而是 依赖于一下三个要素的实现：</p>
+<p>这里的核心问题是异步更新的索引如何与实际写入的数据保持一致。简单的处理方式就是锁定index分区，然后就对历史数据进行构建。但是这种方式在应对超长事务的时候会存在冲突的可能性。</p>
+<p>而hudi是实现并不是这样的，而是 依赖于以下三个要素的实现：</p>
 <h3 id="hudi-file-layout"><a href="#hudi-file-layout" class="headerlink" title="hudi file layout"></a>hudi file layout</h3><p>基于file slice的方式，可以实现基于mvcc的方式实现并发写入。</p>
 <h3 id="hybird-concurrency-control-model"><a href="#hybird-concurrency-control-model" class="headerlink" title="hybird concurrency control model"></a>hybird concurrency control model</h3><p>异步索引综合使用乐观并发控制和基于日志的并发控制模型。索引分为两个阶段：调度和执行。</p>
-<p>在调度过程中，索引器（负责创建新索引的外部进程）获取一个短锁，并为数据文件生成一个索引计划，直到最后一个 commit instant <code>t</code>。它初始化请求的索引对应的元数据分区，并在此阶段完成后释放锁。这应该需要几秒钟，并且在此阶段不会写入任何索引文件。</p>
-<p>在执行期间，索引器执行计划，将索引基础文件（对应于commit instant <code>t</code> 的数据文件）写入元数据分区。同时，常规的 inflight writer 继续将更新记录到与元数据分区中的基本文件相同的文件组中的日志文件。编写基本文件后，索引器会检查 <code>t</code> 之后的所有已完成提交instant，以确保每个提交都根据其索引计划添加条目，否则只能优雅地中止。</p>
+<p>在调度过程中，indexer（负责创建新索引的外部进程）获取一个短锁，并为数据文件生成一个索引计划，直到最后一个 commit instant <code>t</code>。它初始化请求的索引对应的元数据分区，并在此阶段完成后释放锁。这应该需要几秒钟，并且在此阶段不会写入任何索引文件。</p>
+<p>在执行期间，indexer执行计划，将索引基础文件（对应于commit instant <code>t</code> 的数据文件）写入元数据分区。同时，常规的 inflight writer 继续将更新记录到与元数据分区中的基本文件相同的文件组中的日志文件。编写基本文件后，indexer会检查 <code>t</code> 之后的所有已完成提交instant，以确保每个提交都根据其索引计划添加条目，否则只能优雅地中止。</p>
 <p>当乐观并发控制介入时，使用元数据表锁来检查写入者是否影响了重叠文件，如果存在冲突，则中止。优雅中止确保可以以幂等方式重试索引。</p>
-<h3 id="hudi-timeline"><a href="#hudi-timeline" class="headerlink" title="hudi timeline"></a>hudi timeline</h3><p> Hudi 在时间轴上实现了细粒度的基于日志的并发协议。为了将索引与其他写入操作区分开来，我们在此时间线上引入了一个名为“索引”的新操作。此操作的状态转换由索引器处理。调度索引会在时间线中添加一个“indexing.requested” instant。执行阶段在执行计划时将其转换为“inflight”状态，然后在索引完成后最终转换为“complete”状态。索引器仅在向时间线添加事件时锁定，而不是在写入索引文件时锁定。</p>
+<h3 id="hudi-timeline"><a href="#hudi-timeline" class="headerlink" title="hudi timeline"></a>hudi timeline</h3><p> Hudi 在时间轴上实现了细粒度的基于日志的并发协议。为了将索引与其他写入操作区分开来，我们在此时间线上引入了一个名为“索引”的新操作。此操作的状态转换由indexer处理。调度索引会在时间线中添加一个“indexing.requested” instant。执行阶段在执行计划时将其转换为“inflight”状态，然后在索引完成后最终转换为“complete”状态。<strong>indexer仅在向时间线添加事件时锁定，而不是在写入索引文件时锁定。</strong></p>
 <h3 id="好处"><a href="#好处" class="headerlink" title="好处"></a>好处</h3><ul>
 <li><p>数据 writer 和 indexer 是解耦的，但它们彼此影响。</p>
 </li>
@@ -548,7 +548,7 @@
               
                 <a href="/archives/%7C%7C%20archive">
               
-                  <span class="site-state-item-count">154</span>
+                  <span class="site-state-item-count">157</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -570,7 +570,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">40</span>
+                  <span class="site-state-item-count">41</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

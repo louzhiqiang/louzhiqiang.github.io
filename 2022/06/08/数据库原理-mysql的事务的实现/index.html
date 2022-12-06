@@ -86,7 +86,7 @@
 <meta property="og:site_name" content="痒痒 团团 和 咘咘">
 <meta property="og:description" content="数据库原理–mysql的事务的实现最近在看数据库设计的书籍，看到了很多关于事务的实现。以前一直用的是mysql，mysql的底层书籍也看了几本，今天看到这里突然想温顾一下mysql中关于事务的实现。 概念理解好三个概念： redo logmysql 为了提升性能不会把每次的修改都实时同步到磁盘，而是会先存到Buffer Pool(缓冲池)里头，把这个当作缓存来用。然后使用后台线程去做缓冲池和磁盘之">
 <meta property="article:published_time" content="2022-06-08T11:39:22.000Z">
-<meta property="article:modified_time" content="2022-10-08T08:56:56.979Z">
+<meta property="article:modified_time" content="2022-10-14T00:10:58.522Z">
 <meta property="article:author" content="zhiqiang.lou">
 <meta property="article:tag" content="mysql">
 <meta name="twitter:card" content="summary">
@@ -362,7 +362,7 @@
 <p>理解好着三个概念，对于后续各种隔离级别也都可以很好理解他的实现了。</p>
 <p>事务中关于rollback是占据很重要的角色，为了处理它而占据的设计，占据一半的处理逻辑。</p>
 <h2 id="bin-log"><a href="#bin-log" class="headerlink" title="bin log"></a>bin log</h2><p>主要是记录了数据库的操作记录，支持格式 在mysql这里目前是mix，也就是statement 和 row 两种混合的，都存储。因为有些变量不能通过statement进行存储，会随着环境变化，这种statement在从库就会出现问题，导致主从库的数据不一致。</p>
-<h2 id="写入流程"><a href="#写入流程" class="headerlink" title="写入流程"></a>写入流程</h2><p>在文章里有一个图，可以翻看一下，我就这里记录一个关键点，就是驶入提交之后，所有的数据才会写进去，包括log。</p>
+<h2 id="写入流程"><a href="#写入流程" class="headerlink" title="写入流程"></a>写入流程</h2><p>在文章里有一个图，可以翻看一下，我就这里记录一个关键点，就是写入提交之后，所有的数据才会写进去，包括log。</p>
 <p>参考：</p>
 <p><a href="https://cloud.tencent.com/developer/article/1431307" target="_blank" rel="noopener">图文并茂讲解Mysql事务实现原理 - 云+社区 - 腾讯云</a></p>
 <p><a href="https://www.cnblogs.com/Jason-Born/p/7878401.html" target="_blank" rel="noopener">我理解的MVCC内部实现原理 - Bourne.D - 博客园</a></p>
@@ -487,7 +487,7 @@
               
                 <a href="/archives/%7C%7C%20archive">
               
-                  <span class="site-state-item-count">154</span>
+                  <span class="site-state-item-count">157</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -509,7 +509,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">40</span>
+                  <span class="site-state-item-count">41</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>

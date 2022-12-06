@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="doris," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="doris查询原理doris的上层mpp部分的查询主要分为四个过程：Analyze，SinglePlan，DistributedPlan，Schedule。这个过程跟presto的过程差不多，两者可以对比这学习。 Analyze 负责对 AST 进行前期的一些处理，SinglePlan 根据 AST 进行优化生成单机查询计划，DistributedPlan 将单机的查询计划拆成分布式的查询计划，S">
+<meta property="og:type" content="article">
+<meta property="og:title" content="doris查询原理">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/10/16/doris%E6%9F%A5%E8%AF%A2%E5%8E%9F%E7%90%86/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="doris查询原理doris的上层mpp部分的查询主要分为四个过程：Analyze，SinglePlan，DistributedPlan，Schedule。这个过程跟presto的过程差不多，两者可以对比这学习。 Analyze 负责对 AST 进行前期的一些处理，SinglePlan 根据 AST 进行优化生成单机查询计划，DistributedPlan 将单机的查询计划拆成分布式的查询计划，S">
+<meta property="og:image" content="https://github.com/images/4326a9cad256609a4de27912ddc07e56.png">
+<meta property="og:image" content="https://github.com/images/d1668d932ee4abf6ecf178b14661cacf.png">
+<meta property="og:image" content="https://github.com/images/a8cfc820f7d4e211c821253e5c9bcf84.png">
+<meta property="og:image" content="https://github.com/images/340f57691764bf70c9601a15631e0005.jpeg">
+<meta property="og:image" content="https://github.com/images/91e573c81f25c23cb42d967dfb7692be.png">
+<meta property="og:image" content="https://github.com/images/4197d9e0e18a4d38334937d0bf45e372.png">
+<meta property="og:image" content="https://github.com/images/2cf7964d4cb3001834e57532d467ad8d.png">
+<meta property="og:image" content="https://github.com/images/f217f1b8f4321424f66d4679b5367945.png">
+<meta property="og:image" content="https://github.com/images/b2a6b4950911a95e715154778b1777a4.png">
+<meta property="article:published_time" content="2022-10-16T08:17:01.000Z">
+<meta property="article:modified_time" content="2022-10-16T13:22:46.951Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="doris">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://github.com/images/4326a9cad256609a4de27912ddc07e56.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/10/16/doris查询原理/"/>
+
+
+
+
+
+  <title>doris查询原理 | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/10/16/doris%E6%9F%A5%E8%AF%A2%E5%8E%9F%E7%90%86/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">doris查询原理</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2022-10-16T16:17:01+08:00">
+                2022-10-16
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
+                    <span itemprop="name">大数据</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="doris查询原理"><a href="#doris查询原理" class="headerlink" title="doris查询原理"></a>doris查询原理</h1><p>doris的上层mpp部分的查询主要分为四个过程：Analyze，SinglePlan，DistributedPlan，Schedule。这个过程跟presto的过程差不多，两者可以对比这学习。</p>
+<p>Analyze 负责对 AST 进行前期的一些处理，SinglePlan 根据 AST 进行优化生成单机查询计划，DistributedPlan 将单机的查询计划拆成分布式的查询计划，Schedule 阶段负责决定查询计划下发到哪些机器上执行。</p>
+<h2 id="设计目标"><a href="#设计目标" class="headerlink" title="设计目标"></a>设计目标</h2><p>1、最大化计算的并行性：如何划分stage</p>
+<p>2、最小化数据的网络传输：如何分配任务以及中间数据的存储</p>
+<p>3、最大化减少需要扫描的数据：如何做到更加彻底的下推</p>
+<h2 id="查询总架构"><a href="#查询总架构" class="headerlink" title="查询总架构"></a>查询总架构</h2><p><img src="/images/4326a9cad256609a4de27912ddc07e56.png" alt=""></p>
+<p>Analyze 负责对 AST 进行前期的一些处理，SinglePlan 根据 AST 进行优化生成单机查询计划，DistributedPlan 将单机的查询计划拆成分布式的查询计划，Schedule 阶段负责决定查询计划下发到哪些机器上执行。</p>
+<p><img src="/images/d1668d932ee4abf6ecf178b14661cacf.png" alt=""></p>
+<h2 id="sql解析"><a href="#sql解析" class="headerlink" title="sql解析"></a>sql解析</h2><p>词法分析采用 jflex 技术，语法分析采用 java cup parser 技术，最后生成抽象语法树（Abstract Syntax Tree）AST，这些都是现有的、成熟的技术。</p>
+<p>逻辑计划阶段，是从AST转化为代数关系的阶段，代数关系是一棵算子树，每个节点代表一种对数据的计算方式，整棵树代表了数据的计算方式以及流动方向。</p>
+<p>如下：</p>
+<p><img src="/images/a8cfc820f7d4e211c821253e5c9bcf84.png" alt=""></p>
+<blockquote>
+<p>这个方式结合flink的数据流转方式进行思考。</p>
+</blockquote>
+<p>物理计划是在逻辑计划的基础上，根据机器的分布，数据的分布，决定去哪些机器上执行哪些计算操作。</p>
+<p>Doris 系统的 SQL 解析也是采用这些步骤，只不过根据 Doris 系统结构的特点和数据的存储方式，进行了细化和优化，最大化发挥机器的计算能力。</p>
+<h3 id="sql-parser"><a href="#sql-parser" class="headerlink" title="sql parser"></a>sql parser</h3><p>AST 是一种树状结构，代表着一条 SQL。不同类型的查询 select, insert, show, set, alter table, create table 等经过 Parse 阶段后生成不同的数据结构（SelectStmt, InsertStmt, ShowStmt, SetStmt, AlterStmt, AlterTableStmt, CreateTableStmt 等），但他们都继承自 Statement，并根据自己的语法规则进行一些特定的处理。例如：对于 select 类型的 sql， Parse 之后生成了 SelectStmt 结构。</p>
+<p>SelectStmt 结构包含了 SelectList，FromClause，WhereClause，GroupByClause，SortInfo 等结构。这些结构又包含了更基础的一些数据结构，如 WhereClause 包含了 BetweenPredicate（between 表达式）, BinaryPredicate（二元表达式）， CompoundPredicate（and or 组合表达式）, InPredicate（in 表达式）等。</p>
+<p><img src="/images/340f57691764bf70c9601a15631e0005.jpeg" alt=""></p>
+<blockquote>
+<p>以上结构基于不同的解析工具会有不同的节点类型，但是大体结构是一致的。</p>
+</blockquote>
+<h3 id="analyze"><a href="#analyze" class="headerlink" title="analyze"></a>analyze</h3><p>抽象语法树是由 StatementBase 这个抽象类表示。这个抽象类包含一个最重要的成员函数 analyze()，用来执行 Analyze 阶段要做的事。</p>
+<p>不同类型的查询 select, insert, show, set, alter table, create table 等经过 Parse 阶段后生成不同的数据结构（SelectStmt, InsertStmt, ShowStmt, SetStmt, AlterStmt, AlterTableStmt, CreateTableStmt 等），这些数据结构继承自 StatementBase，并实现 analyze() 函数，对特定类型的 SQL 进行特定的 Analyze。</p>
+<p>例如：select 类型的查询，会转成对 select sql 的子语句 SelectList, FromClause, GroupByClause, HavingClause, WhereClause, SortInfo 等的 analyze()。然后这些子语句再各自对自己的子结构进行进一步的 analyze()，通过层层迭代，把各种类型的 sql 的各种情景都分析完毕。例如：WhereClause 进一步分析其包含的 BetweenPredicate（between 表达式）, BinaryPredicate（二元表达式）， CompoundPredicate（and or 组合表达式）, InPredicate（in 表达式）等。</p>
+<blockquote>
+<p>这种解析设计方式是值得借鉴思考的，sql上层会按照不同的业务类型进行不同的具体实现，然后再确定了上层业务之后，底层根据上层的语境进行下属层次的迭代分析。每一种类型都有自己的结构，然后每种结构也会有自己的解析，直到遇到无法解析的就可以进行反馈。</p>
+</blockquote>
+<p><strong>对于查询类型的 SQL，包含以下几项重要工作：</strong></p>
+<ul>
+<li><p><strong>元信息的识别和解析：</strong>识别和解析 sql 中涉及的 Cluster, Database, Table, Column 等元信息，确定需要对哪个集群的哪个数据库的哪些表的哪些列进行计算。</p>
+</li>
+<li><p><strong>SQL 的合法性检查：</strong>窗口函数不能 DISTINCT，投影列是否有歧义，where 语句中不能含有 grouping 操作等。</p>
+</li>
+<li><p><strong>SQL 简单重写：</strong>比如将 select * 扩展成 select 所有列，count distinct 转成 bitmap 或者 hll 函数等。</p>
+</li>
+<li><p><strong>函数处理：</strong>检查 sql 中包含的函数和系统定义的函数是否一致，包括参数类型，参数个数等。</p>
+</li>
+<li><p><strong>Table 和 Column 的别名处理</strong></p>
+</li>
+<li><p><strong>类型检查和转换：</strong>例如二元表达式两边的类型不一致时，需要对其中一个类型进行转换（BIGINT 和 DECIMAL 比较，BIGINT 类型需要 Cast 成 DECIMAL）。</p>
+</li>
+</ul>
+<blockquote>
+<p>以上每个环节都是有各自作用的，而且每一部都很重要，自己之前对于每一步骤其实都有涉及，但是把每个步骤更好的划分，做得不够，可以参考这个架构，好的架构对于规则的扩展很重要。</p>
+</blockquote>
+<p>对 AST 进行 analyze 后，会再进行一次 rewrite 操作，进行精简或者是转成统一的处理方式。<strong>目前 rewrite 的算法是基于规则的方式，针对 AST 的树状结构，自底向上，应用每一条规则进行重写。如果重写后，AST 有变化，则再次进行 analyze 和 rewrite，直到 AST 无变化为止。</strong></p>
+<p>例如：常量表达式的化简：1 + 1 + 1 重写成 3，1 &gt; 2 重写成 Flase 等。将一些语句转成统一的处理方式，比如将 where in, where exists 重写成 semi join, where not in, where not exists 重写成 anti join。</p>
+<h3 id="生成单机逻辑-Plan-阶段"><a href="#生成单机逻辑-Plan-阶段" class="headerlink" title="生成单机逻辑 Plan 阶段"></a><strong>生成单机逻辑 Plan 阶段</strong></h3><p>这部分工作主要是根据 AST 抽象语法树生成代数关系，也就是俗称的算子数。树上的每个节点都是一个算子，代表着一种操作。</p>
+<p>比如常见的算子操作：scan、sort、exchange、hashJoin、project等</p>
+<p><strong>具体来说这个阶段主要做了如下几项工作：</strong></p>
+<ul>
+<li><p><strong>Slot 物化：</strong>指确定一个表达式对应的列需要 Scan 和计算，比如聚合节点的聚合函数表达式和 Group By 表达式需要进行物化。</p>
+</li>
+<li><p><strong>投影下推：</strong>BE 在 Scan 时只会 Scan 必须读取的列。</p>
+</li>
+<li><p><strong>谓词下推：</strong>在满足语义正确的前提下将过滤条件尽可能下推到 Scan 节点。</p>
+</li>
+<li><p><strong>分区，分桶裁剪：</strong>根据过滤条件中的信息，确定需要扫描哪些分区，哪些桶的 tablet。</p>
+</li>
+<li><p><strong>Join Reorder：</strong>对于 Inner Join, Doris 会根据行数调整表的顺序，将大表放在前面。</p>
+</li>
+<li><p><strong>Sort + Limit 优化成 TopN：</strong>对于 order by limit 语句会转换成 TopN 的操作节点，方便统一处理。</p>
+</li>
+<li><p><strong>MaterializedView 选择：</strong>会根据查询需要的列，过滤，排序和 Join 的列，行数，列数等因素选择最佳的物化视图。</p>
+</li>
+</ul>
+<blockquote>
+<p>基于以上优化，可以最大程度减少分布式执行的资源消耗。其实在规则上还远远不止以上这些。</p>
+</blockquote>
+<h3 id="生成分布式-Plan-阶段"><a href="#生成分布式-Plan-阶段" class="headerlink" title="生成分布式 Plan 阶段"></a><strong>生成分布式 Plan 阶段</strong></h3><p>有了单机的 PlanNode 树之后，就需要进一步根据分布式环境，拆成分布式 PlanFragment 树（PlanFragment 用来表示独立的执行单元），毕竟一个表的数据分散地存储在多台主机上，完全可以让一些计算并行起来。</p>
+<blockquote>
+<p>这个计划决定了一个MPP架构数据服务可以支持的场景。</p>
+</blockquote>
+<p>这个步骤的主要目标是<strong>最大化并行度和数据本地化</strong>。主要方法是<strong>将能够并行执行的节点拆分出去单独建立一个 PlanFragment，用 ExchangeNode 代替被拆分出去的节点，用来接收数据</strong>。拆分出去的节点增加一个 DataSinkNode，用来将计算之后的数据传送到 ExchangeNode 中，做进一步的处理。</p>
+<p>这个过程跟spark的物理计划很像，flink的物理计划产出也是这样的，都是在stage之间进行拆解的时候，进行一些输入和输出的节点的增加。</p>
+<blockquote>
+<p>这个过程跟后端架构的搭建很像，增加中间节点往往就可以进行解耦，但是如何做减法，面对的场景可以有更好的扩展性，才是这里最难的。</p>
+</blockquote>
+<p>这一步采用递归的方法，自底向上，遍历整个 PlanNode 树，然后给树上的每个叶子节点创建一个 <strong>PlanFragment</strong>，如果碰到父节点，则考虑将其中能够并行执行的子节点拆分出去，父节点和保留下来的子节点组成一个<strong>parent PlanFragment</strong>。拆分出去的子节点增加一个父节点 DataSinkNode 组成一个 child PlanFragment，child PlanFragment 指向 parent PlanFragment。这样就确定了<strong>数据的流动方向</strong>。</p>
+<p>以join为例：</p>
+<p><strong>Doris 目前支持 4 种 join 算法：</strong>broadcast join，hash partition join，colocate join，bucket shuffle join。</p>
+<p><strong>broadcast join：</strong>将小表发送到大表所在的每台机器，然后进行 hash join 操作。当一个表扫描出的数据量较少时，计算 broadcast join 的 cost，通过计算比较 hash partition 的 cost，来选择 cost 最小的方式。</p>
+<p><strong>hash partition join：</strong>当两张表扫描出的数据都很大时，一般采用 hash partition join。它遍历表中的所有数据，计算 key 的哈希值，然后对集群数取模，选到哪台机器，就将数据发送到这台机器进行 hash join 操作。</p>
+<p><strong>colocate join：</strong>两个表在创建的时候就指定了数据分布保持一致，那么当两个表的 join key 与分桶的 key 一致时，就会采用 colocate join 算法。由于两个表的数据分布是一样的，那么 hash join 操作就相当于在本地，不涉及到数据的传输，极大提高查询性能。</p>
+<p><strong>bucket shuffle join：</strong>当 join key 是分桶 key，并且只涉及到一个分区时，就会优先采用 bucket shuffle join 算法。由于分桶本身就代表了数据的一种切分方式，所以可以利用这一特点，只需将右表对左表的分桶数 hash 取模，这样只需网络传输一份右表数据，极大减少了数据的网络传输，如下图所示bucket shuffle join 示例。</p>
+<p><img src="/images/91e573c81f25c23cb42d967dfb7692be.png" alt=""></p>
+<p>下边看一下HashJoinNode的实现逻辑：</p>
+<ul>
+<li>对 PlanNode，自底向上创建 PlanFragment。</li>
+<li>如果是 ScanNode，则直接创建一个 PlanFragment，PlanFragment 的 RootPlanNode 是这个 ScanNode。</li>
+<li>如果是 HashJoinNode，则首先计算下 broadcastCost，为选择 boracast join 还是 hash partition join 提供参考。</li>
+<li>根据不同的条件判断选择哪种 Join 算法</li>
+<li>如果使用 colocate join，由于 join 操作都在本地，就不需要拆分。设置 HashJoinNode 的左子节点为 leftFragment 的 RootPlanNode，右子节点为 rightFragment 的 RootPlanNode，与 leftFragment 共用一个 PlanFragment，删除掉 rightFragment。</li>
+<li>如果使用 bucket shuffle join，需要将右表的数据发送给左表。所以先创建了一个 ExchangeNode，设置 HashJoinNode 的左子节点为 leftFragment 的 RootPlanNode，右子节点为这个 ExchangeNode，与 leftFragment 共用一个 PlanFragment，并且指定 rightFragment 数据发送的目的地为这个 ExchangeNode。</li>
+<li>如果使用 broadcast join，需要将右表的数据发送给左表。所以先创建了一个 ExchangeNode，设置 HashJoinNode 的左子节点为 leftFragment 的 RootPlanNode，右子节点为这个 ExchangeNode，与 leftFragment 共用一个 PlanFragment，并且指定 rightFragment 数据发送的目的地为这个 ExchangeNode。</li>
+<li>如果使用 hash partition join，左表和右边的数据都要切分，需要将左右节点都拆分出去，分别创建 left ExchangeNode, right ExchangeNode，HashJoinNode 指定左右节点为 left ExchangeNode 和 right ExchangeNode。单独创建一个 PlanFragment，指定 RootPlanNode 为这个 HashJoinNode。最后指定 leftFragment, rightFragment 的数据发送目的地为 left ExchangeNode, right ExchangeNode。</li>
+</ul>
+<p>以下就是上边的过程：</p>
+<p><img src="/images/4197d9e0e18a4d38334937d0bf45e372.png" alt=""></p>
+<p>下图是两个表的 join 操作转换成 PlanFragment 树之后的示例，一共生成了 3 个 PlanFragment。最终数据的输出通过 ResultSinkNode 节点。</p>
+<p><img src="/images/2cf7964d4cb3001834e57532d467ad8d.png" alt=""></p>
+<h3 id="Schedule-阶段"><a href="#Schedule-阶段" class="headerlink" title="Schedule 阶段"></a><strong>Schedule 阶段</strong></h3><p>这一步是根据分布式逻辑计划，创建分布式物理计划。主要解决以下问题：</p>
+<ul>
+<li>哪个 BE 执行哪个 PlanFragment</li>
+<li>每个 Tablet 选择哪个副本去查询</li>
+<li>如何进行多实例并发</li>
+</ul>
+<p>创建物理计划的核心流程：</p>
+<p><img src="/images/f217f1b8f4321424f66d4679b5367945.png" alt=""></p>
+<p><strong>prepare 阶段：</strong>给每个 PlanFragment 创建一个 FragmentExecParams 结构，用来表示 PlanFragment 执行时所需的所有参数；如果一个 PlanFragment 包含有 DataSinkNode，则找到数据发送的目的 PlanFragment，然后指定目的 PlanFragment 的 FragmentExecParams 的输入为该 PlanFragment 的 FragmentExecParams。</p>
+<p> <strong>computeScanRangeAssignment 阶段：</strong>针对不同类型的 join 进行不同的处理。</p>
+<ul>
+<li><strong>computeScanRangeAssignmentByColocate：</strong>针对 colocate join 进行处理，由于 join 的两个表桶中的数据分布都是一样的，他们是基于桶的 join 操作，所以在这里是确定每个桶选择哪个 host。在给 host 分配桶时，尽量保证每个 host 分配到的桶基本平均。</li>
+<li><strong>computeScanRangeAssignmentByBucket：</strong>针对 bucket shuffle join 进行处理，也只是基于桶的操作，所以在这里是确定每个桶选择哪个 host。在给 host 分配桶时，同样需要尽量保证每个 host 分配到的桶基本平均。</li>
+<li><strong>computeScanRangeAssignmentByScheduler：</strong>针对其他类型的 join 进行处理。确定每个 scanNode 读取 tablet 哪个副本。一个 scanNode 会读取多个 tablet，每个 tablet 有多个副本。为了使 scan 操作尽可能分散到多台机器上执行，提高并发性能，减少 IO 压力，Doris 采用了 Round-Robin 算法，使 tablet 的扫描尽可能地分散到多台机器上去。例如 100 个 tablet 需要扫描，每个 tablet 3 个副本，一共 10 台机器，在分配时，保障每台机器扫描 10 个 tablet。</li>
+</ul>
+<p><strong>computeFragmentExecParams 阶段：</strong>这个阶段解决 PlanFragment 下发到哪个 BE 上执行，以及如何处理实例并发问题。确定了每个 tablet 的扫描地址之后，就可以以地址为维度，将 FragmentExecParams 生成多个实例，也就是 FragmentExecParams 中包含的地址有多个，就生成多个实例 FInstanceExecParam。如果设置了并发度，那么一个地址的执行实例再进一步的拆成多个 FInstanceExecParam。针对 bucket shuffle join 和 colocate join 会有一些特殊处理，但是基本思想一样。FInstanceExecParam 创建完成后，会分配一个唯一的 ID，方便追踪信息。如果 FragmentExecParams 中包含有 ExchangeNode，需要计算有多少 senders，以便知道需要接受多少个发送方的数据。最后 FragmentExecParams 确定 destinations，并把目的地址填充上去。</p>
+<p><strong>create result receiver 阶段：</strong>result receiver 是查询完成后，最终数据需要输出的地方。</p>
+<p> <strong>to thrift 阶段：</strong>根据所有 PlanFragment 的 FInstanceExecParam 创建 rpc 请求，然后下发到 BE 端执行。这样一个完整的 SQL 解析过程完成了。</p>
+<p>下图是一个简单的事例：</p>
+<p><img src="/images/b2a6b4950911a95e715154778b1777a4.png" alt=""></p>
+<p>图中的 PlanFrament 包含了一个 ScanNode，ScanNode 扫描 3 个 tablet，每个 tablet 有 2 副本，集群假设有 2 台 host。</p>
+<p>computeScanRangeAssignment 阶段确定了需要扫描 replica 1,3,5,8,10,12，其中 replica 1,3,5 位于 host1 上，replica 8,10,12 位于 host2 上。</p>
+<p>如果全局并发度设置为 1 时，则创建 2 个实例 FInstanceExecParam，下发到 host1 和 host2 上去执行，如果如果全局并发度设置为 3，这个 host1 上创建 3 个实例 FInstanceExecParam，host2 上创建 3 个实例 FInstanceExecParam，每个实例扫描一个 replica，相当于发起 6 个 rpc 请求。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>每一步骤都很重要，然而针对并发度的设置以及不同的文件布局，实际进行调度的时候，会有很多细节，所以mpp架构的数据查询，最有差异的就是这个调度算法以及可以提供的上下文的差异，不同的上下文可以支持的算法是不一样的，这个部分可以多多思考。</p>
+<blockquote>
+<p>注意上边doris的原则</p>
+</blockquote>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/doris/" rel="tag"># doris</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2022/09/26/spark%E4%BC%98%E5%8C%96%E6%A1%88%E4%BE%8B/" rel="next" title="spark优化案例">
+                <i class="fa fa-chevron-left"></i> spark优化案例
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2022/10/27/sql%E9%9D%A2%E8%AF%95%E9%A2%98%E6%B1%87%E6%80%BB/" rel="prev" title="sql面试题汇总">
+                sql面试题汇总 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">157</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">20</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">41</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#doris查询原理"><span class="nav-number">1.</span> <span class="nav-text">doris查询原理</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#设计目标"><span class="nav-number">1.1.</span> <span class="nav-text">设计目标</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#查询总架构"><span class="nav-number">1.2.</span> <span class="nav-text">查询总架构</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#sql解析"><span class="nav-number">1.3.</span> <span class="nav-text">sql解析</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#sql-parser"><span class="nav-number">1.3.1.</span> <span class="nav-text">sql parser</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#analyze"><span class="nav-number">1.3.2.</span> <span class="nav-text">analyze</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#生成单机逻辑-Plan-阶段"><span class="nav-number">1.3.3.</span> <span class="nav-text">生成单机逻辑 Plan 阶段</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#生成分布式-Plan-阶段"><span class="nav-number">1.3.4.</span> <span class="nav-text">生成分布式 Plan 阶段</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Schedule-阶段"><span class="nav-number">1.3.5.</span> <span class="nav-text">Schedule 阶段</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#总结"><span class="nav-number">1.4.</span> <span class="nav-text">总结</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>

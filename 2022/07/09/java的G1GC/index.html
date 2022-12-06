@@ -85,19 +85,19 @@
 <meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/07/09/java%E7%9A%84G1GC/index.html">
 <meta property="og:site_name" content="痒痒 团团 和 咘咘">
 <meta property="og:description" content="java的G1GC针对ParNew + CMS的问题：  长时间运行无法避免 Full GC Remark 阶段 STW 时间较长  CMS 垃圾回收器在 JDK9 被标记弃用，慢慢开始退出历史舞台。JVM 重新设计了另一款垃圾回收器 G1，有效地解决了 CMS 垃圾回收器遇到的上述两大问题。 G1 回收器核心数据结构 Region  为什么 CMS 垃圾回收器长时间运行无法避免 FGC？本质是因">
-<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/02/20220223110802_31056.png">
-<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/02/20220223110835_14416.png">
-<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/02/20220223111122_11538.png">
-<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/02/20220223111252_99631.png">
-<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/02/20220223113126_61327.png">
-<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/02/20220223111448_86679.png">
-<meta property="og:image" content="http://hbasefly.com/wp-content/uploads/2022/02/20220223111635_53744.png">
+<meta property="og:image" content="https://github.com/images/20220223110802_31056.png">
+<meta property="og:image" content="https://github.com/images/20220223110835_14416.png">
+<meta property="og:image" content="https://github.com/images/20220223111122_11538.png">
+<meta property="og:image" content="https://github.com/images/20220223111252_99631.png">
+<meta property="og:image" content="https://github.com/images/20220223113126_61327.png">
+<meta property="og:image" content="https://github.com/images/20220223111448_86679.png">
+<meta property="og:image" content="https://github.com/images/20220223111635_53744.png">
 <meta property="article:published_time" content="2022-07-09T09:20:32.000Z">
-<meta property="article:modified_time" content="2022-10-12T08:35:07.808Z">
+<meta property="article:modified_time" content="2022-10-12T11:40:52.879Z">
 <meta property="article:author" content="zhiqiang.lou">
 <meta property="article:tag" content="java">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="http://hbasefly.com/wp-content/uploads/2022/02/20220223110802_31056.png">
+<meta name="twitter:image" content="https://github.com/images/20220223110802_31056.png">
 
 
 
@@ -360,7 +360,7 @@
 </ol>
 <p>为什么 CMS 垃圾回收器长时间运行无法避免 FGC？本质是因为 CMS 垃圾回收器中老年代采用标记清理算法，这种算法会产生较多内存碎片，当内存碎片很碎无法给对象分配出连续空间的时候，JVM 就会触发 FGC 整理老年代。那有些同学就会问为什么不在每次老年代 GC 的时候执行整理操作呢？这主要是因为老年代如果很大的话，整理一次 STW 的时间会不可控。那怎么破这个局呢？JVM 设计者提出了一个思路：老年代不是很大吗，那就将老年代<strong>划分成很多小的格子</strong>，在此基础上 GC 算法基本不变，还是先标记，不过在标记完成后，<strong>按照优先级选择部分格子使用复制算法进行整理</strong>，这样每次整理的内存空间是可控的，STW 的时间就相对可控，而且因为使用复制算法就不再会出现内存碎片。对，这就是 G1 垃圾回收器的核心设计思想。</p>
 <p>G1 是一个分代回收器，它依然保留了”ParNew+CMS” 垃圾回收器中新生代和老年代的分代逻辑。但与”ParNew+CMS” 回收器不同的是，它引入了一个新的数据结构 – <strong>Region</strong>，也就是上文中笔者提到的小格子。G1 垃圾回收器会把整个堆划分成一个个大小相等的 Region，每个 Region 的大小可以通过参数设置，通常大小在 1~32M 之间，默认大小取决于总堆的大小。下图是 G1 回收器堆划分的示意图：</p>
-<p><img src="http://hbasefly.com/wp-content/uploads/2022/02/20220223110802_31056.png" alt="img"></p>
+<p><img src="/images/20220223110802_31056.png" alt="img"></p>
 <blockquote>
 <p>他是把整个内存进行了划分，而不是只有老年代。</p>
 </blockquote>
@@ -379,7 +379,7 @@
 <p><strong>RSet 是什么样的数据结构呢？</strong></p>
 <p>在 G1 实现中，每个 Region 会被划分成很多 512Byte 大小的小块，这样一个 32M 的 Region 就会被划分为 65536 个小块。与之大小对应的会有一个长度为 65536 的 <strong>Card Table 数组</strong>，数组的每个元素只有 1Byte，对应 Region 的每个小块。Card Table 数组这个结构和 CMS 垃圾回收器中 Card Table 是相同的。</p>
 <p>除了 Card Table 数组之外，每个 Region 还会有一个 <strong>RSet 数据结构</strong>，RSet 主要用来记录<strong>哪个 Region 的哪个 Card 上的对象引用了本 Region 中的对象</strong>。实际实现中，RSet 默认是一个 <strong>HashMap，Map 的 key 是引用 Region，value 是一个 List，List 中存储引用 Region 中的引用 Card 列表</strong>。Region、Card Table 以及 RSet 的示意图如下所示：</p>
-<p><img src="http://hbasefly.com/wp-content/uploads/2022/02/20220223110835_14416.png" alt="img"></p>
+<p><img src="/images/20220223110835_14416.png" alt="img"></p>
 <p>上图中，RegionA 和 RegionB 中分别有对象引用 RegionC 中的对象，在 RegionC 对应的 RSet 就会记录这样的引用关系。该 RSet 中有两个 KV 对，第一个 KV 对的 key 是 RegionA，value 是一个列表，列表中有两个元素 3 和 65534，分别代表 RegionA 中引用对象在对应 Card Table 中的下标。第二个 KV 对的 key 是 RegionB，value 中列表只有一个元素 1565，代表 RegionB 中引用对象在对应 Card Table 中的下标。</p>
 <blockquote>
 <p>Rset主要是记录了谁引用了我这里的元素</p>
@@ -398,9 +398,9 @@
 <p><strong>G1 是如何管理 RSet 的？</strong></p>
 <p>G1 会创建一个用于管理 RSet 的线程池，这些线程称为 Refine 线程。G1 中 RSet 的更新不是同步完成的，G1 会把所有引用关系都先放入一个队列中，称为 <strong>Dirty Card Queue（DCQ）</strong>，然后使用 Refine 线程来消费这个队列完成引用关系的记录并更新 RSet。如果 Refine 线程忙不过来，GC 线程以及应用线程也可能会协助更新 RSet。</p>
 <h4 id="G1-回收器核心工作流程"><a href="#G1-回收器核心工作流程" class="headerlink" title="G1 回收器核心工作流程"></a><strong>G1 回收器核心工作流程</strong></h4><p>先简单回顾一下”ParNew+CMS” 回收器的工作流程:</p>
-<p><img src="http://hbasefly.com/wp-content/uploads/2022/02/20220223111122_11538.png" alt="img"></p>
+<p><img src="/images/20220223111122_11538.png" alt="img"></p>
 <p>G1 回收器核心工作流程与”ParNew+CMS” 回收器基本相同，参考上图看下图：</p>
-<p><img src="http://hbasefly.com/wp-content/uploads/2022/02/20220223111252_99631.png" alt="img"></p>
+<p><img src="/images/20220223111252_99631.png" alt="img"></p>
 <p>对比”ParNew+CMS” 回收器工作流程，G1 中同样会比较频繁地进行新生代 YGC，同样也有老年代并发标记周期。不同的是，G1 在并发标记之后并<strong>没有直接清理全部垃圾对象</strong>，而是新增了一个<strong>混合收集周期</strong>，这个周期包含多次 Mixed GC，每次 Mixed GC 只会<strong>回收部分 Region</strong>，直至未处理 Region 集合占比低于特定阈值。之所以将这个周期称为”Mixed Collection Cycle”，是因为每次 Mixed GC 都会同时回收新生代和老生代中的 Region。</p>
 <p>上图中，IHOP(InitiatingHeapOccupancyPercent) Trigger 代表” 并发标记周期” 触发的阈值。一旦当前 JVM 已使用内存 / 总堆内存超过这个阈值，就会触发并发标记。</p>
 <p>虽然 G1 回收器的工作流程和”ParNew+CMS” 回收器差的不是很多，但是每个核心步骤的具体实现却有很大的不同。接下来分别来看 G1 中的 YGC、Concurrent Marking Cycle 以及 Mixed GC 的一些核心实现细节。</p>
@@ -414,9 +414,9 @@
 </li>
 <li>复制阶段：将标记活跃的对象复制到其他 Region 中。</li>
 </ul>
-<p><img src="http://hbasefly.com/wp-content/uploads/2022/02/20220223113126_61327.png" alt="img"></p>
+<p><img src="/images/20220223113126_61327.png" alt="img"></p>
 <h4 id="Concurrent-Marking-Cycle-核心流程"><a href="#Concurrent-Marking-Cycle-核心流程" class="headerlink" title="Concurrent Marking Cycle 核心流程"></a><strong>Concurrent Marking Cycle 核心流程</strong></h4><p>根据上文介绍，一旦”JVM 已使用内存 / 总内存” 的比例超过设定阈值 IHOP（InitiatingHeapOccupancyPercent）后，G1 会执行一次 Concurrent Marking Cycle，并在之后进行多轮 Mixed GC。和 CMS 回收器基本一样，G1 中一轮并发标记周期包含初始标记、并发标记、重新标记，再加上一个 cleanup 阶，这样就可以完成整堆所有 Region 的对象标记。下面是一段 G1 回收器中并发标记周期的完整日志：</p>
-<p><img src="http://hbasefly.com/wp-content/uploads/2022/02/20220223111448_86679.png" alt="img"></p>
+<p><img src="/images/20220223111448_86679.png" alt="img"></p>
 <ul>
 <li><p>初始标记（Initial Marking）：初始化标记是伴随一次普通的 YGC 发生的，从 GC Root 开始标记直接可达的对象。</p>
 </li>
@@ -447,7 +447,7 @@
 <li>应用线程在并发标记过程中<strong>新生成的活跃对象</strong>因为某些原因没有被标记线程标记。</li>
 <li>应用线程在并发标记过程中<strong>变更引用关系</strong>的时候在特定场景下会出现漏标，具体场景涉及标记算法” 三色标记法”，详细可以阅读文章《【大内存服务 GC 实践】- 一文看懂”ParNew+CMS” 垃圾回收器》。这里只简单进行描述：</li>
 </ol>
-<p><img src="http://hbasefly.com/wp-content/uploads/2022/02/20220223111635_53744.png" alt="img"></p>
+<p><img src="/images/20220223111635_53744.png" alt="img"></p>
 <p>如上图所示，老年代中有三个对象 A、B 和 C，在标记之前的引用关系是 A 引用 B，B 引用 C。先分别介绍一下他们的标记情况：</p>
 <ul>
 <li>对象 A 已经被标记为黑色，表示为 A 为活跃对象且所有它引用的对象也完成标记。</li>
@@ -593,7 +593,7 @@
               
                 <a href="/archives/%7C%7C%20archive">
               
-                  <span class="site-state-item-count">154</span>
+                  <span class="site-state-item-count">157</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -615,7 +615,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">40</span>
+                  <span class="site-state-item-count">41</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
