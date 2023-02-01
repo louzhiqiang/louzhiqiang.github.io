@@ -6,7 +6,7 @@
   <link href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/atom.xml" rel="self"/>
   
   <link href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/"/>
-  <updated>2022-10-30T12:53:22.108Z</updated>
+  <updated>2023-02-01T00:27:04.242Z</updated>
   <id>https://github.com/louzhiqiang/louzhiqiang.github.io.git/</id>
   
   <author>
@@ -17,26 +17,97 @@
   <generator uri="https://hexo.io/">Hexo</generator>
   
   <entry>
+    <title>读书笔记--数据库系统内幕（二）</title>
+    <link href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2023/01/31/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0-%E6%95%B0%E6%8D%AE%E5%BA%93%E7%B3%BB%E7%BB%9F%E5%86%85%E5%B9%95%EF%BC%88%E4%BA%8C%EF%BC%89/"/>
+    <id>https://github.com/louzhiqiang/louzhiqiang.github.io.git/2023/01/31/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0-%E6%95%B0%E6%8D%AE%E5%BA%93%E7%B3%BB%E7%BB%9F%E5%86%85%E5%B9%95%EF%BC%88%E4%BA%8C%EF%BC%89/</id>
+    <published>2023-01-31T08:58:00.000Z</published>
+    <updated>2023-02-01T00:27:04.242Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="第二章-B树基础知识"><a href="#第二章-B树基础知识" class="headerlink" title="第二章 B树基础知识"></a>第二章 B树基础知识</h2><p>不可变性是影响数据库设计和实现的核心概念之一。</p><p>B树是从二分搜索树、2-3树、AVL树发展过来的，都是根据场景和数据库业务功能的需求来推动的。</p><h3 id="二分搜索树"><a href="#二分搜索树" class="headerlink" title="二分搜索树"></a>二分搜索树</h3><p>二分搜索树，一个节点的键大于其左子树的存储的任何键，且小于其右子树中存储的任何键。</p><ul><li>从根节点开始一直沿着节点的左指针向下，可以到达叶子层的一个节点，这个节点就是整棵树中最小键以及他的关联值。</li><li>从根节点开始一直沿着节点的右指针向下，可以达到叶子层的一个节点，这个节点就是整棵树中最大键以及他的关联值。</li></ul><p>二分搜索树，如果分布不均衡，最差的情况，时间复杂度会从 logN 退化到 N。</p><p>平衡树 指的是高度为 log2N的树，并且两个子树之间的高度差不大于1。</p><p>树的平衡是通过以最小化树高并将每一边的节点数保持在界限内的方式重新组织节点来完成的。方法之一就是在添加或者删除节点后执行旋转。</p><p>为了保证树的查询效率，要保证树的平衡，才能尽量保证查询复杂度在log2n。然而，由于二分搜索树的扇出较低，就需要不断去进行平衡操作、重定位节点以及更新指针，而这些操作对于磁盘上的数据结构而言，都是致命的。</p><p>想在磁盘上维护二分搜索树，需要注意：</p><ul><li><p>局部性：元素是以随机顺序添加的，所以不能保证新创建的节点是在其父节点附近写入的，这也就意味着节点子指针可能会跨越多个磁盘页。</p><blockquote><p>通过修改树的布局和使用分页二分树，可以在一定程度上优化这个。</p></blockquote></li><li><p>树高，与游历子指针的开销密切相关。树高代表访问磁盘的次数。</p><blockquote><p>低扇出的数据结构在磁盘存储上，都会有这些弊端。</p></blockquote></li></ul><p>综上，适合磁盘的的树必须具有以下属性：</p><ul><li>高扇出，以改善邻近键的数据局部性。</li><li>低高度，减少遍历期间的寻道次数。</li></ul><h3 id="基于磁盘的结构"><a href="#基于磁盘的结构" class="headerlink" title="基于磁盘的结构"></a>基于磁盘的结构</h3><p>持久性介质会由于自己硬件运行的原理，存在一些限制，这些限制是作为这个数据结构是否适合当前介质的主要参考方向。</p><h4 id="机械硬盘"><a href="#机械硬盘" class="headerlink" title="机械硬盘"></a>机械硬盘</h4><p>在旋转型磁盘上，寻道增加了随机读取的成本，因为其需要磁盘旋转和机械磁头运动来将读/写磁头定位到期望的位置。完成了寻道操作，后续读取的操作就快很多了。</p><blockquote><p>旋转型驱动器的最小传送单元是扇区，读或者写的都是整个扇区，大小一般是512字节到4KB不等。</p></blockquote><p>磁头定位是机械硬盘操作中成本最高的部分。这也就是我们说“顺序IO带来正面增效”的主要原因。</p><h4 id="固态硬盘"><a href="#固态硬盘" class="headerlink" title="固态硬盘"></a>固态硬盘</h4><p>固态硬盘的原理有些类似于jvm虚拟机里G1的垃圾回收方式，依靠region管理。SSD的擦除实体是块。他的单位从大到小依次是：晶圆核心、平面、块、页、阵列、串、记忆单元。</p><p>可写或者可读的最小单元是页。块中的页是需要按序写入的。中间有个闪存转换层（FTL）管理页的状态等，这个类似于操作系统对于物理内存的管理。这样中间页ID跟数据的变化，会用这个FTL来兼容，对于上层也就是可以做到透明了。</p><p>在SSD中，随机读取和顺序读取之间的延迟差异并不大。不过由于预取、读取连续的页和内部并行性，还是有差异，这个其实是不同硬件提供的接口是有差异的。</p><h4 id="磁盘存储结构"><a href="#磁盘存储结构" class="headerlink" title="磁盘存储结构"></a>磁盘存储结构</h4><p>磁盘操作的最小单元是块这一事实，是构建有效的磁盘存储结构的主要限制和设计条件。</p><p>想尽办法用好上边的特性，减少磁盘访问。我们可以通过提高局部性，优化结构的内部表示以及减少页外指针数量来实现这一点。</p><blockquote><p>分页二分树：通过将节点分组到页来设计二分数的布局。</p></blockquote><h3 id="B树"><a href="#B树" class="headerlink" title="B树"></a>B树</h3><p>将B树看成是图书馆里的一个巨大的目录室：先选择正确的柜子，然后在柜子里选择正确的架子，接下来在架子上选择正确的抽屉，最后浏览抽屉里的卡片，然后就能定位到自己需要的那一个。B树就是构建了一个帮助快速导航和定位搜索项的层次结构。</p><p>B树节点内的键是按顺序存储的。</p><p>B树可以做到在每个层次跳转的时候，进行一次磁盘传输。</p><p>B树的兄弟节点可以互相关联形成一个双向链表，对于范围查询方便很多。把这些特性跟实际查询的时候的谓词进行关联，会更明确一些查询的细节。</p><p>B树是一种用于组织和导航固定大小页的页组织技术。</p><blockquote><p>B树允许在根节点、内部节点和叶子节点当中的任意层次上进行存储值。</p><p>B+树则仅在叶子节点上存储值，内部节点仅存储分隔键，用于指引搜索算法去找到叶子节点的关联值。而且他是自下而上构建的。</p></blockquote><p>B树节点的分裂和合并都是自下而上的。而且是逐层向上传导的。分裂和合并的过程主要就类似于双链表增加节点和删除节点的过程，这里主要是注意一下指针的变更。</p>]]></content>
+    
+    
+      
+      
+    <summary type="html">&lt;h2 id=&quot;第二章-B树基础知识&quot;&gt;&lt;a href=&quot;#第二章-B树基础知识&quot; class=&quot;headerlink&quot; title=&quot;第二章 B树基础知识&quot;&gt;&lt;/a&gt;第二章 B树基础知识&lt;/h2&gt;&lt;p&gt;不可变性是影响数据库设计和实现的核心概念之一。&lt;/p&gt;
+&lt;p&gt;B树是从二分搜</summary>
+      
+    
+    
+    
+    <category term="读书笔记" scheme="https://github.com/louzhiqiang/louzhiqiang.github.io.git/categories/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/"/>
+    
+    
+    <category term="数据库" scheme="https://github.com/louzhiqiang/louzhiqiang.github.io.git/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>clickhouse--DDL原理</title>
+    <link href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2023/01/31/clickhouse-DDL%E5%8E%9F%E7%90%86/"/>
+    <id>https://github.com/louzhiqiang/louzhiqiang.github.io.git/2023/01/31/clickhouse-DDL%E5%8E%9F%E7%90%86/</id>
+    <published>2023-01-31T02:28:34.000Z</published>
+    <updated>2023-01-31T08:05:34.386Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="clickhouse-ddl原理"><a href="#clickhouse-ddl原理" class="headerlink" title="clickhouse ddl原理"></a>clickhouse ddl原理</h2>]]></content>
+    
+    
+      
+      
+    <summary type="html">&lt;h2 id=&quot;clickhouse-ddl原理&quot;&gt;&lt;a href=&quot;#clickhouse-ddl原理&quot; class=&quot;headerlink&quot; title=&quot;clickhouse ddl原理&quot;&gt;&lt;/a&gt;clickhouse ddl原理&lt;/h2&gt;</summary>
+      
+    
+    
+    
+    <category term="clickhouse" scheme="https://github.com/louzhiqiang/louzhiqiang.github.io.git/categories/clickhouse/"/>
+    
+    
+    <category term="ddl" scheme="https://github.com/louzhiqiang/louzhiqiang.github.io.git/tags/ddl/"/>
+    
+  </entry>
+  
+  <entry>
+    <title>读书笔记--数据库系统内幕</title>
+    <link href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2023/01/29/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0-%E6%95%B0%E6%8D%AE%E5%BA%93%E7%B3%BB%E7%BB%9F%E5%86%85%E5%B9%95/"/>
+    <id>https://github.com/louzhiqiang/louzhiqiang.github.io.git/2023/01/29/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0-%E6%95%B0%E6%8D%AE%E5%BA%93%E7%B3%BB%E7%BB%9F%E5%86%85%E5%B9%95/</id>
+    <published>2023-01-29T08:33:02.000Z</published>
+    <updated>2023-01-31T08:57:03.427Z</updated>
+    
+    <content type="html"><![CDATA[<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>这本书我认为是数据库整体理论入门很好的敲门砖。整体氛围两部分：存储引擎和分布式系统。这样的模块划分显然是不够的，比如元数据的管理、缓存管理等，但是他在讲解这两部分内容的时候会穿插进这些知识点，可以自己总结提炼。</p><p>本书很看重数据的存储和分布式两个部分，前者讲述的重点是数据从进入系统到落盘的整个过程中涉及的一些细节，而后者是宏观上数据如何分布，这里都会根据数据的写入、存储、查询三个角度，来串联这里涉及的知识点。                </p><p>在阅读本书的每一遍，都会有一些新的思考，在看每一个章节的知识点的时候，要根据上边涉及的角度，去前后思考一些，这样就会有比较全面的认识。</p><h2 id="第一部分-存储引擎"><a href="#第一部分-存储引擎" class="headerlink" title="第一部分 存储引擎"></a>第一部分 存储引擎</h2><p>存储引擎是可以作为一个单独的组件，负责在内存和磁盘上<strong>存储、检索和管理</strong>数据。数据库是构建在存储引擎之上的应用程序，它提供了表结构、查询语言、索引、事务 和 许多其他有用的特性。对比一下mysql的可插拔引擎的特性，也是这么一个思想。</p><p>不同的引擎是适用于不同的查询场景的，主要参考指标是数据的更新方式、数据范式的设计、数据读写频率、数据schema的变更要求等，基于这些角度可以看当前的引擎的均衡度。</p><blockquote><p>数据库比较应该从清晰界定的目标开始，保证偏差在预期之内。第二步是找到标准场景的用例。第三步是确认场景的负载。</p><p>这里需要弄清楚你场景的一些具体问题，这样测试的目标会更加明确。比如并发量、数据个体大小、读写比例、访问方式、扩容成本等，最终反馈出来就是我们在实际场景中的投入和产出。</p></blockquote><p>所有存储引擎都面临相同的挑战和限制，类比于城市规划：我们为特定的人口数量构建一座城市，并选择是在高度上还是在面积上对这座城市进行扩展，这两种方式都可以将同样数量的人放入该城市，但这些方法导致了截然不同的生活方式。当在高度上建设城市时，人们住在公寓里，人口密度可能会导致面积较小地区的交通流量增加，而在一个面积更大且更加分散的城市中，人们更有可能住在大房子里，但通勤需要走更远的路。</p><blockquote><p>这样的权衡要思考全面的哈，否则某个调优或者操作，可能会导致达不到目标，原因是瓶颈自己没有预期到。</p></blockquote><h3 id="第一章-简介"><a href="#第一章-简介" class="headerlink" title="第一章 简介"></a>第一章 简介</h3><p>数据库的一般大体分为以下几个主要的模块：</p><ul><li><p>传输模块</p><p>这里的传输是指数据库相关的所有传输，比如客户端通信，内部集群通信、集群与外部组件的通信等。</p></li><li><p>查询处理器</p><p>传输模块会将客户端的查询交给查询处理器，对该查询进行词法、语法解析、解释和验证。这里还包括访问控制检查。解析完之后，确认可以执行的时候，就该优化了，首先消除查询中不可能执行的部分与冗余的部分，然后根据内部统计信息（索引基数、近似交集大小等）和数据分布（数据存储在集群中的哪些节点以及传输所需的成本），尝试找到执行查询的最高效方法。优化器就是要通盘考虑存储和查询中涉及的细节点。</p></li><li><p>执行引擎</p><p>查询会以执行计划的形式呈现，执行计划就是为了得到完整结果的一系列操作，但是往往有多种路径可以计算出最终的结果，所以这里也会从多种路径中选择自己最高效的那个。在执行过程中，往往会涉及本地和远程数据的交互，这里还要综合考虑数据的写入，多节点均衡，本地性计算，数据传输等方面。</p></li><li><p>存储引擎</p><p>执行引擎中的本地查询，就是存储引擎的工作，主要涉及以下点：</p><ul><li>事务管理器：调度事务，确保它们不会使数据库处于逻辑不一致的状态。</li><li>锁管理器：为正在运行的事务锁定数据库对象，确保并发操作不会破坏物理数据的完整性。</li><li>访问方法（存储结构）：管理磁盘上的数据访问，并负责组织磁盘上的数据。</li><li>缓冲区管理器：将数据页缓存在内存中。</li><li>恢复管理器：维护操作日志并在出现故障的时候还原系统状态。</li></ul><p>事务管理器和锁管理器是协同负责并发控制的。</p></li></ul><p>内存数据库和硬盘数据库有很大的不同，除了存储介质的差别，在数据结构、数据的组织和优化技术方面也是有自己的侧重点。</p><p>内存数据库的主要限制因素是内存的易失性以及成本。内存数据库要想做到高可用，对运维会要求很高。</p><blockquote><p>非易失性存储器：NVM  (non-volatile memory)</p></blockquote><p>一般为了内存数据的持久性，会选择顺序写入日志文件，减小写放大带来的影响。这份日志是基于磁盘且已经排序的数据结构，日志写入可以是异步的以及分批的。参考hbase的写入。这个日志是可以作为服务启动或者崩溃后恢复的主要依赖。日志的管理也是关键的一个点，分层管理，区分冷热，保证日志文件的可循环管理。</p><p>在硬盘数据库中，他的存储结构通常具有宽树和矮树的形式，分层次加载，核心目标是通过 有限的内存使用加速查询，减小IO的访问。而在内存中，这些一般都是指针的引用值问题，成本小很多。</p><p>按照行的数据布局适合按行访问数据的情况，将整行数据存储在一起可以提高空间局部性。</p><blockquote><p>磁盘上的数据通常是按块访问的，cpu通常也是按照指定最小单位的数据进行数据获取的，放在自己的cpu缓存里。</p></blockquote><p>如果有批量访问单个字段的场景，其实对于行存储的数据库消耗就是存在读放大的，因为他把不想关字段都读取了。</p><p>面相列的数据库适合OLAP相关业务。  一般都有虚拟ID标识行号。</p><p>决定使用列还是行存储，要先了解自己业务里的访问模式。</p><p>数据存储一般是分多层的，宏观上可以看成是内存、硬盘，在硬盘上也可以分SSD以及HHD两个级别。在细节上，数据还会继续划分，比如block、rowset、segment、page 这些级别都是为了在可能定位到数据的粒度，最小化加载，减小读放大，从而控制IO，当在应对更大数据以及更高并发的情况下，提高系统的可用性。</p><p>如果数据记录的顺序遵循搜索键顺序，这种索引就是聚簇索引。反之就是非聚簇索引。</p><p>索引的成本主要是他的更新成本和查询时的读取成本。这里要考虑到索引的大小、根据需要应对的数据量、更新的频率以及写入的数据大小，尤其是对索引更新的大小，这样就能界定出索引的成本，从而可以量化影响。</p><p>二级索引主索引还是到数据条目，这个争论还是比较多的，成本偏向性是有差别的。如果到主索引，对于读会产生二次read的成本。如果到数据条目，对于更新或者重新定位记录，就要承担更新指针带来的成本。后者对于写频繁，且索引比较多的情况下，成本会被放大。</p><blockquote><p>目前存在两种方式都使用的索引，而入二级索引到数据条目，主索引也正常索引到条目，在条目记录指针发生变化的时候，二级索引使用的时候发现数据不对，要去异步更新一次。这样其实可以把批量更新等方式优化进去。</p></blockquote><p>存储结构的三个常见变量：</p><ul><li>是否使用缓冲：每个基于磁盘的数据结构都必须在某种程度上使用缓冲，因为读写磁盘的最小数据传输单元是块。比如B树，一定要有内存缓冲区，分摊io成本。</li><li>使用可变的或者不可变的文件：LSM和B树的区别便是数据是不可变的还是原地更新的。</li><li>是否按照顺序存储值：有序性决定了我们能否有效地扫描记录的范围。</li></ul><p>以上三点在后续数据库优化方向上，是一些基本思考点，但是很重要。因为每个点都界定了一些优化方向。</p>]]></content>
+    
+    
+      
+      
+    <summary type="html">&lt;h2 id=&quot;背景&quot;&gt;&lt;a href=&quot;#背景&quot; class=&quot;headerlink&quot; title=&quot;背景&quot;&gt;&lt;/a&gt;背景&lt;/h2&gt;&lt;p&gt;这本书我认为是数据库整体理论入门很好的敲门砖。整体氛围两部分：存储引擎和分布式系统。这样的模块划分显然是不够的，比如元数据的管理、缓存管理等</summary>
+      
+    
+    
+    
+    <category term="读书笔记" scheme="https://github.com/louzhiqiang/louzhiqiang.github.io.git/categories/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/"/>
+    
+    
+    <category term="数据库" scheme="https://github.com/louzhiqiang/louzhiqiang.github.io.git/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/"/>
+    
+  </entry>
+  
+  <entry>
     <title>clickHouse初识</title>
     <link href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/10/30/clickHouse%E5%88%9D%E8%AF%86/"/>
     <id>https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/10/30/clickHouse%E5%88%9D%E8%AF%86/</id>
     <published>2022-10-30T12:50:22.000Z</published>
-    <updated>2022-10-30T12:53:22.108Z</updated>
+    <updated>2023-01-31T02:29:25.258Z</updated>
     
-    <content type="html"><![CDATA[<h2 id="clickhouse初识"><a href="#clickhouse初识" class="headerlink" title="clickhouse初识"></a>clickhouse初识</h2><p>参考：<br><a href="https://developer.aliyun.com/article/762097?spm=5176.20128342.J_6302206100.1.7c227ba2IPjLHw" target="_blank" rel="noopener">ClickHouse深度揭秘</a></p>]]></content>
+    <content type="html"><![CDATA[<h1 id="clickhouse初识"><a href="#clickhouse初识" class="headerlink" title="clickhouse初识"></a>clickhouse初识</h1><h2 id="概况"><a href="#概况" class="headerlink" title="概况"></a>概况</h2><p>16年开源，目前9Kstar，大厂用的很多，尤其是字节在clickhouse上的优化是尤其多的。</p><p>c++语言开发。</p><h2 id="场景"><a href="#场景" class="headerlink" title="场景"></a>场景</h2><ul><li>读多于写</li><li>大宽表，读取少量行，且结果不大。</li><li>数据批量写入，更新较少</li><li>事务性不那么强，数据可以选择最终一致性就满足需求。</li><li>schema易变，需求灵活。</li></ul><h2 id="特性"><a href="#特性" class="headerlink" title="特性"></a>特性</h2><ul><li><p>列存</p></li><li><p>数据有序存储</p><blockquote><p>连续IO也能够充分利用操作系统page cache的预取能力，减少page fault。</p></blockquote></li><li><p>主键索引，属于数据布局的一种优化。</p></li><li><p>稀疏索引：minmax  set  ngrambf_v1  tokenbf_v1  bloom_filter</p></li><li><p>数据sharding：随机分片、固定分片、按照列值分片、自定义表达式分片等。分片是集群扩缩容的关键。</p></li><li><p>数据Partitioning：对partition使用表达式配置、支持partition ttl。</p></li><li><p>数据TTL : 支持多种粒度的数据过期，列、行、表、分区，对于自动化管理冷热数据比较合适。</p></li><li><p>有限支持update、delete，通过mutation操作，异步执行，在compaction之后对外生效。</p></li><li><p>主备同步：多副本都可以对外提供查询服务、副本数量不限制、不同shard的副本数可以不同，用来解决热点问题。</p></li><li><p>计算层：</p><ul><li><p>多核并行：数据有横切和竖切，最细的粒度是index granularity，每个cpu可以执行一个index granularity，充分并行执行。</p></li><li><p>分布式计算：体现在任务下发的策略，这个策略对于分布式计算的稳定执行有很大影响。常见的下发策略：</p><ul><li>随机下发</li><li>最近hostname原则：选择与当前下发机器最相近的hostname节点，进行query下发。在特定的网络拓扑下，可以降低网络延时。而且能够确保query下发到固定的replica机器，充分利用系统cache。</li><li>in order：按照特定顺序逐个尝试下发，当前一个replica不可用时，顺延到下一个replica。</li><li>first or random：在In Order模式下，当第一个replica不可用时，所有workload都会积压到第二个Replica，导致负载不均衡。first or random解决了这个问题：当第一个replica不可用时，随机选择一个其他replica，从而保证其余replica间负载均衡。另外在跨region复制场景下，通过设置第一个replica为本region内的副本，可以显著降低网络延时。</li></ul></li><li><p>向量化执行与SIMD:对内存中的列式数据，一个batch调用一次SIMD指令（而非每一行调用一次），不仅减少了函数调用次数、降低了cache miss，而且可以充分发挥SIMD指令的并行能力，大幅缩短了计算耗时。其他引擎常见的弊端：</p><ul><li>对每一行数据都要调用相应的函数，函数调用开销占比高；这是常见的行式数据库的问题。</li><li>存储层按列存储数据，在内存中也按列组织，但是计算层按行处理，无法充分利用CPU cache的预读能力，造成CPU Cache miss严重；这是大多数列存数据库或者计算引擎【比如spark】的方式，列式读取，行式计算。</li><li>按行处理，无法利用高效的SIMD指令；</li></ul></li><li><p>动态代码生成 runtime codegen：代码生成，直观一些看就是减少了代码调用，而且很多操作都标准化了，只要系统优化规则到位，代码生成的效率要比人为方式写的效率要高得多，这点上在spark那里也可以得到体现。</p><blockquote><p>在经典的数据库实现中，通常对表达式计算采用火山模型，也即将查询转换成一个个operator，比如HashJoin、Scan、IndexScan、Aggregation等。为了连接不同算子，operator之间采用统一的接口，比如open/next/close。在每个算子内部都实现了父类的这些<strong>虚函数</strong>，在分析场景中单条SQL要处理数据通常高达数亿行，虚函数的调用开销不再可以忽略不计。另外，在每个算子内部都要考虑多种变量，比如列类型、列的size、列的个数等，存在着大量的if-else分支判断导致<strong>CPU分支预测</strong>失效。</p></blockquote></li><li><p>近似计算：近似估算distinct values、中位数，分位数等多种聚合函数；建表DDL支持SAMPLE BY子句，支持对于数据进行抽样处理。</p></li><li><p>复杂数据类型支持：ClickHouse还提供了array、json、tuple、set等复合数据类型，支持业务schema的灵活变更。</p><blockquote><p>复杂的嵌套，clickhouse是通过提供json来实现的，也配套了丰富的json函数。但是这并不能触发列存计算的很多特性，比如向量化，原因是json本质是行存储。不过最新的官方feature也在优化，针对json实现列存计算。</p><p>目前clickhouse在V22.8版本的更新里，已经升级出一个json对象存储，在存储时，使用类似parquet对于复杂数据的处理，这样在更新、写入、查询的时候，都可以根据路径直接拿到需要的子数据，而不用解析不相关字段。而且这样就可以充分利用列存的相关特性了。</p></blockquote></li></ul></li></ul><p>参考：<br><a href="https://developer.aliyun.com/article/762097?spm=5176.20128342.J_6302206100.1.7c227ba2IPjLHw" target="_blank" rel="noopener">ClickHouse深度揭秘</a></p><p><a href="https://ost.51cto.com/posts/20274" target="_blank" rel="noopener">ClickHouse V22.8 新版本重要特性</a></p>]]></content>
     
     
       
       
-    <summary type="html">&lt;h2 id=&quot;clickhouse初识&quot;&gt;&lt;a href=&quot;#clickhouse初识&quot; class=&quot;headerlink&quot; title=&quot;clickhouse初识&quot;&gt;&lt;/a&gt;clickhouse初识&lt;/h2&gt;&lt;p&gt;参考：&lt;br&gt;&lt;a href=&quot;https://develo</summary>
+    <summary type="html">&lt;h1 id=&quot;clickhouse初识&quot;&gt;&lt;a href=&quot;#clickhouse初识&quot; class=&quot;headerlink&quot; title=&quot;clickhouse初识&quot;&gt;&lt;/a&gt;clickhouse初识&lt;/h1&gt;&lt;h2 id=&quot;概况&quot;&gt;&lt;a href=&quot;#概况&quot; class=&quot;</summary>
       
     
     
     
-    <category term="大数据" scheme="https://github.com/louzhiqiang/louzhiqiang.github.io.git/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/"/>
+    <category term="clickhouse" scheme="https://github.com/louzhiqiang/louzhiqiang.github.io.git/categories/clickhouse/"/>
     
-    
-    <category term="clickhouse" scheme="https://github.com/louzhiqiang/louzhiqiang.github.io.git/tags/clickhouse/"/>
     
   </entry>
   
@@ -392,78 +463,6 @@
     
     
     <category term="hudi" scheme="https://github.com/louzhiqiang/louzhiqiang.github.io.git/tags/hudi/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>管理者一定会碰到的那些事儿</title>
-    <link href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/21/%E7%AE%A1%E7%90%86%E8%80%85%E4%B8%80%E5%AE%9A%E4%BC%9A%E7%A2%B0%E5%88%B0%E7%9A%84%E9%82%A3%E4%BA%9B%E4%BA%8B%E5%84%BF/"/>
-    <id>https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/21/%E7%AE%A1%E7%90%86%E8%80%85%E4%B8%80%E5%AE%9A%E4%BC%9A%E7%A2%B0%E5%88%B0%E7%9A%84%E9%82%A3%E4%BA%9B%E4%BA%8B%E5%84%BF/</id>
-    <published>2022-09-21T02:57:05.000Z</published>
-    <updated>2022-09-21T07:29:19.066Z</updated>
-    
-    <content type="html"><![CDATA[<h1 id="管理者一定会碰到的那些事儿"><a href="#管理者一定会碰到的那些事儿" class="headerlink" title="管理者一定会碰到的那些事儿"></a>管理者一定会碰到的那些事儿</h1><h2 id="不符合预期，是给机会，还是fire-fast"><a href="#不符合预期，是给机会，还是fire-fast" class="headerlink" title="不符合预期，是给机会，还是fire fast"></a>不符合预期，是给机会，还是fire fast</h2><p>针对不符合预期的员工还是要先找到原因，他到底是能力不到还是态度不到还是因为存在实际的客观因素。<br>要让员工把实际的困难反馈出来，这个很重要。反馈到了，才能知道问题在哪儿。<br>总结：<br>不符合预期的原因：</p><ul><li>能力确实没达到。这个时候需要给与机会，并给与帮助。</li><li>是否放在正确的岗位。在技术的什么时期对于技术的认知是不一样的，是需要逐层提升的。初期就不能放在太难的位置上。</li><li>帮助员工解决问题，是leader最重要的职责。</li><li>至少要给一次机会。<h2 id="员工不给力，要不要手把手指导"><a href="#员工不给力，要不要手把手指导" class="headerlink" title="员工不给力，要不要手把手指导"></a>员工不给力，要不要手把手指导</h2>员工不给力还是要确认都原因。在不同的阶段要给予不同的引导方式。初期阶段，还是要去手把手带，从代码细节到工程实现，从单个模块到整体架构，从问题排查到工具建立，要逐步完善思路。<br>总结：</li><li>细心、耐心、思路清晰，手把手指导</li><li>把员工变成牛逼的人，这才是领导该做的。</li><li>不抢工，不邀功，出现问题，作为领导要先顶上去，给员工安全感也是很有必要的。<h2 id="明明为了他好，沟通为何还是会谈崩"><a href="#明明为了他好，沟通为何还是会谈崩" class="headerlink" title="明明为了他好，沟通为何还是会谈崩"></a>明明为了他好，沟通为何还是会谈崩</h2>这个点上主要是沟通。沟通的方式其实是思维的转变。</li><li>不能用反问句。</li><li>以理服人的方式来他进行沟通。</li><li>要进行引导式的讨论。</li><li>讨论是技术进步最好的方式之一，即使是跟技术往往不如你的人那里，也是值得讨论的。<br>总结：</li><li>引导员工表达自己的意见</li><li>强势的反问句不可取</li><li>经验未必对，任何脱离业务的架构设计，都是耍流氓<h2 id="能把一切安排好，但是为什么会这么累"><a href="#能把一切安排好，但是为什么会这么累" class="headerlink" title="能把一切安排好，但是为什么会这么累"></a>能把一切安排好，但是为什么会这么累</h2>当支撑一个10人以下的团队的时候，可以关注到每个人的细节，也就可以安排的很细致。但是当团队很大的时候，就无法关注到对应的细节了。<br>所以，我们应该把自己的思维抽象成方法论，然后自己的思维地图去传播出去，让大家都得到case。<br>把员工推出去，让他们更靠前，这样可以让他们更快成长起来。比如一些技术演讲、一些方案展示等，可以让他们靠前去展示。出问题的时候，自己要去跟进和揽责，但是不是盲目的。<br>总结：</li><li>事必躬亲，不是最好的方式。而是应该授人以渔，让自己成为导师或者教练的角色。</li><li>不拿下属的成果去邀功，不推下属去背锅。而是应该把下属推向前台，得到更多的展示机会和影响力，从而可以快速成长。<h2 id="boss需求，如何应对"><a href="#boss需求，如何应对" class="headerlink" title="boss需求，如何应对"></a>boss需求，如何应对</h2>根据项目优先级以及如果产生新的项目插入之后对其他高优项目的影响，以此来作为对boss的反馈。要把项目变更的影响面反映到位，从而能够让boss来衡量变更带来的影响到底有多大。<br>总结：</li><li>优先级机制：公司战略为主导方向。</li><li>有优先级调整和变更的机制：优先级调整要与受影响项目的相关方都达成共识，让机制和流程都是在规范之内一直运行着。</li><li>“运动式”加班不可取，一定有，但是要尽量少，精力施展在刀刃上。</li><li>leader要专注于提升团队效率，平台化、工具、自动化，都是比较有力的手段。<h2 id="明明团队很优秀，但是投票结果不如愿"><a href="#明明团队很优秀，但是投票结果不如愿" class="headerlink" title="明明团队很优秀，但是投票结果不如愿"></a>明明团队很优秀，但是投票结果不如愿</h2>不能把投票结果看成是对自己的一个完全的评价，因为投票本身也不一定是完全公正的。因为投票本身可能存在私心。<br>自己要有一个激励机制，最好的激励方式就是自己激励自己。不能荒废自己的时间，也不能让自己的时间沉浸在别人的评价里。</li></ul>]]></content>
-    
-    
-      
-      
-    <summary type="html">&lt;h1 id=&quot;管理者一定会碰到的那些事儿&quot;&gt;&lt;a href=&quot;#管理者一定会碰到的那些事儿&quot; class=&quot;headerlink&quot; title=&quot;管理者一定会碰到的那些事儿&quot;&gt;&lt;/a&gt;管理者一定会碰到的那些事儿&lt;/h1&gt;&lt;h2 id=&quot;不符合预期，是给机会，还是fire-fas</summary>
-      
-    
-    
-    
-    <category term="管理" scheme="https://github.com/louzhiqiang/louzhiqiang.github.io.git/categories/%E7%AE%A1%E7%90%86/"/>
-    
-    
-  </entry>
-  
-  <entry>
-    <title>sql-行列转换</title>
-    <link href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/21/sql-%E8%A1%8C%E5%88%97%E8%BD%AC%E6%8D%A2/"/>
-    <id>https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/21/sql-%E8%A1%8C%E5%88%97%E8%BD%AC%E6%8D%A2/</id>
-    <published>2022-09-21T01:48:29.000Z</published>
-    <updated>2022-09-21T02:56:33.462Z</updated>
-    
-    <content type="html"><![CDATA[<h1 id="sql-行列转换"><a href="#sql-行列转换" class="headerlink" title="sql-行列转换"></a>sql-行列转换</h1><p>使用spark进行行列转换 主要有两种使用方式：</p><h2 id="行转列"><a href="#行转列" class="headerlink" title="行转列"></a>行转列</h2><p>测试数据：</p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">+----+----+----+</span><br><span class="line">|科目|姓名|分数|</span><br><span class="line">+----+----+----+</span><br><span class="line">|数学|张三|  88|</span><br><span class="line">|数学|李雷|  67|</span><br><span class="line">|数学|宫九|  77|</span><br><span class="line">|数学|王五|  65|</span><br><span class="line">|英语|张三|  77|</span><br><span class="line">|英语|宫九|  90|</span><br><span class="line">|英语|李雷|  24|</span><br><span class="line">|英语|王五|  90|</span><br><span class="line">|语文|李雷|  33|</span><br><span class="line">|语文|宫九|  87|</span><br><span class="line">|语文|张三|  92|</span><br><span class="line">|语文|王五|  87|</span><br><span class="line">+----+----+----+</span><br></pre></td></tr></table></figure><h3 id="使用PIVOT函数即可实现行转列"><a href="#使用PIVOT函数即可实现行转列" class="headerlink" title="使用PIVOT函数即可实现行转列"></a>使用PIVOT函数即可实现行转列</h3><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> * <span class="keyword">from</span> scores </span><br><span class="line">                 <span class="keyword">pivot</span></span><br><span class="line">                 (</span><br><span class="line">                     <span class="keyword">sum</span>(<span class="string">`分数`</span>) <span class="keyword">for</span></span><br><span class="line">                     <span class="string">`姓名`</span> <span class="keyword">in</span> (<span class="string">'张三'</span>,<span class="string">'王五'</span>,<span class="string">'李雷'</span>,<span class="string">'宫九'</span>)</span><br><span class="line">                 )</span><br></pre></td></tr></table></figure><p>上边语句的结果：</p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">+----+----+----+----+----+</span><br><span class="line">|科目|张三|王五|李雷|宫九|</span><br><span class="line">+----+----+----+----+----+</span><br><span class="line">|数学|  88|  65|  67|  77|</span><br><span class="line">|英语|  77|  90|  24|  90|</span><br><span class="line">|语文|  92|  87|  33|  87|</span><br><span class="line">+----+----+----+----+----+</span><br></pre></td></tr></table></figure><h3 id="stack使用"><a href="#stack使用" class="headerlink" title="stack使用"></a>stack使用</h3><p>stack(n, expr1, …, exprk) - 会将expr1, …, exprk 分割为n行.</p><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">df_pivot.createOrReplaceTempView(<span class="symbol">'v_pivo</span>t')</span><br><span class="line"></span><br><span class="line">sql_content = ''<span class="symbol">'select</span> `科目`,</span><br><span class="line">                 stack(<span class="number">4</span>, '张三', `张三`, '王五', `王五`, '李雷', `李雷`, '宫九', `宫九`) as (`姓名`, `分数` )</span><br><span class="line">                 from  v_pivot             </span><br><span class="line">              '''</span><br><span class="line"></span><br><span class="line">df_unpivot1 = spark.sql(sql_content)</span><br><span class="line"></span><br><span class="line">df_unpivot1.show()</span><br></pre></td></tr></table></figure><p>result :</p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">+----+----+----+</span><br><span class="line">|科目|姓名|分数|</span><br><span class="line">+----+----+----+</span><br><span class="line">|数学|张三|  88|</span><br><span class="line">|数学|王五|  65|</span><br><span class="line">|数学|李雷|  67|</span><br><span class="line">|数学|宫九|  77|</span><br><span class="line">|英语|张三|  77|</span><br><span class="line">|英语|王五|  90|</span><br><span class="line">|英语|李雷|  24|</span><br><span class="line">|英语|宫九|  90|</span><br><span class="line">|语文|张三|  92|</span><br><span class="line">|语文|王五|  87|</span><br><span class="line">|语文|李雷|  33|</span><br><span class="line">|语文|宫九|  87|</span><br><span class="line">+----+----+----+</span><br></pre></td></tr></table></figure><p>这个函数不咋常用，但是在一些场景还是可以直接被用来显示效果。</p><h3 id="lateral-view-方式"><a href="#lateral-view-方式" class="headerlink" title="lateral view 方式"></a>lateral view 方式</h3><p>测试数据：</p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">A 20 篮球，排球，乒乓球</span><br><span class="line">B 30 跳舞，唱歌</span><br><span class="line">C 23 唱歌，爬山</span><br></pre></td></tr></table></figure><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">spark.sql("<span class="keyword">select</span> <span class="keyword">name</span>,age,t.hobby <span class="keyword">from</span> sr2 <span class="keyword">lateral</span> <span class="keyword">view</span> <span class="keyword">explode</span>(<span class="keyword">split</span>(hobby,<span class="string">'，'</span>)) t <span class="keyword">as</span> hobby<span class="string">").show()</span></span><br></pre></td></tr></table></figure><p>结果：</p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">+----+---+-----+</span><br><span class="line">|name|age|hobby|</span><br><span class="line">+----+---+-----+</span><br><span class="line">|   A| 20|   篮球|</span><br><span class="line">|   A| 20|   排球|</span><br><span class="line">|   A| 20|  乒乓球|</span><br><span class="line">|   B| 30|   跳舞|</span><br><span class="line">|   B| 30|   唱歌|</span><br><span class="line">|   C| 23|   唱歌|</span><br><span class="line">|   C| 23|   爬山|</span><br><span class="line">+----+---+-----+</span><br></pre></td></tr></table></figure><h2 id="列转行"><a href="#列转行" class="headerlink" title="列转行"></a>列转行</h2><p>测试数据：</p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">2018-01,项目1,100</span><br><span class="line">2018-01,项目2,200</span><br><span class="line">2018-01,项目3,300</span><br><span class="line">2018-01,项目3,400</span><br><span class="line">2018-02,项目1,1000</span><br><span class="line">2018-02,项目2,2000</span><br><span class="line">2018-03,项目x,999</span><br></pre></td></tr></table></figure><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">spark.sql("<span class="keyword">select</span> yue, collect_set(<span class="keyword">project</span>) projects,<span class="keyword">sum</span>(shouru) zsr  <span class="keyword">from</span> sr <span class="keyword">group</span> <span class="keyword">by</span> yue<span class="string">").show()</span></span><br></pre></td></tr></table></figure><p>结果：</p><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">+-------+---------------+----+</span><br><span class="line">|    yue|       projects| zsr|</span><br><span class="line">+-------+---------------+----+</span><br><span class="line">|2018-03|          [项目x]| 999|</span><br><span class="line">|2018-02|     [项目1, 项目2]|3000|</span><br><span class="line">|2018-01|[项目1, 项目2, 项目3]| 600|</span><br></pre></td></tr></table></figure><p>如果需要转化成字符串，可以使用<strong>concat_ws(‘分隔符’,字段)</strong> 函数。</p>]]></content>
-    
-    
-      
-      
-    <summary type="html">&lt;h1 id=&quot;sql-行列转换&quot;&gt;&lt;a href=&quot;#sql-行列转换&quot; class=&quot;headerlink&quot; title=&quot;sql-行列转换&quot;&gt;&lt;/a&gt;sql-行列转换&lt;/h1&gt;&lt;p&gt;使用spark进行行列转换 主要有两种使用方式：&lt;/p&gt;
-&lt;h2 id=&quot;行转列&quot;&gt;&lt;a h</summary>
-      
-    
-    
-    
-    <category term="大数据" scheme="https://github.com/louzhiqiang/louzhiqiang.github.io.git/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/"/>
-    
-    
-    <category term="sql" scheme="https://github.com/louzhiqiang/louzhiqiang.github.io.git/tags/sql/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>spark-top算子</title>
-    <link href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/04/spark-top%E7%AE%97%E5%AD%90/"/>
-    <id>https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/09/04/spark-top%E7%AE%97%E5%AD%90/</id>
-    <published>2022-09-04T15:18:18.000Z</published>
-    <updated>2022-09-26T12:59:09.476Z</updated>
-    
-    <content type="html"><![CDATA[<h1 id="spark-top算子"><a href="#spark-top算子" class="headerlink" title="spark top算子"></a>spark top算子</h1><p>top()函数的源码：</p><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">top</span></span>(num: <span class="type">Int</span>)(<span class="keyword">implicit</span> ord: <span class="type">Ordering</span>[<span class="type">T</span>]): <span class="type">Array</span>[<span class="type">T</span>] = withScope &#123;</span><br><span class="line">  takeOrdered(num)(ord.reverse)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>top()调用takeOrdered()的源码：</p><figure class="highlight scala"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">takeOrdered</span></span>(num: <span class="type">Int</span>)(<span class="keyword">implicit</span> ord: <span class="type">Ordering</span>[<span class="type">T</span>]): <span class="type">Array</span>[<span class="type">T</span>] = withScope &#123; <span class="keyword">if</span> (num == <span class="number">0</span>) &#123;</span><br><span class="line">   <span class="type">Array</span>.empty</span><br><span class="line"> &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">   <span class="keyword">val</span> mapRDDs = mapPartitions &#123; items =&gt;</span><br><span class="line">     <span class="keyword">val</span> queue = <span class="keyword">new</span> <span class="type">BoundedPriorityQueue</span>[<span class="type">T</span>](num)(ord.reverse)</span><br><span class="line">     queue ++= util.collection.<span class="type">Utils</span>.takeOrdered(items, num)(ord)</span><br><span class="line">     <span class="type">Iterator</span>.single(queue)</span><br><span class="line">   &#125;   </span><br><span class="line">   <span class="keyword">if</span> (mapRDDs.partitions.length == <span class="number">0</span>) &#123;</span><br><span class="line">     <span class="type">Array</span>.empty</span><br><span class="line">   &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">     mapRDDs.reduce &#123; (queue1, queue2) =&gt;</span><br><span class="line">       queue1 ++= queue2</span><br><span class="line">       queue1</span><br><span class="line">     &#125;.toArray.sorted(ord)</span><br><span class="line">   &#125;</span><br><span class="line"> &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure><p>问题分析： top()算子底层调用了 takeOrdered()这个函数，这个函数也是RDD中的一个算子，来看看上边的源码：<br>首先takeOrdered()里调用了 mapPartitions()，也就是说使用top()的时候会对我们第二次输出的结果进行分区，默认为2个分区，所以看到第三步的结果应该是每个分区的top(5)（这里我想的对不对，还有待商榷）；  其次top()会对我之前sortBy()的结果按照key重新排序，所以导致了我们Top N的结果不准确；</p><p>解决方案：<br>方案一：指定top()的排序方法，这里我们直接根据value排序：sortBy(x =&gt; x._2,false).top(10)(Ordering.by(e =&gt; e._2))<br>方案二：不用top()，直接用sortBy(x =&gt;x._2,false).take(10)<br>方案三：既然top()底层调用的是takeOrdered()，我们也直接可以用takeOrdered(10)(Ordering.by(e =&gt; e._2))<br><strong>思考：方案一中，我们既然指定了top()的排序方式，还需要sortBy()嘛？？？当然可以不用啊！！！所以我们可以去掉sortBy()</strong></p><blockquote><p>科普一下：top(10)(Ordering.by(e =&gt; e._2)) 这种写法叫做函数的柯里化。<br>柯里化(Currying)：把接受多个参数的函数变换成接受一个单一参数(最初函数的第一个参数)的函数，并且返回接受余下的参数且返回结果的新函数的技术。这个技术由 Christopher Strachey 以逻辑学家 Haskell Curry 命名的，尽管它是 Moses Schnfinkel 和 Gottlob Frege 发明的。</p></blockquote>]]></content>
-    
-    
-      
-      
-    <summary type="html">&lt;h1 id=&quot;spark-top算子&quot;&gt;&lt;a href=&quot;#spark-top算子&quot; class=&quot;headerlink&quot; title=&quot;spark top算子&quot;&gt;&lt;/a&gt;spark top算子&lt;/h1&gt;&lt;p&gt;top()函数的源码：&lt;/p&gt;
-&lt;figure class=&quot;hig</summary>
-      
-    
-    
-    
-    <category term="大数据" scheme="https://github.com/louzhiqiang/louzhiqiang.github.io.git/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/"/>
-    
-    
-    <category term="spark" scheme="https://github.com/louzhiqiang/louzhiqiang.github.io.git/tags/spark/"/>
     
   </entry>
   

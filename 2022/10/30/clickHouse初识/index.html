@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="clickhouse," />
+  <meta name="keywords" content="Hexo, NexT" />
 
 
 
@@ -83,17 +83,16 @@
 
 
 
-<meta name="description" content="clickhouse初识参考：ClickHouse深度揭秘">
+<meta name="description" content="clickhouse初识概况16年开源，目前9Kstar，大厂用的很多，尤其是字节在clickhouse上的优化是尤其多的。 c++语言开发。 场景 读多于写 大宽表，读取少量行，且结果不大。 数据批量写入，更新较少 事务性不那么强，数据可以选择最终一致性就满足需求。 schema易变，需求灵活。  特性 列存  数据有序存储  连续IO也能够充分利用操作系统page cache的预取能力，减少p">
 <meta property="og:type" content="article">
 <meta property="og:title" content="clickHouse初识">
 <meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2022/10/30/clickHouse%E5%88%9D%E8%AF%86/index.html">
 <meta property="og:site_name" content="痒痒 团团 和 咘咘">
-<meta property="og:description" content="clickhouse初识参考：ClickHouse深度揭秘">
+<meta property="og:description" content="clickhouse初识概况16年开源，目前9Kstar，大厂用的很多，尤其是字节在clickhouse上的优化是尤其多的。 c++语言开发。 场景 读多于写 大宽表，读取少量行，且结果不大。 数据批量写入，更新较少 事务性不那么强，数据可以选择最终一致性就满足需求。 schema易变，需求灵活。  特性 列存  数据有序存储  连续IO也能够充分利用操作系统page cache的预取能力，减少p">
 <meta property="og:locale" content="zh_CN">
 <meta property="article:published_time" content="2022-10-30T12:50:22.000Z">
-<meta property="article:modified_time" content="2022-10-30T12:53:22.108Z">
+<meta property="article:modified_time" content="2023-01-31T02:29:25.258Z">
 <meta property="article:author" content="zhiqiang.lou">
-<meta property="article:tag" content="clickhouse">
 <meta name="twitter:card" content="summary">
 
 
@@ -309,8 +308,8 @@
               
               
                 <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E5%A4%A7%E6%95%B0%E6%8D%AE/" itemprop="url" rel="index">
-                    <span itemprop="name">大数据</span>
+                  <a href="/categories/clickhouse/" itemprop="url" rel="index">
+                    <span itemprop="name">clickhouse</span>
                   </a>
                 </span>
 
@@ -346,7 +345,74 @@
       
 
       
-        <h2 id="clickhouse初识"><a href="#clickhouse初识" class="headerlink" title="clickhouse初识"></a>clickhouse初识</h2><p>参考：<br><a href="https://developer.aliyun.com/article/762097?spm=5176.20128342.J_6302206100.1.7c227ba2IPjLHw" target="_blank" rel="noopener">ClickHouse深度揭秘</a></p>
+        <h1 id="clickhouse初识"><a href="#clickhouse初识" class="headerlink" title="clickhouse初识"></a>clickhouse初识</h1><h2 id="概况"><a href="#概况" class="headerlink" title="概况"></a>概况</h2><p>16年开源，目前9Kstar，大厂用的很多，尤其是字节在clickhouse上的优化是尤其多的。</p>
+<p>c++语言开发。</p>
+<h2 id="场景"><a href="#场景" class="headerlink" title="场景"></a>场景</h2><ul>
+<li>读多于写</li>
+<li>大宽表，读取少量行，且结果不大。</li>
+<li>数据批量写入，更新较少</li>
+<li>事务性不那么强，数据可以选择最终一致性就满足需求。</li>
+<li>schema易变，需求灵活。</li>
+</ul>
+<h2 id="特性"><a href="#特性" class="headerlink" title="特性"></a>特性</h2><ul>
+<li><p>列存</p>
+</li>
+<li><p>数据有序存储</p>
+<blockquote>
+<p>连续IO也能够充分利用操作系统page cache的预取能力，减少page fault。</p>
+</blockquote>
+</li>
+<li><p>主键索引，属于数据布局的一种优化。</p>
+</li>
+<li><p>稀疏索引：minmax  set  ngrambf_v1  tokenbf_v1  bloom_filter</p>
+</li>
+<li><p>数据sharding：随机分片、固定分片、按照列值分片、自定义表达式分片等。分片是集群扩缩容的关键。</p>
+</li>
+<li><p>数据Partitioning：对partition使用表达式配置、支持partition ttl。</p>
+</li>
+<li><p>数据TTL : 支持多种粒度的数据过期，列、行、表、分区，对于自动化管理冷热数据比较合适。</p>
+</li>
+<li><p>有限支持update、delete，通过mutation操作，异步执行，在compaction之后对外生效。</p>
+</li>
+<li><p>主备同步：多副本都可以对外提供查询服务、副本数量不限制、不同shard的副本数可以不同，用来解决热点问题。</p>
+</li>
+<li><p>计算层：</p>
+<ul>
+<li><p>多核并行：数据有横切和竖切，最细的粒度是index granularity，每个cpu可以执行一个index granularity，充分并行执行。</p>
+</li>
+<li><p>分布式计算：体现在任务下发的策略，这个策略对于分布式计算的稳定执行有很大影响。常见的下发策略：</p>
+<ul>
+<li>随机下发</li>
+<li>最近hostname原则：选择与当前下发机器最相近的hostname节点，进行query下发。在特定的网络拓扑下，可以降低网络延时。而且能够确保query下发到固定的replica机器，充分利用系统cache。</li>
+<li>in order：按照特定顺序逐个尝试下发，当前一个replica不可用时，顺延到下一个replica。</li>
+<li>first or random：在In Order模式下，当第一个replica不可用时，所有workload都会积压到第二个Replica，导致负载不均衡。first or random解决了这个问题：当第一个replica不可用时，随机选择一个其他replica，从而保证其余replica间负载均衡。另外在跨region复制场景下，通过设置第一个replica为本region内的副本，可以显著降低网络延时。</li>
+</ul>
+</li>
+<li><p>向量化执行与SIMD:对内存中的列式数据，一个batch调用一次SIMD指令（而非每一行调用一次），不仅减少了函数调用次数、降低了cache miss，而且可以充分发挥SIMD指令的并行能力，大幅缩短了计算耗时。其他引擎常见的弊端：</p>
+<ul>
+<li>对每一行数据都要调用相应的函数，函数调用开销占比高；这是常见的行式数据库的问题。</li>
+<li>存储层按列存储数据，在内存中也按列组织，但是计算层按行处理，无法充分利用CPU cache的预读能力，造成CPU Cache miss严重；这是大多数列存数据库或者计算引擎【比如spark】的方式，列式读取，行式计算。</li>
+<li>按行处理，无法利用高效的SIMD指令；</li>
+</ul>
+</li>
+<li><p>动态代码生成 runtime codegen：代码生成，直观一些看就是减少了代码调用，而且很多操作都标准化了，只要系统优化规则到位，代码生成的效率要比人为方式写的效率要高得多，这点上在spark那里也可以得到体现。</p>
+<blockquote>
+<p>在经典的数据库实现中，通常对表达式计算采用火山模型，也即将查询转换成一个个operator，比如HashJoin、Scan、IndexScan、Aggregation等。为了连接不同算子，operator之间采用统一的接口，比如open/next/close。在每个算子内部都实现了父类的这些<strong>虚函数</strong>，在分析场景中单条SQL要处理数据通常高达数亿行，虚函数的调用开销不再可以忽略不计。另外，在每个算子内部都要考虑多种变量，比如列类型、列的size、列的个数等，存在着大量的if-else分支判断导致<strong>CPU分支预测</strong>失效。</p>
+</blockquote>
+</li>
+<li><p>近似计算：近似估算distinct values、中位数，分位数等多种聚合函数；建表DDL支持SAMPLE BY子句，支持对于数据进行抽样处理。</p>
+</li>
+<li><p>复杂数据类型支持：ClickHouse还提供了array、json、tuple、set等复合数据类型，支持业务schema的灵活变更。</p>
+<blockquote>
+<p>复杂的嵌套，clickhouse是通过提供json来实现的，也配套了丰富的json函数。但是这并不能触发列存计算的很多特性，比如向量化，原因是json本质是行存储。不过最新的官方feature也在优化，针对json实现列存计算。</p>
+<p>目前clickhouse在V22.8版本的更新里，已经升级出一个json对象存储，在存储时，使用类似parquet对于复杂数据的处理，这样在更新、写入、查询的时候，都可以根据路径直接拿到需要的子数据，而不用解析不相关字段。而且这样就可以充分利用列存的相关特性了。</p>
+</blockquote>
+</li>
+</ul>
+</li>
+</ul>
+<p>参考：<br><a href="https://developer.aliyun.com/article/762097?spm=5176.20128342.J_6302206100.1.7c227ba2IPjLHw" target="_blank" rel="noopener">ClickHouse深度揭秘</a></p>
+<p><a href="https://ost.51cto.com/posts/20274" target="_blank" rel="noopener">ClickHouse V22.8 新版本重要特性</a></p>
 
       
     </div>
@@ -361,12 +427,6 @@
     
 
     <footer class="post-footer">
-      
-        <div class="post-tags">
-          
-            <a href="/tags/clickhouse/" rel="tag"># clickhouse</a>
-          
-        </div>
       
 
       
@@ -386,6 +446,10 @@
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2023/01/29/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0-%E6%95%B0%E6%8D%AE%E5%BA%93%E7%B3%BB%E7%BB%9F%E5%86%85%E5%B9%95/" rel="prev" title="读书笔记--数据库系统内幕">
+                读书笔记--数据库系统内幕 <i class="fa fa-chevron-right"></i>
+              </a>
             
           </div>
         </div>
@@ -462,7 +526,7 @@
               
                 <a href="/archives/%7C%7C%20archive">
               
-                  <span class="site-state-item-count">157</span>
+                  <span class="site-state-item-count">160</span>
                   <span class="site-state-item-name">posts</span>
                 </a>
               </div>
@@ -473,7 +537,7 @@
               
               <div class="site-state-item site-state-categories">
                 <a href="/categories/index.html">
-                  <span class="site-state-item-count">20</span>
+                  <span class="site-state-item-count">22</span>
                   <span class="site-state-item-name">categories</span>
                 </a>
               </div>
@@ -484,7 +548,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">41</span>
+                  <span class="site-state-item-count">42</span>
                   <span class="site-state-item-name">tags</span>
                 </a>
               </div>
@@ -524,7 +588,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#clickhouse初识"><span class="nav-number">1.</span> <span class="nav-text">clickhouse初识</span></a></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#clickhouse初识"><span class="nav-number">1.</span> <span class="nav-text">clickhouse初识</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#概况"><span class="nav-number">1.1.</span> <span class="nav-text">概况</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#场景"><span class="nav-number">1.2.</span> <span class="nav-text">场景</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#特性"><span class="nav-number">1.3.</span> <span class="nav-text">特性</span></a></li></ol></li></ol></div>
             
 
           </div>
@@ -544,7 +608,7 @@
 
     <footer id="footer" class="footer">
       <div class="footer-inner">
-        <div class="copyright">&copy; <span itemprop="copyrightYear">2022</span>
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2023</span>
   <span class="with-love">
     <i class="fa fa-user"></i>
   </span>

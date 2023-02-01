@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="数据库," />
+
+
+
+
+  
+
+
+  <link rel="alternate" href="/atom.xml" title="痒痒 团团 和 咘咘" type="application/atom+xml" />
+
+
+
+
+
+
+<meta name="description" content="第二章 B树基础知识不可变性是影响数据库设计和实现的核心概念之一。 B树是从二分搜索树、2-3树、AVL树发展过来的，都是根据场景和数据库业务功能的需求来推动的。 二分搜索树二分搜索树，一个节点的键大于其左子树的存储的任何键，且小于其右子树中存储的任何键。  从根节点开始一直沿着节点的左指针向下，可以到达叶子层的一个节点，这个节点就是整棵树中最小键以及他的关联值。 从根节点开始一直沿着节点的右指针">
+<meta property="og:type" content="article">
+<meta property="og:title" content="读书笔记--数据库系统内幕（二）">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2023/01/31/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0-%E6%95%B0%E6%8D%AE%E5%BA%93%E7%B3%BB%E7%BB%9F%E5%86%85%E5%B9%95%EF%BC%88%E4%BA%8C%EF%BC%89/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="第二章 B树基础知识不可变性是影响数据库设计和实现的核心概念之一。 B树是从二分搜索树、2-3树、AVL树发展过来的，都是根据场景和数据库业务功能的需求来推动的。 二分搜索树二分搜索树，一个节点的键大于其左子树的存储的任何键，且小于其右子树中存储的任何键。  从根节点开始一直沿着节点的左指针向下，可以到达叶子层的一个节点，这个节点就是整棵树中最小键以及他的关联值。 从根节点开始一直沿着节点的右指针">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-01-31T08:58:00.000Z">
+<meta property="article:modified_time" content="2023-02-01T00:27:04.242Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="数据库">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: 'Author'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2023/01/31/读书笔记-数据库系统内幕（二）/"/>
+
+
+
+
+
+  <title>读书笔记--数据库系统内幕（二） | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">一切都是最好的安排</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            Home
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            Tags
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            Categories
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            Archives
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2023/01/31/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0-%E6%95%B0%E6%8D%AE%E5%BA%93%E7%B3%BB%E7%BB%9F%E5%86%85%E5%B9%95%EF%BC%88%E4%BA%8C%EF%BC%89/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">读书笔记--数据库系统内幕（二）</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2023-01-31T16:58:00+08:00">
+                2023-01-31
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">In</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/" itemprop="url" rel="index">
+                    <span itemprop="name">读书笔记</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="第二章-B树基础知识"><a href="#第二章-B树基础知识" class="headerlink" title="第二章 B树基础知识"></a>第二章 B树基础知识</h2><p>不可变性是影响数据库设计和实现的核心概念之一。</p>
+<p>B树是从二分搜索树、2-3树、AVL树发展过来的，都是根据场景和数据库业务功能的需求来推动的。</p>
+<h3 id="二分搜索树"><a href="#二分搜索树" class="headerlink" title="二分搜索树"></a>二分搜索树</h3><p>二分搜索树，一个节点的键大于其左子树的存储的任何键，且小于其右子树中存储的任何键。</p>
+<ul>
+<li>从根节点开始一直沿着节点的左指针向下，可以到达叶子层的一个节点，这个节点就是整棵树中最小键以及他的关联值。</li>
+<li>从根节点开始一直沿着节点的右指针向下，可以达到叶子层的一个节点，这个节点就是整棵树中最大键以及他的关联值。</li>
+</ul>
+<p>二分搜索树，如果分布不均衡，最差的情况，时间复杂度会从 logN 退化到 N。</p>
+<p>平衡树 指的是高度为 log2N的树，并且两个子树之间的高度差不大于1。</p>
+<p>树的平衡是通过以最小化树高并将每一边的节点数保持在界限内的方式重新组织节点来完成的。方法之一就是在添加或者删除节点后执行旋转。</p>
+<p>为了保证树的查询效率，要保证树的平衡，才能尽量保证查询复杂度在log2n。然而，由于二分搜索树的扇出较低，就需要不断去进行平衡操作、重定位节点以及更新指针，而这些操作对于磁盘上的数据结构而言，都是致命的。</p>
+<p>想在磁盘上维护二分搜索树，需要注意：</p>
+<ul>
+<li><p>局部性：元素是以随机顺序添加的，所以不能保证新创建的节点是在其父节点附近写入的，这也就意味着节点子指针可能会跨越多个磁盘页。</p>
+<blockquote>
+<p>通过修改树的布局和使用分页二分树，可以在一定程度上优化这个。</p>
+</blockquote>
+</li>
+<li><p>树高，与游历子指针的开销密切相关。树高代表访问磁盘的次数。</p>
+<blockquote>
+<p>低扇出的数据结构在磁盘存储上，都会有这些弊端。</p>
+</blockquote>
+</li>
+</ul>
+<p>综上，适合磁盘的的树必须具有以下属性：</p>
+<ul>
+<li>高扇出，以改善邻近键的数据局部性。</li>
+<li>低高度，减少遍历期间的寻道次数。</li>
+</ul>
+<h3 id="基于磁盘的结构"><a href="#基于磁盘的结构" class="headerlink" title="基于磁盘的结构"></a>基于磁盘的结构</h3><p>持久性介质会由于自己硬件运行的原理，存在一些限制，这些限制是作为这个数据结构是否适合当前介质的主要参考方向。</p>
+<h4 id="机械硬盘"><a href="#机械硬盘" class="headerlink" title="机械硬盘"></a>机械硬盘</h4><p>在旋转型磁盘上，寻道增加了随机读取的成本，因为其需要磁盘旋转和机械磁头运动来将读/写磁头定位到期望的位置。完成了寻道操作，后续读取的操作就快很多了。</p>
+<blockquote>
+<p>旋转型驱动器的最小传送单元是扇区，读或者写的都是整个扇区，大小一般是512字节到4KB不等。</p>
+</blockquote>
+<p>磁头定位是机械硬盘操作中成本最高的部分。这也就是我们说“顺序IO带来正面增效”的主要原因。</p>
+<h4 id="固态硬盘"><a href="#固态硬盘" class="headerlink" title="固态硬盘"></a>固态硬盘</h4><p>固态硬盘的原理有些类似于jvm虚拟机里G1的垃圾回收方式，依靠region管理。SSD的擦除实体是块。他的单位从大到小依次是：晶圆核心、平面、块、页、阵列、串、记忆单元。</p>
+<p>可写或者可读的最小单元是页。块中的页是需要按序写入的。中间有个闪存转换层（FTL）管理页的状态等，这个类似于操作系统对于物理内存的管理。这样中间页ID跟数据的变化，会用这个FTL来兼容，对于上层也就是可以做到透明了。</p>
+<p>在SSD中，随机读取和顺序读取之间的延迟差异并不大。不过由于预取、读取连续的页和内部并行性，还是有差异，这个其实是不同硬件提供的接口是有差异的。</p>
+<h4 id="磁盘存储结构"><a href="#磁盘存储结构" class="headerlink" title="磁盘存储结构"></a>磁盘存储结构</h4><p>磁盘操作的最小单元是块这一事实，是构建有效的磁盘存储结构的主要限制和设计条件。</p>
+<p>想尽办法用好上边的特性，减少磁盘访问。我们可以通过提高局部性，优化结构的内部表示以及减少页外指针数量来实现这一点。</p>
+<blockquote>
+<p>分页二分树：通过将节点分组到页来设计二分数的布局。</p>
+</blockquote>
+<h3 id="B树"><a href="#B树" class="headerlink" title="B树"></a>B树</h3><p>将B树看成是图书馆里的一个巨大的目录室：先选择正确的柜子，然后在柜子里选择正确的架子，接下来在架子上选择正确的抽屉，最后浏览抽屉里的卡片，然后就能定位到自己需要的那一个。B树就是构建了一个帮助快速导航和定位搜索项的层次结构。</p>
+<p>B树节点内的键是按顺序存储的。</p>
+<p>B树可以做到在每个层次跳转的时候，进行一次磁盘传输。</p>
+<p>B树的兄弟节点可以互相关联形成一个双向链表，对于范围查询方便很多。把这些特性跟实际查询的时候的谓词进行关联，会更明确一些查询的细节。</p>
+<p>B树是一种用于组织和导航固定大小页的页组织技术。</p>
+<blockquote>
+<p>B树允许在根节点、内部节点和叶子节点当中的任意层次上进行存储值。</p>
+<p>B+树则仅在叶子节点上存储值，内部节点仅存储分隔键，用于指引搜索算法去找到叶子节点的关联值。而且他是自下而上构建的。</p>
+</blockquote>
+<p>B树节点的分裂和合并都是自下而上的。而且是逐层向上传导的。分裂和合并的过程主要就类似于双链表增加节点和删除节点的过程，这里主要是注意一下指针的变更。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/" rel="tag"># 数据库</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2023/01/31/clickhouse-DDL%E5%8E%9F%E7%90%86/" rel="next" title="clickhouse--DDL原理">
+                <i class="fa fa-chevron-left"></i> clickhouse--DDL原理
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            Table of Contents
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            Overview
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">160</span>
+                  <span class="site-state-item-name">posts</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">22</span>
+                  <span class="site-state-item-name">categories</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">42</span>
+                  <span class="site-state-item-name">tags</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+            <div class="feed-link motion-element">
+              <a href="/atom.xml" rel="alternate">
+                <i class="fa fa-rss"></i>
+                RSS
+              </a>
+            </div>
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#第二章-B树基础知识"><span class="nav-number">1.</span> <span class="nav-text">第二章 B树基础知识</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#二分搜索树"><span class="nav-number">1.1.</span> <span class="nav-text">二分搜索树</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#基于磁盘的结构"><span class="nav-number">1.2.</span> <span class="nav-text">基于磁盘的结构</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#机械硬盘"><span class="nav-number">1.2.1.</span> <span class="nav-text">机械硬盘</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#固态硬盘"><span class="nav-number">1.2.2.</span> <span class="nav-text">固态硬盘</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#磁盘存储结构"><span class="nav-number">1.2.3.</span> <span class="nav-text">磁盘存储结构</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#B树"><span class="nav-number">1.3.</span> <span class="nav-text">B树</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">Powered by <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a></div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">Theme &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
