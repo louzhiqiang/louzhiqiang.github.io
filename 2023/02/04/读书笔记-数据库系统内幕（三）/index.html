@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next gemini use-motion" lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="数据库," />
+
+
+
+
+  
+
+
+  <link rel="alternate" href="/atom.xml" title="痒痒 团团 和 咘咘" type="application/atom+xml" />
+
+
+
+
+
+
+<meta name="description" content="第三章 文件格式在了解了B树的原理之后，还远远没有达到工程实现需要的细节。这里说的文件格式，就是数据实际存储在磁盘上，我们需要考虑的一些细节问题。 磁盘上数据布局的重要性远大于内存中数据布局的重要性。这个在之前已经提到过，内存中对于数据布局的关注点和磁盘上对于数据布局的关注点是有比较大的差异的。在磁盘上，数据布局可以确保高速访问，还要考虑持久性存储介质的也行、二进制数据的序列化以及反序列化，以及快">
+<meta property="og:type" content="article">
+<meta property="og:title" content="读书笔记-数据库系统内幕（三）">
+<meta property="og:url" content="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2023/02/04/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0-%E6%95%B0%E6%8D%AE%E5%BA%93%E7%B3%BB%E7%BB%9F%E5%86%85%E5%B9%95%EF%BC%88%E4%B8%89%EF%BC%89/index.html">
+<meta property="og:site_name" content="痒痒 团团 和 咘咘">
+<meta property="og:description" content="第三章 文件格式在了解了B树的原理之后，还远远没有达到工程实现需要的细节。这里说的文件格式，就是数据实际存储在磁盘上，我们需要考虑的一些细节问题。 磁盘上数据布局的重要性远大于内存中数据布局的重要性。这个在之前已经提到过，内存中对于数据布局的关注点和磁盘上对于数据布局的关注点是有比较大的差异的。在磁盘上，数据布局可以确保高速访问，还要考虑持久性存储介质的也行、二进制数据的序列化以及反序列化，以及快">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2023-02-04T10:45:28.000Z">
+<meta property="article:modified_time" content="2023-02-04T12:41:53.374Z">
+<meta property="article:author" content="zhiqiang.lou">
+<meta property="article:tag" content="数据库">
+<meta name="twitter:card" content="summary">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Gemini',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: 'Author'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2023/02/04/读书笔记-数据库系统内幕（三）/"/>
+
+
+
+
+
+  <title>读书笔记-数据库系统内幕（三） | 痒痒 团团 和 咘咘</title>
+  
+
+
+
+
+
+
+
+
+<meta name="generator" content="Hexo 4.2.1"></head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-CN">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">痒痒 团团 和 咘咘</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">一切都是最好的安排</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            Home
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            Tags
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            Categories
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            Archives
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://github.com/louzhiqiang/louzhiqiang.github.io.git/2023/02/04/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0-%E6%95%B0%E6%8D%AE%E5%BA%93%E7%B3%BB%E7%BB%9F%E5%86%85%E5%B9%95%EF%BC%88%E4%B8%89%EF%BC%89/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="zhiqiang.lou">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="痒痒 团团 和 咘咘">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">读书笔记-数据库系统内幕（三）</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">Posted on</span>
+              
+              <time title="Post created" itemprop="dateCreated datePublished" datetime="2023-02-04T18:45:28+08:00">
+                2023-02-04
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">In</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/" itemprop="url" rel="index">
+                    <span itemprop="name">读书笔记</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h2 id="第三章-文件格式"><a href="#第三章-文件格式" class="headerlink" title="第三章 文件格式"></a>第三章 文件格式</h2><p>在了解了B树的原理之后，还远远没有达到工程实现需要的细节。这里说的文件格式，就是数据实际存储在磁盘上，我们需要考虑的一些细节问题。</p>
+<p>磁盘上数据布局的重要性远大于内存中数据布局的重要性。这个在之前已经提到过，内存中对于数据布局的关注点和磁盘上对于数据布局的关注点是有比较大的差异的。在磁盘上，数据布局可以确保高速访问，还要考虑持久性存储介质的也行、二进制数据的序列化以及反序列化，以及快速找到需要的字段级数据的能力。在内存上，我们关注更多的是数据使用以及在极端性能要求下，数据的计算方式以及对于硬件特性（比如cpu缓存行）等的充分利用。</p>
+<h3 id="二进制编码"><a href="#二进制编码" class="headerlink" title="二进制编码"></a>二进制编码</h3><p>这里要抛出问题，如果数据需要组织成二进制格式的数据，那么你的结构化数据应该如何布局成这段二进制编码，需要考虑的细节点有哪些？</p>
+<blockquote>
+<p>问题分解了，目标也就清晰了，结论也会清晰很多，细节也会更丰富，落地就更可行。</p>
+</blockquote>
+<ul>
+<li>如何以二进制形式表示键和值的记录</li>
+<li>如何将多个值组合成更复杂的结构</li>
+<li>如何实现可变长度的数据类型和数组，甚至更加复杂的多层嵌套数据。</li>
+</ul>
+<blockquote>
+<p>这样的细节去看看hbase、parquet、clickhouse、doris的存储格式，横向对比之后会更有心得。</p>
+</blockquote>
+<p>当处理多字节数值时，务必在编解码时使用相同的字节序，字节序决定了一组字节的先后顺序。</p>
+<blockquote>
+<p>大端 ：按照从左到右的字节去排序</p>
+<p>小端 ：按照从右到左的字节去排序</p>
+<p>这个一般在不同的目标平台（比如macOs 、linux 等）上，这些会有差别，那么在实际使用时，要关注一下。</p>
+</blockquote>
+<p>固定类型的数据一般都有固定长度的编码。对于变长数据，比如字符串或者非固定长度的数组，一般都会使用 size 值 + value的形式进行存储。</p>
+<p>按位打包的数据：布尔值、枚举值 和 标志 。这个思想可以理解为有限值细节到位的表示法，然后利用更大的原始值表示。比如 8 个枚举值 可以用8个比特位来表示存在哪些， 这个组合就是一个短整型整数的表示方式。</p>
+<p>标志 的概念就是用一个位代表某个概念，如果你有八个概念需要标识，就需要八位，也就是用一个短整型就可以表示这八个概念。校验的时候，可以直接使用掩码进行校验，效率很高。也可以位操作提高效率。</p>
+<h3 id="页的管理"><a href="#页的管理" class="headerlink" title="页的管理"></a>页的管理</h3><p>数据在实际存储到磁盘的时候，会按照一些层次逻辑进行管理，方便后续的操作都有一个统一的逻辑，且这个逻辑是高效和可扩展的。页的概念就是比较常见的名词，当然，他在不同的数据库中锁代表的数据粒度可能是有差别的，但是大体作用是差不多的。这里暂且以页来代表这个概念。</p>
+<p>数据在磁盘上的管理可以先用页来作为一个单位，当然，在页之上可能还会有段、块等等，这样的逻辑管理都是用来逐层检索。</p>
+<p>既然我们把存储都划分了页的逻辑，那么对于整个划分给你的空间里，应该如何合理使用，这里在操作添加数据、删除、更新的时候，页的使用如何更加高效。在硬盘上一个比较大的问题就是碎片的整理，比如当前页的空间不够存储当前数据的情况，如何来决策，再比如当前这条数据特别大的时候，对页的选择策略是怎样的。</p>
+<p>这个场景在 GC 场景是很像的。策略上 G1GC 的实现已经比较全面了。在数据库场景，常见的解决方案是分槽页。</p>
+<blockquote>
+<p><a href="https://blog.csdn.net/zhurhyme/article/details/113812047" target="_blank" rel="noopener">https://blog.csdn.net/zhurhyme/article/details/113812047</a></p>
+</blockquote>
+<p>将页组织成槽的集合，在页内会组织出来一个头部以及指针的集合来进行索引。这个过程跟操作系统管理内存的方式也比较相像。</p>
+<p>有了以上关于标志位、枚举值和原始类型的存储背景，就可以进行单元格数据，用来支持B树的落地。</p>
+<blockquote>
+<p>利用分槽页技术之后，在内部，数据实际是有序存储的，按照value的有序性进行存储，这样在检索的时候就会有logn的检索效率。而写入的时候不具有顺序性的，所以为了存储上的顺序性，只能选择在上边槽管理里涉及的指针集合进行调整，这样比较轻量化。也就是这个顺序是逻辑顺序上实现的。</p>
+</blockquote>
+<p>为了高效管理页的使用，以及为了更叫高效地进行回收页，有些数据库会用一个有限空间来存储页的统计信息，用来提效页的管理。针对超大数据，还会设计专门的溢出页进行存储。</p>
+<blockquote>
+<p>为了提高局部性，某些实现会在叶节点上将键和值分开保存。这样检索的时候，可以改善搜索过程中的局部性。不过需要二次访问去找value。</p>
+</blockquote>
+<p>B树使用简单的指针层级结构：页标识符用于在树文件中定位子节点，而单元格偏移量用于在页内定位单元格。</p>
+<h3 id="版本"><a href="#版本" class="headerlink" title="版本"></a>版本</h3><p>一般会从文件命名上标识或者在文件内部的的魔数上去标识或者专门的字段来标识。</p>
+<h3 id="检验和"><a href="#检验和" class="headerlink" title="检验和"></a>检验和</h3><p>常见的方式就是 checksum  以及 循环冗余校验 CRC </p>
+<p>校验和是最弱的保证形式，不能检测多个比特位的损坏。CRC 可以检测突发错误，主要目标是确保数据没有非人为的，意外的变化。多位错误的检测至关重要，因为大部分在通信网络和存储设备中发生的故障都是以这种形式出现的。</p>
+<blockquote>
+<p>非加密hash  和 CRC 不应该用于验证数据是否已经被篡改。对于这类场景，务必使用专为安全性设计的强加密hash。</p>
+</blockquote>
+<p>校验和通常是针对每个页来计算的，并且保存在页的头部。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93/" rel="tag"># 数据库</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2023/01/31/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0-%E6%95%B0%E6%8D%AE%E5%BA%93%E7%B3%BB%E7%BB%9F%E5%86%85%E5%B9%95%EF%BC%88%E4%BA%8C%EF%BC%89/" rel="next" title="读书笔记--数据库系统内幕（二）">
+                <i class="fa fa-chevron-left"></i> 读书笔记--数据库系统内幕（二）
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2023/02/04/%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0-%E6%95%B0%E6%8D%AE%E5%BA%93%E7%B3%BB%E7%BB%9F%E5%86%85%E5%B9%95%EF%BC%88%E5%9B%9B%EF%BC%89/" rel="prev" title="读书笔记-数据库系统内幕（四）">
+                读书笔记-数据库系统内幕（四） <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            Table of Contents
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            Overview
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">zhiqiang.lou</p>
+              <p class="site-description motion-element" itemprop="description">从自律开始</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/%7C%7C%20archive">
+              
+                  <span class="site-state-item-count">167</span>
+                  <span class="site-state-item-name">posts</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">22</span>
+                  <span class="site-state-item-name">categories</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">42</span>
+                  <span class="site-state-item-name">tags</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+            <div class="feed-link motion-element">
+              <a href="/atom.xml" rel="alternate">
+                <i class="fa fa-rss"></i>
+                RSS
+              </a>
+            </div>
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#第三章-文件格式"><span class="nav-number">1.</span> <span class="nav-text">第三章 文件格式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#二进制编码"><span class="nav-number">1.1.</span> <span class="nav-text">二进制编码</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#页的管理"><span class="nav-number">1.2.</span> <span class="nav-text">页的管理</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#版本"><span class="nav-number">1.3.</span> <span class="nav-text">版本</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#检验和"><span class="nav-number">1.4.</span> <span class="nav-text">检验和</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2023</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">zhiqiang.lou</span>
+
+  
+</div>
+
+
+  <div class="powered-by">Powered by <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a></div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">Theme &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Gemini</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+
+  <script type="text/javascript" src="/js/src/affix.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/schemes/pisces.js?v=5.1.4"></script>
+
+
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
